@@ -1,21 +1,23 @@
-"""Punto de entrada de la aplicacion FastAPI (T-001).
+"""Punto de entrada de la aplicacion FastAPI (T-001, T-002).
 
-Registra la instancia de la aplicacion y CORS. El manejador global de errores
-se registra en shared/exceptions/handlers.py (T-002); los routers de cada
-feature se registran a medida que se implementan (T-013, T-016, T-023, T-031,
-T-033, T-034, T-035, T-062).
+Registra la instancia de la aplicacion, CORS y el manejador global de errores.
+Los routers de cada feature se registran a medida que se implementan
+(T-013, T-016, T-023, T-031, T-033, T-034, T-035, T-062).
 """
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from shared.config.settings import settings
+from shared.exceptions.handlers import register_exception_handlers
 
 app = FastAPI(
     title="Innov-IA",
     description="Plataforma de captura, estructuracion y evaluacion de iniciativas de innovacion",
     version="0.1.0",
 )
+
+register_exception_handlers(app)
 
 if settings.cors_origins:
     app.add_middleware(

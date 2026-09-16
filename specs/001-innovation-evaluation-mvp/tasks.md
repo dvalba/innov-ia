@@ -32,7 +32,7 @@
   - **Dependencias:** Ninguna
   - **Hecho cuando:** Existe `backend/app/main.py` con la instancia de FastAPI, CORS y registro de routers (huecos por feature); estructura `backend/{app,shared,features/{auth,capture,ideas,assistant,validation,users,notifications}}` con las subcapas `domain/use_cases/infrastructure/routers` y `__init__.py` de cada paquete; `shared/config/settings.py` lee de variables de entorno (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `OLLAMA_TIMEOUT=60`) y expone un objeto `settings` tipado; `ruff check .` pasa.
 
-- [ ] **[T-002] Backend: manejo global de excepciones y formato de errores unificado**
+- [x] **[T-002] Backend: manejo global de excepciones y formato de errores unificado**
   - **Covers:** RF-1, RF-16 (errores), RNF-9
   - **Dependencias:** [T-001]
   - **Hecho cuando:** `shared/exceptions/handlers.py` define `DomainError`, `ValidationFailed`, `AssistantUnavailable`, `AuthError`, `Forbidden` y registra manejadores globales que devuelven el formato `{"error": {"code", "message", "details"}}` con los códigos HTTP del plan §3.5 (400/401/403/409/422/503); test en `tests/api/test_error_format.py`: lanzar cada excepción desde un endpoint de prueba devuelve el código y el formato exactos (`pytest -q` verde).
