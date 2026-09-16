@@ -57,14 +57,14 @@
   - **Dependencias:** [T-005]
   - **Hecho cuando:** `shared/services/session.service.ts` expone señales `sesionActiva`, `usuario` (username, nombre, área, contacto) y `roles`, con métodos `iniciar(token, usuario)`, `cerrar()` y `tieneRol(...roles)`; persistencia de la sesión en `localStorage` y recuperación al cargar; `ng build` pasa.
 
-- [ ] **[T-007] Backend: fixture base de pruebas (conftest) con stores in-mem y Ollama mock**
+- [x] **[T-007] Backend: fixture base de pruebas (conftest) con stores in-mem y Ollama mock**
   - **Covers:** RF-1..RF-20 (plan §6.4)
   - **Dependencias:** [T-003]
   - **Hecho cuando:** `backend/tests/conftest.py` provee fixtures `app`, `client` (TestClient), stores in-mem inyectados por override de dependencias y un `ollama_mock` configurable (disponible/down, latencia); los stores de archivo no se tocan en tests; `pytest -q` pasa con un test smoke (`GET /health` 200).
 
 ### 1.2 Contratos compartidos
 
-- [ ] **[T-008] Backend: contrato `shared` para lectura de ideas entre features**
+- [x] **[T-008] Backend: contrato `shared` para lectura de ideas entre features**
   - **Covers:** RF-3 (asignación), RF-8, RF-11, RF-13 (plan §1.2 nota de acoplamiento)
   - **Dependencias:** [T-001]
   - **Hecho cuando:** En `shared/contracts/` se define el Protocolo `IdeaLedger` (lectura de idea por id, listado por estado/origen, escritura de campos vigentes) tipado y documentado, sin importar `features/`; las features `assistant` y `validation` lo reciben por inyección; `ruff check .` pasa y ningún módulo de `features/assistant` ni `features/validation` importa de otro `features/` (verificado con `ruff` o test de importación en `tests/unit/domain/test_layering.py`).
