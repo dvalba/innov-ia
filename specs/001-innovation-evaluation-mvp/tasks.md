@@ -85,7 +85,7 @@
   - **Dependencias:** [T-007]
   - **Hecho cuando:** `features/auth/domain/session.py` define `Sesion` (token, user_id, expiración) y reglas puras (sesión válida/caducada, roles de un usuario) sin importar FastAPI/Pydantic; test en `tests/unit/domain/test_session.py` cubre validez, caducidad y combinación de roles (`pytest -q` verde).
 
-- [ ] **[T-011] auth · infraestructura: token store y seed del primer administrador**
+- [x] **[T-011] auth · infraestructura: token store y seed del primer administrador**
   - **Covers:** RF-1, RF-17 (decisión #6)
   - **Dependencias:** [T-009], [T-010]
   - **Hecho cuando:** `features/auth/infrastructure/token_store.py` implementa emisión/revocación de tokens opacos con `JsonStore`; en la inicialización del sistema se crea el primer administrador definido por variables de entorno (username/contraseña), sin API para crearlo; test en `tests/unit/infra/test_token_store.py` cubre emisión, revocación, caducidad y seed idempotente del primer admin (`pytest -q` verde).

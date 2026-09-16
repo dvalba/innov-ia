@@ -9,6 +9,7 @@ from shared.contracts.idea_ledger import (
     STATE_VALIDADA_PUBLICA,
     IdeaLedger,
 )
+from shared.contracts.user_directory import UserDirectory
 
 __all__ = [
     "IDEA_FIELDS",
@@ -18,4 +19,5 @@ __all__ = [
     "STATE_SOLICITANDO_PUBLICACION",
     "STATE_VALIDADA_PUBLICA",
     "IdeaLedger",
+    "UserDirectory",
 ]
