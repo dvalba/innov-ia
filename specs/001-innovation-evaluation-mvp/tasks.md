@@ -80,7 +80,7 @@
 
 ### 2.1 Feature `auth` (RF-1, RF-17 parcial)
 
-- [ ] **[T-010] auth · dominio: sesión, validez y roles**
+- [x] **[T-010] auth · dominio: sesión, validez y roles**
   - **Covers:** RF-1
   - **Dependencias:** [T-007]
   - **Hecho cuando:** `features/auth/domain/session.py` define `Sesion` (token, user_id, expiración) y reglas puras (sesión válida/caducada, roles de un usuario) sin importar FastAPI/Pydantic; test en `tests/unit/domain/test_session.py` cubre validez, caducidad y combinación de roles (`pytest -q` verde).
