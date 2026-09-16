@@ -1,0 +1,96 @@
+"""Composition root for app dependencies (plan §1.2, Constitution §3.2).
+
+`app` wires the shared contracts to their reference implementations
+(`TokenStore` and a `JsonStore`-based user directory) and exposes the
+reusable session/role guards used by the feature routers. Everything is
+expressed with `Annotated` typed dependencies, overridable in tests.
+
+Typed dependency aliases:
+  - `TokenStoreDep` / `UserDirectoryDep`: DI providers (override in tests).
+  - `SessionDep`: active bearer `Session` (401 when absent/expired).
+  - `role_dependency(roles)`: `Session` plus a required role subset (403).
+"""
+
+from datetime import datetime
+from typing import Annotated
+
+from fastapi import Depends, Request
+
+from features.auth.domain.session import Session
+from features.auth.infrastructure.token_store import TokenStore
+from shared.config.settings import settings
+from shared.contracts.user_directory import UserDirectory
+from shared.exceptions.handlers import AuthError, Forbidden
+from shared.utils.persistence import JsonStore
+
+
+def _token_store() -> TokenStore:
+    return TokenStore(
+        JsonStore(settings.data_dir / "sessions.json"),
+        ttl_minutes=settings.session_ttl_minutes,
+        now_factory=datetime.now,
+    )
+
+
+def _user_directory() -> UserDirectory:
+    from features.users.infrastructure.user_store import UserStore
+
+    return UserStore(JsonStore(settings.data_dir / "users.json"))
+
+
+def get_token_store() -> TokenStore:
+    """DI provider for the session token store (override in tests)."""
+    return _token_store()
+
+
+def get_user_directory() -> UserDirectory:
+    """DI provider for the user directory (override in tests)."""
+    return _user_directory()
+
+
+TokenStoreDep = Annotated[TokenStore, Depends(get_token_store)]
+UserDirectoryDep = Annotated[UserDirectory, Depends(get_user_directory)]
+
+
+def _extract_token(request: Request) -> str | None:
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Bearer "):
+        return None
+    token = header[len("Bearer "):].strip()
+    return token or None
+
+
+def require_session(request: Request, tokens: TokenStoreDep) -> Session:
+    """Returns the active `Session` for the bearer token or raises 401.
+
+    Covers case 15: an expired session is rejected (RNF-7: without a session,
+    no access).
+    """
+    token = _extract_token(request)
+    if token is None:
+        raise AuthError(code="SESSION_REQUIRED", message="No existe una sesión activa.")
+    session = tokens.resolve(token, now=datetime.now())
+    if session is None:
+        raise AuthError(code="SESSION_REQUIRED", message="La sesión ha caducado o no es válida.")
+    return session
+
+
+SessionDep = Annotated[Session, Depends(require_session)]
+
+
+def require_role(*roles: str):
+    """Builds a guard that requires the session to hold all the given roles."""
+
+    def _guard(session: SessionDep) -> Session:
+        if not session.has_roles(tuple(roles)):
+            raise Forbidden(
+                code="ROLE_NOT_ALLOWED", message=f"Se requiere el rol: {', '.join(roles)}."
+            )
+        return session
+
+    return _guard
+
+
+def role_dependency(*roles: str):
+    """Returns a typed dependency requiring all the given roles (403)."""
+    return Annotated[Session, Depends(require_role(*roles))]

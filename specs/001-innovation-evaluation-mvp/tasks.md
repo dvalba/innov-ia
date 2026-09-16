@@ -95,7 +95,7 @@
   - **Dependencias:** [T-011]
   - **Hecho cuando:** `features/auth/use_cases/login.py`, `logout.py`, `me.py` y `change_password.py` implementan: verificación de credenciales sin revelar qué dato es incorrecto (mensaje único), emisión/revocación de sesión, datos+roles del usuario, y cambio de contraseña obligatorio en primer acceso (flag `debe_cambiar`); usuario desactivado no puede iniciar sesión; tests en `tests/unit/use_cases/test_auth_flow.py` cubren credenciales válidas/inválidas, desactivado, cambio forzado y logout (`pytest -q` verde).
 
-- [ ] **[T-013] auth · router: endpoints /auth con Pydantic y dependencias de sesión**
+- [x] **[T-013] auth · router: endpoints /auth con Pydantic y dependencias de sesión**
   - **Covers:** RF-1, RF-17
   - **Dependencias:** [T-012]
   - **Hecho cuando:** `features/auth/routers/auth.py` expone `POST /auth/login` (200 con token+usuario), `POST /auth/logout`, `GET /auth/me`, `POST /auth/change-password` (401 si no es sesión propia; 409 si no está forzado); dependencias `requerir_sesion` y `requerir_rol` reutilizables (en routers shared); test en `tests/api/test_auth.py` cubre 200/401/403 y caso 15 (sesión caducada → 401) (`pytest -q` verde).

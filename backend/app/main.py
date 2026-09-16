@@ -8,6 +8,7 @@ Feature routers are registered as each one is implemented
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from features.auth.routers.auth import auth_router
 from shared.config.settings import settings
 from shared.exceptions.handlers import register_exception_handlers
 
@@ -18,6 +19,8 @@ app = FastAPI(
 )
 
 register_exception_handlers(app)
+
+app.include_router(auth_router)
 
 if settings.cors_origins:
     app.add_middleware(
@@ -34,8 +37,8 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-# Router registration placeholders (completed by their respective tasks):
-#   features.auth.routers.auth.auth_router                 (T-013)
+# Router registration (auth — T-013) completed above. Placeholders for the
+# remaining features (wired by their respective tasks):
 #   features.users.routers.users.users_router              (T-016)
 #   features.ideas.routers.ideas.ideas_router              (T-023)
 #   features.capture.routers.capture.capture_router        (T-031)
