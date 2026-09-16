@@ -1,0 +1,12 @@
+# Tailwind CSS Guidelines
+
+## 1. Clases de Utilidad
+
+- Priorizar el uso de clases nativas de Tailwind CSS directamente en el HTML.
+- Evitar hojas de estilo CSS/SCSS personalizadas, salvo para animaciones complejas o variables dinámicas no cubiertas por el framework.
+
+## 2. Consistencia y Estructura
+
+- Respetar la paleta de colores y la escala de espaciado oficiales del proyecto.
+- Ordenar las clases dentro del elemento siguiendo un criterio consistente:
+  `layout / posicionamiento -> dimensiones (box-model) -> tipografía -> apariencia / colores`.
