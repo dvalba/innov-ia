@@ -1,0 +1,55 @@
+"""Configuración de la aplicacion: lee variables de entorno mediante stdlib (Constitucion §6.1)."""
+
+import os
+
+
+def _read_int(name: str, default: int) -> int:
+    raw = os.environ.get(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
+def _read_str(name: str, default: str) -> str:
+    raw = os.environ.get(name)
+    if raw is None or raw.strip() == "":
+        return default
+    return raw
+
+
+class Settings:
+    """Valores de configuracion tipados.
+
+    El constructor sin argumentos lee el entorno (defecto: Ollama local).
+    Admite sobrecritura explicita de cualquier campo para pruebas e inicializacion.
+    """
+
+    def __init__(
+        self,
+        ollama_base_url: str | None = None,
+        ollama_model: str | None = None,
+        ollama_timeout: int | None = None,
+        data_dir: str | None = None,
+        cors_origins: list[str] | None = None,
+    ) -> None:
+        self.ollama_base_url = ollama_base_url if ollama_base_url is not None else _read_str(
+            "OLLAMA_BASE_URL", "http://localhost:11434"
+        )
+        self.ollama_model = ollama_model if ollama_model is not None else _read_str(
+            "OLLAMA_MODEL", "llama3.2"
+        )
+        self.ollama_timeout = ollama_timeout if ollama_timeout is not None else _read_int(
+            "OLLAMA_TIMEOUT", 60
+        )
+        self.data_dir = data_dir if data_dir is not None else _read_str("INNOV_DATA_DIR", "data")
+        if cors_origins is not None:
+            self.cors_origins = cors_origins
+        else:
+            raw = os.environ.get("CORS_ORIGINS", "")
+            self.cors_origins = [o.strip() for o in raw.split(",") if o.strip()]
+
+
+settings = Settings()

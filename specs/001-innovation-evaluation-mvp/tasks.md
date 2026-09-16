@@ -27,7 +27,7 @@
 
 ### 1.1 Infraestructura base
 
-- [ ] **[T-001] Backend: esqueleto FastAPI, estructura por features y config**
+- [x] **[T-001] Backend: esqueleto FastAPI, estructura por features y config**
   - **Covers:** RF-1..RF-20 (estructura plan §1.2)
   - **Dependencias:** Ninguna
   - **Hecho cuando:** Existe `backend/app/main.py` con la instancia de FastAPI, CORS y registro de routers (huecos por feature); estructura `backend/{app,shared,features/{auth,capture,ideas,assistant,validation,users,notifications}}` con las subcapas `domain/use_cases/infrastructure/routers` y `__init__.py` de cada paquete; `shared/config/settings.py` lee de variables de entorno (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`, `OLLAMA_TIMEOUT=60`) y expone un objeto `settings` tipado; `ruff check .` pasa.
