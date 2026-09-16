@@ -102,7 +102,7 @@
 
 ### 2.2 Feature `users` (RF-17)
 
-- [ ] **[T-014] users · dominio: entidad Usuario y regla "no dejar sin administrador"**
+- [x] **[T-014] users · dominio: entidad Usuario y regla "no dejar sin administrador"**
   - **Covers:** RF-17
   - **Dependencias:** [T-007]
   - **Hecho cuando:** `features/users/domain/user.py` define `Usuario` (username único, nombre, área, contacto, hash, roles, habilitado, debe_cambiar) y `role_rules.py` implementa la regla de impedir desactivar/revocar al último administrador; test en `tests/unit/domain/test_role_rules.py` cubre los dos lados de la regla (`pytest -q` verde).
