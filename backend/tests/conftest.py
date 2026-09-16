@@ -12,6 +12,7 @@
 import copy
 import sys
 import time
+import uuid
 from collections.abc import Callable
 from pathlib import Path
 
@@ -19,7 +20,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from shared.exceptions.handlers import AssistantUnavailable
+from shared.exceptions.handlers import AssistantUnavailable, DomainError
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 if str(BACKEND_ROOT) not in sys.path:
@@ -47,6 +48,40 @@ class InMemoryStore:
     def update(self, mutator: Callable[[dict], dict]) -> dict:
         new_data = mutator(self.load())
         return self.save(new_data)
+
+
+class InMemoryDirectory:
+    """In-memory user directory satisfying the `UserDirectory` contract.
+
+    User payload keys: `id`, `username`, `name`, `area`, `contact`, `roles`
+    (list), `active` (bool), `password_hash`, `should_change_password`
+    (bool), `created_at`.
+    """
+
+    def __init__(self) -> None:
+        self.users: dict[str, dict] = {}
+
+    def get(self, user_id: str) -> dict | None:
+        user = self.users.get(user_id)
+        return copy.deepcopy(user) if user is not None else None
+
+    def get_by_username(self, username: str) -> dict | None:
+        for user in self.users.values():
+            if user["username"] == username:
+                return copy.deepcopy(user)
+        return None
+
+    def create(self, payload: dict) -> dict:
+        payload = dict(payload)
+        payload.setdefault("id", "u_" + uuid.uuid4().hex[:8])
+        self.users[payload["id"]] = payload
+        return self.get(payload["id"])
+
+    def update(self, user_id: str, changes: dict) -> dict:
+        if user_id not in self.users:
+            raise DomainError("USER_NOT_FOUND", "El usuario no existe.", status_code=404)
+        self.users[user_id].update(copy.deepcopy(changes))
+        return self.users[user_id]
 
 
 class OllamaMock:
@@ -113,3 +148,15 @@ def make_store() -> Callable[[], InMemoryStore]:
 @pytest.fixture()
 def ollama_mock() -> OllamaMock:
     return OllamaMock()
+
+
+@pytest.fixture()
+def make_directory() -> Callable[[], InMemoryDirectory]:
+    created: list[InMemoryDirectory] = []
+
+    def _create() -> InMemoryDirectory:
+        directory = InMemoryDirectory()
+        created.append(directory)
+        return directory
+
+    return _create

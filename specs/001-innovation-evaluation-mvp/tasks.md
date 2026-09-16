@@ -90,7 +90,7 @@
   - **Dependencias:** [T-009], [T-010]
   - **Hecho cuando:** `features/auth/infrastructure/token_store.py` implementa emisión/revocación de tokens opacos con `JsonStore`; en la inicialización del sistema se crea el primer administrador definido por variables de entorno (username/contraseña), sin API para crearlo; test en `tests/unit/infra/test_token_store.py` cubre emisión, revocación, caducidad y seed idempotente del primer admin (`pytest -q` verde).
 
-- [ ] **[T-012] auth · casos de uso: login/logout/me + cambio forzado de contraseña**
+- [x] **[T-012] auth · casos de uso: login/logout/me + cambio forzado de contraseña**
   - **Covers:** RF-1, RF-17 (cambio en primer acceso)
   - **Dependencias:** [T-011]
   - **Hecho cuando:** `features/auth/use_cases/login.py`, `logout.py`, `me.py` y `change_password.py` implementan: verificación de credenciales sin revelar qué dato es incorrecto (mensaje único), emisión/revocación de sesión, datos+roles del usuario, y cambio de contraseña obligatorio en primer acceso (flag `debe_cambiar`); usuario desactivado no puede iniciar sesión; tests en `tests/unit/use_cases/test_auth_flow.py` cubren credenciales válidas/inválidas, desactivado, cambio forzado y logout (`pytest -q` verde).
