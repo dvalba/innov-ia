@@ -107,7 +107,7 @@
   - **Dependencias:** [T-007]
   - **Hecho cuando:** `features/users/domain/user.py` define `Usuario` (username único, nombre, área, contacto, hash, roles, habilitado, debe_cambiar) y `role_rules.py` implementa la regla de impedir desactivar/revocar al último administrador; test en `tests/unit/domain/test_role_rules.py` cubre los dos lados de la regla (`pytest -q` verde).
 
-- [ ] **[T-015] users · casos de uso: crear, cambiar roles, desactivar/habilitar**
+- [x] **[T-015] users · casos de uso: crear, cambiar roles, desactivar/habilitar**
   - **Covers:** RF-17, caso 16
   - **Dependencias:** [T-014]
   - **Hecho cuando:** `create_user.py` emite contraseña temporal válida para primer acceso y la devuelve una sola vez; `assign_roles.py` valida roles conocidos y aplica la regla del último admin; `toggle_active.py` conserva cuenta, ideas e historial al desactivar; `change_password.py` de auth (T-012) reutiliza aquí la verificación de contraseña actual; tests en `tests/unit/use_cases/test_users_roles.py` cubren creación con temporal, asignación/revocación y caso 16 (historial intacto) (`pytest -q` verde).

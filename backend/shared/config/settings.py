@@ -1,6 +1,7 @@
 """Application settings: reads environment variables via the standard library (Constitution §6.1)."""
 
 import os
+import pathlib
 
 
 def _read_int(name: str, default: int) -> int:
@@ -47,7 +48,9 @@ class Settings:
         self.ollama_timeout = ollama_timeout if ollama_timeout is not None else _read_int(
             "OLLAMA_TIMEOUT", 60
         )
-        self.data_dir = data_dir if data_dir is not None else _read_str("INNOV_DATA_DIR", "data")
+        self.data_dir = pathlib.Path(data_dir) if data_dir is not None else pathlib.Path(
+            _read_str("INNOV_DATA_DIR", "data")
+        )
         if cors_origins is not None:
             self.cors_origins = cors_origins
         else:
@@ -57,7 +60,9 @@ class Settings:
             "INNOV_SESSION_TTL_MINUTES", 480
         )
         self.admin_username = admin_username if admin_username is not None else _read_str("INNOV_ADMIN_USERNAME", "admin")
-        self.admin_password = admin_password  # optional: only used at first initialization (plan T-011)
+        # Optional: only used at first initialization (plan T-011). Unlike the
+        # others it has no default — when unset the seed is a no-op.
+        self.admin_password = admin_password if admin_password is not None else os.environ.get("INNOV_ADMIN_PASSWORD")
 
 
 settings = Settings()

@@ -83,6 +83,9 @@ class InMemoryDirectory:
         self.users[user_id].update(copy.deepcopy(changes))
         return self.users[user_id]
 
+    def list(self) -> list[dict]:
+        return [copy.deepcopy(user) for user in self.users.values()]
+
 
 class OllamaMock:
     """Simulated Ollama client (plan §6.4).

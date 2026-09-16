@@ -1,21 +1,38 @@
-"""FastAPI application entry point (T-001, T-002).
+"""FastAPI application entry point (T-001, T-002, T-015).
 
 Registers the application instance, CORS and the global error handler.
-Feature routers are registered as each one is implemented
-(T-013, T-016, T-023, T-031, T-033, T-034, T-035, T-062).
+On startup it seeds the first administrator from the environment (plan
+§5 / RF-17, decision #6). Feature routers are registered as each one is
+implemented (T-013, T-016, T-023, T-031, T-033, T-034, T-035, T-062).
 """
+
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.deps import get_user_directory
+from features.auth.infrastructure.token_store import seed_first_admin
 from features.auth.routers.auth import auth_router
 from shared.config.settings import settings
 from shared.exceptions.handlers import register_exception_handlers
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Seeds the first administrator once, idempotently (RF-17, decision #6)."""
+    try:
+        seed_first_admin(get_user_directory(), settings.admin_username, settings.admin_password)
+    except Exception:  # pragma: no cover - defensive: the app must still boot
+        pass
+    yield
+
 
 app = FastAPI(
     title="Innov-IA",
     description="Plataforma de captura, estructuración y evaluación de iniciativas de innovación",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 register_exception_handlers(app)

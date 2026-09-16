@@ -30,8 +30,12 @@ class UserDirectory(Protocol):
         ...
 
     def update(self, user_id: str, changes: dict) -> dict:
-        """Applies `changes` to the user and returns the updated payload.
+        """Applies `changes` to the user and returns the updated user payload.
 
         Raises `DomainError` if the user does not exist.
         """
+        ...
+
+    def list(self) -> list[dict]:
+        """Returns all user payloads (role rules need the full picture, RF-17)."""
         ...

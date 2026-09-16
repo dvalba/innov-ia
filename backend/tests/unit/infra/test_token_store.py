@@ -44,6 +44,9 @@ class _Directory:
         user.update(changes)
         return user
 
+    def list(self) -> list[dict]:
+        return list(self.users.values())
+
 
 def test_issue_and_resolve_round_trip() -> None:
     store = _store()
