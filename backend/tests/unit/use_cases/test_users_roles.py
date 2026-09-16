@@ -9,10 +9,10 @@ import pathlib
 import pytest
 
 from features.users.domain.role_rules import LAST_ADMIN_REQUIRED
+from features.users.infrastructure.user_store import UserStore
 from features.users.use_cases.assign_roles import assign_roles, revoke_roles
 from features.users.use_cases.create_user import create_user
 from features.users.use_cases.toggle_active import toggle_active
-from features.users.infrastructure.user_store import UserStore
 from shared.exceptions.handlers import DomainError
 from shared.utils.password import verify_password
 from shared.utils.persistence import JsonStore

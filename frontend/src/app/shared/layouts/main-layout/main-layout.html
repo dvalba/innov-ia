@@ -1,0 +1,86 @@
+<div class="flex min-h-screen bg-slate-100">
+  <aside class="flex w-64 flex-col border-r border-slate-200 bg-white">
+    <div class="flex items-center gap-2 border-b border-slate-200 px-5 py-4">
+      <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-lg font-bold text-white">
+        I
+      </div>
+      <span class="text-base font-semibold text-slate-900">Innov-IA</span>
+    </div>
+
+    <nav class="flex-1 px-3 py-4">
+      <ul class="space-y-1">
+        <li>
+          <a
+            routerLink="/mis-ideas"
+            routerLinkActive="bg-indigo-50 text-indigo-700"
+            class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+            >Mis ideas</a
+          >
+        </li>
+        <li>
+          <a
+            routerLink="/catalogo"
+            routerLinkActive="bg-indigo-50 text-indigo-700"
+            class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+            >Catálogo</a
+          >
+        </li>
+        <li>
+          <a
+            routerLink="/captura"
+            routerLinkActive="bg-indigo-50 text-indigo-700"
+            class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+            >Nueva idea</a
+          >
+        </li>
+        @if (isValidator) {
+          <li>
+            <a
+              routerLink="/validacion"
+              routerLinkActive="bg-indigo-50 text-indigo-700"
+              class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+              >Validación</a
+            >
+          </li>
+        }
+        <li>
+          <a
+            routerLink="/admin"
+            routerLinkActive="bg-indigo-50 text-indigo-700"
+            class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+            >Administración</a
+          >
+        </li>
+      </ul>
+    </nav>
+
+    <div class="border-t border-slate-200 px-4 py-4">
+      <div class="mb-3 flex items-center gap-3">
+        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 font-semibold text-indigo-700">
+          {{ initial }}
+        </div>
+        <div class="min-w-0">
+          <p class="truncate text-sm font-semibold text-slate-800">{{ displayName }}</p>
+          <div class="mt-0.5 flex flex-wrap gap-1">
+            @for (role of session.roles(); track role) {
+              <span
+                class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
+                >{{ roleLabel(role) }}</span
+              >
+            }
+          </div>
+        </div>
+      </div>
+      <button
+        (click)="onLogout()"
+        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+      >
+        Cerrar sesión
+      </button>
+    </div>
+  </aside>
+
+  <main class="flex-1 overflow-y-auto p-8">
+    <router-outlet />
+  </main>
+</div>

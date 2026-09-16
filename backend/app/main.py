@@ -6,7 +6,7 @@ On startup it seeds the first administrator from the environment (plan
 implemented (T-013, T-016, T-023, T-031, T-033, T-034, T-035, T-062).
 """
 
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,10 +21,8 @@ from shared.exceptions.handlers import register_exception_handlers
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Seeds the first administrator once, idempotently (RF-17, decision #6)."""
-    try:
+    with suppress(Exception):  # pragma: no cover - defensive: the app must still boot
         seed_first_admin(get_user_directory(), settings.admin_username, settings.admin_password)
-    except Exception:  # pragma: no cover - defensive: the app must still boot
-        pass
     yield
 
 

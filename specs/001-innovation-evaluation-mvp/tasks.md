@@ -42,17 +42,17 @@
   - **Dependencias:** [T-001]
   - **Hecho cuando:** `shared/utils/persistence.py` ofrece un `JsonStore` (lectura/escritura atómica por ruta, con directorio inicial) y `shared/utils/password.py` ofrece `hash_password`/`verify_password` con salt usando solo stdlib (`hashlib`); test en `tests/unit/infra/test_stores.py` y `tests/unit/infra/test_password.py` cubren round-trip, atomeidad (sin archivo parcial tras fallo simulado) y verificación de hash con/ sin salt (`pytest -q` verde).
 
-- [ ] **[T-004] Frontend: proyecto Angular 20+ con Tailwind y núcleo de app (config, rutas lazies, layout shell)**
+- [x] **[T-004] Frontend: proyecto Angular 20+ con Tailwind y núcleo de app (config, rutas lazies, layout shell)**
   - **Covers:** RF-1..RF-20 (estructura plan §1.1)
   - **Dependencias:** Ninguna
   - **Hecho cuando:** `frontend/` creado con Angular 20+ (CLI), Tailwind CSS configurado (conforme a `docs/guides/tailwind-guidelines.md`); `src/app/app.routes.ts` define rutas lazy por feature (`/login`, `/captura`, `/mis-ideas`, `/validacion`, `/catalogo`, `/admin`) y `app.config.ts` configura router + `provideHttpClient(withInterceptors(...))`; existe `shared/layouts/main-layout` (sidebar + contenido, conforme a Constitución §3.2) y `ng build` pasa.
 
-- [ ] **[T-005] Frontend: interceptores auth y de errores**
+- [x] **[T-005] Frontend: interceptores auth y de errores**
   - **Covers:** RF-1 (sesión), RNF-7
   - **Dependencias:** [T-004]
   - **Hecho cuando:** `shared/interceptors/auth.interceptor.ts` inyecta el portador de sesión en toda petición y, ante un 401, limpia la sesión y redirige a `/login`; `shared/interceptors/error.interceptor.ts` normaliza respuestas de error (formato §3.6) y expone el mensaje para mostrar; ambos registrados en `app.config.ts`; `ng build` pasa.
 
-- [ ] **[T-006] Frontend: `SessionService` compartido (sesión, usuario, roles)**
+- [x] **[T-006] Frontend: `SessionService` compartido (sesión, usuario, roles)**
   - **Covers:** RF-1, RNF-7
   - **Dependencias:** [T-005]
   - **Hecho cuando:** `shared/services/session.service.ts` expone señales `sesionActiva`, `usuario` (username, nombre, área, contacto) y `roles`, con métodos `iniciar(token, usuario)`, `cerrar()` y `tieneRol(...roles)`; persistencia de la sesión en `localStorage` y recuperación al cargar; `ng build` pasa.
@@ -69,7 +69,7 @@
   - **Dependencias:** [T-001]
   - **Hecho cuando:** En `shared/contracts/` se define el Protocolo `IdeaLedger` (lectura de idea por id, listado por estado/origen, escritura de campos vigentes) tipado y documentado, sin importar `features/`; las features `assistant` y `validation` lo reciben por inyección; `ruff check .` pasa y ningún módulo de `features/assistant` ni `features/validation` importa de otro `features/` (verificado con `ruff` o test de importación en `tests/unit/domain/test_layering.py`).
 
-- [ ] **[T-009] Frontend: modelos TS compartidos, utilidades de fecha/estado y badge de estado**
+- [x] **[T-009] Frontend: modelos TS compartidos, utilidades de fecha/estado y badge de estado**
   - **Covers:** RF-2, RF-10 (estados), RNF-2
   - **Dependencias:** [T-004]
   - **Hecho cuando:** `shared/utils/` contiene interfaces TS espejo de los esquemas JSON del plan §2 (`Idea`, `ChatMessage`, `Conversation`, `IdeaVersion`, `Usuario`, `Notificacion`) y utilidades de formato (fechas en español); `shared/components/badge-state` renderiza el estado de una idea con etiqueta y color por estado (EN_DESARROLLO/SOLICITANDO_PUBLICACION/VALIDADA_PUBLICA), operable con teclado; la UI está en español (RNF-4); `ng build` pasa.

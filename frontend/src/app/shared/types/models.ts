@@ -1,0 +1,143 @@
+/**
+ * Shared TypeScript contract mirroring the backend JSON payloads (plan §2).
+ *
+ * Types are the exact mirror of the JSON schemas in plan §2 so every feature
+ * works on the same contract (RNF-2). UI copy stays in Spanish (RNF-4).
+ */
+
+/** A user account as returned by `POST /auth/login` and `GET /auth/me` (§2 user). */
+export interface Usuario {
+  id: string;
+  username: string;
+  name: string;
+  area: string;
+  contact: string;
+  roles: string[];
+  active: boolean;
+  shouldChangePassword: boolean;
+  createdAt: string;
+}
+
+/** Role names (spec §5 / plan §3.1). A user without roles cannot access platform features. */
+export const ROLE_PROPOSER = 'proponente';
+export const ROLE_VALIDATOR = 'especialista';
+export const ROLE_ADMIN = 'admin';
+
+/** Idea life-cycle states (plan §2.2 / §4.6, RNF-9). */
+export type IdeaState = 'EN_DESARROLLO' | 'SOLICITANDO_PUBLICACION' | 'VALIDADA_PUBLICA';
+
+/** How the idea was created (RF-2 / RNF-2). */
+export type IdeaOrigin = 'asistida' | 'manual';
+
+/** Conversation state (plan §2.4). */
+export type ConversationState = 'ACTIVA' | 'RESUMEN' | 'TERMINADA' | 'CONTINGENCIA';
+
+/** Origin of an `IdeaVersion` (RF-11 / RF-8 / RF-13). */
+export type VersionRequestedBy = 'refinement' | 'improvement' | 'adjustment';
+
+/** Decision state of an `IdeaVersion` (RF-8 / RF-13). */
+export type VersionStatus = 'PENDIENTE' | 'ACEPTADA' | 'DESCARTADA' | 'VIGENTE';
+
+/** The only four in-app notification events (RF-18). */
+export type NotificacionType =
+  | 'IDEA_REFINED'
+  | 'IDEA_PUBLISHED'
+  | 'IDEA_REJECTED'
+  | 'IDEA_REQUESTED';
+
+/** Speaker of a chat message (plan §2.3). */
+export type ChatRole = 'user' | 'assistant' | 'system';
+
+/** Title suggestion actions (RF-4). */
+export type TituloAction = 'accept' | 'another' | 'manual';
+
+/** Campo 2: proponent info, prefilled from the account (RF-6/RF-7). */
+export interface Proponente {
+  name: string;
+  area: string;
+  contact: string;
+}
+
+/** Campo 7: preliminary resource estimate (plan §2.2). */
+export interface RecursosEstimados {
+  time: string;
+  people: string;
+  budget: string;
+}
+
+/** The 7 mandatory idea fields (plan §2.2, RNF-5). */
+export interface IdeaFields {
+  title: string;
+  proponent: Proponente;
+  description: string;
+  problem: string;
+  expectedBenefit: string;
+  strategicAlignment: string;
+  estimatedResources: RecursosEstimados;
+}
+
+/** `Idea` entity (plan §2.2): the 7 fields + ownership, origin, state and audit. */
+export interface Idea extends IdeaFields {
+  id: string;
+  ownerId: string;
+  origin: IdeaOrigin;
+  state: IdeaState;
+  reviewedByAI: boolean;
+  currentVersionId: string | null;
+  createdAt: string;
+  requestDate: string | null;
+  publishedAt: string | null;
+  publishedBy: string | null;
+}
+
+/** Proactive title suggestion block (RF-4, plan §2.3). */
+export interface SugerenciaTitulo {
+  text: string;
+  actions: TituloAction[];
+}
+
+/** Chat message of a capture conversation (plan §2.3). */
+export interface ChatMessage {
+  id: string;
+  conversationId: string;
+  role: ChatRole;
+  text: string;
+  currentField: string | null;
+  quickOptions: string[];
+  titleSuggestion: SugerenciaTitulo | null;
+  needsClarification: boolean;
+  createdAt: string;
+}
+
+/** Capture conversation (plan §2.4). */
+export interface Conversation {
+  id: string;
+  userId: string;
+  state: ConversationState;
+  capturedFields: Record<string, string>;
+  currentField: string;
+  order: string[];
+  createdAt: string;
+}
+
+/** Pending/refined version of an idea (plan §2.5). */
+export interface IdeaVersion {
+  id: string;
+  ideaId: string;
+  version: number;
+  fields: IdeaFields;
+  requestedBy: VersionRequestedBy;
+  status: VersionStatus;
+  createdAt: string;
+}
+
+/** In-app notification (plan §2.7, RF-18). */
+export interface Notificacion {
+  id: string;
+  userId: string;
+  type: NotificacionType;
+  ideaId: string;
+  message: string;
+  read: boolean;
+  createdAt: string;
+}
