@@ -1,14 +1,15 @@
-"""Fixtures de base para las pruebas del backend (T-007, plan §6.4).
+"""Base fixtures for the backend test suite (T-007, plan §6.4).
 
-- `app` / `client`: instancia de la aplicacion y TestClient. Los stores de
-  archivo reales NO se usan en tests: cada test inyecta `InMemoryStore`
-  mediante `app.dependency_overrides` (los routers de las features lo apoyan
-  exponiendo sus dependencias como `Depends`).
-- `make_store`: fabrica stores in-mem a demanda (una por test).
-- `ollama_mock`: cliente Ollama simulado y configurable (`disponible`,
-  `latencia`, `responder`), sin servicio real.
+- `app` / `client`: application instance and TestClient. Real file-based
+  stores are NOT used in tests: each test injects `InMemoryStore` via
+  `app.dependency_overrides` (feature routers support this by exposing
+  their dependencies through `Depends`).
+- `make_store`: factory for in-memory stores (one per test).
+- `ollama_mock`: simulated Ollama client, configurable (`available`,
+  `latency`, `respond`), with no real service involved.
 """
 
+import copy
 import sys
 import time
 from collections.abc import Callable
@@ -26,69 +27,70 @@ if str(BACKEND_ROOT) not in sys.path:
 
 
 class InMemoryStore:
-    """Variante en memoria de `JsonStore` (misma API) para inyectar en tests.
+    """In-memory variant of `JsonStore` (same API) for test injection.
 
-    `cargar()` devuelve una copia profunda para reflejar el comportamiento
-    del store por archivo (el dict parseado es nuevo en cada lectura).
+    `load()` returns a deep copy to mirror the file-store behavior (the
+    parsed dict is fresh on every read).
     """
 
     def __init__(self) -> None:
         self._data: dict = {}
         self.path: Path | None = None
 
-    def cargar(self) -> dict:
-        import copy
-
+    def load(self) -> dict:
         return copy.deepcopy(self._data)
 
-    def guardar(self, datos: dict) -> dict:
-        self._data = dict(datos)
-        return self.cargar()
+    def save(self, data: dict) -> dict:
+        self._data = dict(data)
+        return self.load()
 
-    def actualizar(self, mutator: Callable[[dict], dict]) -> dict:
-        nuevo = mutator(self.cargar())
-        return self.guardar(nuevo)
+    def update(self, mutator: Callable[[dict], dict]) -> dict:
+        new_data = mutator(self.load())
+        return self.save(new_data)
 
 
 class OllamaMock:
-    """Cliente Ollama simulado (plan §6.4).
+    """Simulated Ollama client (plan §6.4).
 
-    Configurable por test mediante atributos:
-      - `disponible`: True/False (ping y generate).
-      - `latencia`: segundos a "consumir" por llamada.
-      - `responder(prompt)`: respuesta programable (por defecto fija).
+    Configurable per test through attributes:
+      - `available`: True/False (ping and generate).
+      - `latency`: seconds "consumed" per call.
+      - `respond(prompt)`: programmable reply (fixed by default).
     """
 
-    def __init__(self, disponible: bool = True, latencia: float = 0.0) -> None:
-        self.disponible = disponible
-        self.latencia = latencia
-        self.responder: Callable[[str], str] = self._respuesta_por_defecto
+    def __init__(self, available: bool = True, latency: float = 0.0) -> None:
+        self.available = available
+        self.latency = latency
+        self.respond: Callable[[str], str] = self._default_response
         self.ping_calls = 0
         self.prompts: list[str] = []
 
-    def _respuesta_por_defecto(self, prompt: str) -> str:
-        return "respuesta de prueba"
+    def _default_response(self, prompt: str) -> str:
+        return "test response"
 
     def ping(self) -> bool:
         self.ping_calls += 1
-        if self.latencia:
-            time.sleep(self.latencia)
-        return self.disponible
+        if self.latency:
+            time.sleep(self.latency)
+        return self.available
 
     def generate(self, prompt: str) -> str:
         self.prompts.append(prompt)
-        if self.latencia:
-            time.sleep(self.latencia)
-        if not self.disponible:
-            raise AssistantUnavailable("ASSISTANT_UNAVAILABLE", "El asistente no esta disponible (mock).")
-        return self.responder(prompt)
+        if self.latency:
+            time.sleep(self.latency)
+        if not self.available:
+            raise AssistantUnavailable(
+                "ASSISTANT_UNAVAILABLE",
+                "El asistente de IA no está disponible (mock).",
+            )
+        return self.respond(prompt)
 
 
 @pytest.fixture()
 def app() -> FastAPI:
-    from app.main import app as app_principal
+    from app.main import app as main_app
 
-    return app_principal
+    return main_app
 
 
 @pytest.fixture()
@@ -98,14 +100,14 @@ def client(app: FastAPI) -> TestClient:
 
 @pytest.fixture()
 def make_store() -> Callable[[], InMemoryStore]:
-    creados: list[InMemoryStore] = []
+    created: list[InMemoryStore] = []
 
-    def _crear() -> InMemoryStore:
+    def _create() -> InMemoryStore:
         store = InMemoryStore()
-        creados.append(store)
+        created.append(store)
         return store
 
-    return _crear
+    return _create
 
 
 @pytest.fixture()

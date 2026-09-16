@@ -1,4 +1,4 @@
-"""Tests de la estructura base del backend (T-001)."""
+"""Backend base structure tests (T-001)."""
 
 import pathlib
 import sys
@@ -15,12 +15,12 @@ def _ensure_backend_on_path() -> None:
         sys.path.insert(0, root)
 
 
-def test_estructura_de_directorios_existe() -> None:
+def test_directory_structure_exists() -> None:
     for feature in FEATURES:
         for layer in LAYERS:
-            paquete = BACKEND_ROOT / "features" / feature / layer
-            assert (paquete / "__init__.py").is_file(), f"Falta {paquete}/__init__.py"
-    for paquete in [
+            package = BACKEND_ROOT / "features" / feature / layer
+            assert (package / "__init__.py").is_file(), f"Missing {package}/__init__.py"
+    for package in [
         "app",
         "shared",
         "shared/config",
@@ -28,35 +28,35 @@ def test_estructura_de_directorios_existe() -> None:
         "shared/utils",
         "shared/contracts",
     ]:
-        assert (BACKEND_ROOT / paquete / "__init__.py").is_file(), f"Falta {paquete}/__init__.py"
+        assert (BACKEND_ROOT / package / "__init__.py").is_file(), f"Missing {package}/__init__.py"
 
 
-def test_app_instancia_fastapi_y_health() -> None:
+def test_app_fastapi_instance_and_health() -> None:
     _ensure_backend_on_path()
     from fastapi.testclient import TestClient
 
     from app.main import app
 
     client = TestClient(app)
-    respuesta = client.get("/health")
-    assert respuesta.status_code == 200
-    assert respuesta.json()["status"] == "ok"
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
 
 
-def test_settings_lee_variables_de_entorno(monkeypatch) -> None:
+def test_settings_reads_environment_variables(monkeypatch) -> None:
     _ensure_backend_on_path()
     from shared.config.settings import Settings
 
-    monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama.interno:11434")
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama.internal:11434")
     monkeypatch.setenv("OLLAMA_MODEL", "mistral")
     monkeypatch.setenv("OLLAMA_TIMEOUT", "45")
     settings = Settings()
-    assert settings.ollama_base_url == "http://ollama.interno:11434"
+    assert settings.ollama_base_url == "http://ollama.internal:11434"
     assert settings.ollama_model == "mistral"
     assert settings.ollama_timeout == 45
 
 
-def test_settings_valores_por_defecto() -> None:
+def test_settings_default_values() -> None:
     _ensure_backend_on_path()
     from shared.config.settings import Settings
 

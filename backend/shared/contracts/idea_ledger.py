@@ -1,21 +1,22 @@
-"""Contrato compartido de lectura/escritura de ideas (T-008).
+"""Shared idea ledger contract (T-008).
 
-Resuelve el acoplamiento entre features (plan §1.2, nota de acoplamiento):
-las features `assistant` y `validation` consumen ideas SOLO a través de este
-Protocolo, inyectado por la composición de dependencias; ninguna feature
-importa de otra.
+Resolves coupling between features (plan §1.2, coupling note): the
+`assistant` and `validation` features consume ideas ONLY through this
+Protocol, injected via dependency composition; no feature imports from
+another one.
 
-Los payloads son dicts con la forma de los esquemas JSON del plan §2
-(`Idea` y `IdeaVersion`). El campo `campos` es el dict de los 7 campos de la
-idea (esquema `Idea` §2.2).
+Payloads are dicts shaped like the JSON schemas of plan §2 (`Idea` and
+`IdeaVersion`). The `fields` key in a payload is the dict of the 7 idea
+fields (schema `Idea` §2.2). State/origin string values are spec contracts
+and are kept as defined in the specification.
 """
 
 from collections.abc import Iterable
 from typing import Protocol, runtime_checkable
 
-# Los 7 campos de una idea (spec §1.1). El dict `campos` de un payload de idea
-# contiene siempre estas claves.
-CAMPOS_DE_LA_IDEA: tuple[str, ...] = (
+# The 7 idea fields (spec §1.1). An idea payload's `fields` dict always
+# contains these keys.
+IDEA_FIELDS: tuple[str, ...] = (
     "title",
     "proponent",
     "description",
@@ -25,44 +26,44 @@ CAMPOS_DE_LA_IDEA: tuple[str, ...] = (
     "estimatedResources",
 )
 
-# Estados de la máquina (plan §4.6).
-ESTADO_EN_DESARROLLO = "EN_DESARROLLO"
-ESTADO_SOLICITANDO_PUBLICACION = "SOLICITANDO_PUBLICACION"
-ESTADO_VALIDADA_PUBLICA = "VALIDADA_PUBLICA"
+# State machine states (plan §4.6).
+STATE_EN_DESARROLLO = "EN_DESARROLLO"
+STATE_SOLICITANDO_PUBLICACION = "SOLICITANDO_PUBLICACION"
+STATE_VALIDADA_PUBLICA = "VALIDADA_PUBLICA"
 
-# Origenes de la idea (spec RF-2/RNF-2).
-ORIGEN_ASISTIDA = "asistida"
-ORIGEN_MANUAL = "manual"
+# Idea origins (spec RF-2/RNF-2).
+ORIGIN_ASISTIDA = "asistida"
+ORIGIN_MANUAL = "manual"
 
 
 @runtime_checkable
 class IdeaLedger(Protocol):
-    """Expediente de ideas compartido entre features.
+    """Idea ledger shared between features.
 
-    La implementación de referencia es `features.ideas.infrastructure.idea_store`
-    (T-019). Las features `assistant` y `validation` solo dependen de este
-    Protocolo.
+    The reference implementation is `features.ideas.infrastructure.idea_store`
+    (T-019). The `assistant` and `validation` features depend only on this
+    Protocol.
     """
 
-    def obtener(self, idea_id: str) -> dict | None:
-        """Devuelve el payload completo de la idea por id, o `None` si no existe."""
+    def get(self, idea_id: str) -> dict | None:
+        """Returns the full idea payload by id, or `None` if it does not exist."""
         ...
 
-    def listar_por_estado(self, estado: str, owner_id: str | None = None) -> Iterable[dict]:
-        """Lista ideas en `estado`. Si `owner_id` se pasa, filtra por dueño (RF-19)."""
+    def list_by_state(self, state: str, owner_id: str | None = None) -> Iterable[dict]:
+        """Lists ideas in `state`. If `owner_id` is passed, filters by owner (RF-19)."""
         ...
 
-    def listar_por_origen(self, origen: str, estado: str, owner_id: str | None = None) -> Iterable[dict]:
-        """Lista ideas con `origen` y `estado` (cola de refinamiento, RF-11)."""
+    def list_by_origin(self, origin: str, state: str, owner_id: str | None = None) -> Iterable[dict]:
+        """Lists ideas with the given `origin` and `state` (refinement queue, RF-11)."""
         ...
 
-    def guardar_campos_vigentes(self, idea_id: str, campos: dict) -> dict:
-        """Aplica campos vigentes a la idea (aceptación de versión, RF-8/RF-13).
+    def save_current_fields(self, idea_id: str, fields: dict) -> dict:
+        """Applies the current fields to the idea (version acceptance, RF-8/RF-13).
 
-        Devuelve el payload actualizado. Lanza `DomainError` si la idea no existe.
+        Returns the updated payload. Raises `DomainError` if the idea is missing.
         """
         ...
 
-    def obtener_version(self, idea_id: str, version_id: str) -> dict | None:
-        """Devuelve el payload de la versión `IdeaVersion` o `None`."""
+    def get_version(self, idea_id: str, version_id: str) -> dict | None:
+        """Returns the `IdeaVersion` payload or `None`."""
         ...

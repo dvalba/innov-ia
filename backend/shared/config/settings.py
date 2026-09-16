@@ -1,4 +1,4 @@
-"""Configuración de la aplicacion: lee variables de entorno mediante stdlib (Constitucion §6.1)."""
+"""Application settings: reads environment variables via the standard library (Constitution §6.1)."""
 
 import os
 
@@ -21,10 +21,10 @@ def _read_str(name: str, default: str) -> str:
 
 
 class Settings:
-    """Valores de configuracion tipados.
+    """Typed configuration values.
 
-    El constructor sin argumentos lee el entorno (defecto: Ollama local).
-    Admite sobrecritura explicita de cualquier campo para pruebas e inicializacion.
+    The no-argument constructor reads the environment (default: local Ollama).
+    Any field can be explicitly overridden for tests and initialization.
     """
 
     def __init__(

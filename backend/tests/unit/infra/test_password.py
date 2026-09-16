@@ -1,33 +1,33 @@
-"""Tests de la utilidad de contraseñas con stdlib (T-003, decision D10)."""
+"""Stdlib-only password utility tests (T-003, decision D10)."""
 
 from shared.utils.password import generate_temp_password, hash_password, verify_password
 
 
-def test_hash_y_verificacion_correcta() -> None:
-    hashed = hash_password("clave-segura")
-    assert verify_password("clave-segura", hashed) is True
-    assert hashed != "clave-segura"
+def test_hash_and_successful_verification() -> None:
+    hashed = hash_password("secure-password")
+    assert verify_password("secure-password", hashed) is True
+    assert hashed != "secure-password"
 
 
-def test_verificacion_con_clave_incorrecta() -> None:
-    hashed = hash_password("clave-segura")
-    assert verify_password("otra-clave", hashed) is False
+def test_verification_with_wrong_password() -> None:
+    hashed = hash_password("secure-password")
+    assert verify_password("other-password", hashed) is False
 
 
-def test_hash_no_es_determinista_por_salt() -> None:
-    assert hash_password("clave") != hash_password("clave")
+def test_hash_is_not_deterministic_due_to_salt() -> None:
+    assert hash_password("password") != hash_password("password")
 
 
-def test_verificacion_rechaza_hash_mal_formado() -> None:
-    assert verify_password("cualquiera", "sin-prefijo") is False
-    assert verify_password("cualquiera", "innov$") is False
-    assert verify_password("cualquiera", "innov$salto$") is False
+def test_verification_rejects_malformed_hash() -> None:
+    assert verify_password("anything", "no-prefix") is False
+    assert verify_password("anything", "innov$") is False
+    assert verify_password("anything", "innov$salto$") is False
 
 
-def test_contraseña_temporal_usable_y_no_trivial() -> None:
-    temporal = generate_temp_password()
-    assert len(temporal) >= 12
-    assert temporal.isalnum() or any(c in temporal for c in "!@#_-")
-    hashed = hash_password(temporal)
-    assert verify_password(temporal, hashed) is True
-    assert temporal != generate_temp_password()
+def test_temp_password_usable_and_non_trivial() -> None:
+    temporary = generate_temp_password()
+    assert len(temporary) >= 12
+    assert temporary.isalnum() or any(c in temporary for c in "!@#_-")
+    hashed = hash_password(temporary)
+    assert verify_password(temporary, hashed) is True
+    assert temporary != generate_temp_password()

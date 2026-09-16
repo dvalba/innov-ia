@@ -1,7 +1,7 @@
-"""Punto de entrada de la aplicacion FastAPI (T-001, T-002).
+"""FastAPI application entry point (T-001, T-002).
 
-Registra la instancia de la aplicacion, CORS y el manejador global de errores.
-Los routers de cada feature se registran a medida que se implementan
+Registers the application instance, CORS and the global error handler.
+Feature routers are registered as each one is implemented
 (T-013, T-016, T-023, T-031, T-033, T-034, T-035, T-062).
 """
 
@@ -13,7 +13,7 @@ from shared.exceptions.handlers import register_exception_handlers
 
 app = FastAPI(
     title="Innov-IA",
-    description="Plataforma de captura, estructuracion y evaluacion de iniciativas de innovacion",
+    description="Plataforma de captura, estructuración y evaluación de iniciativas de innovación",
     version="0.1.0",
 )
 
@@ -34,7 +34,7 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-# Huecos de registro de routers (se completan en sus respectivas tareas):
+# Router registration placeholders (completed by their respective tasks):
 #   features.auth.routers.auth.auth_router                 (T-013)
 #   features.users.routers.users.users_router              (T-016)
 #   features.ideas.routers.ideas.ideas_router              (T-023)

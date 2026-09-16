@@ -1,14 +1,16 @@
-"""Excepciones de dominio y manejadores globales de errores (T-002).
+"""Domain exceptions and global error handlers (T-002).
 
-Formato unificado de respuesta (plan §3.6):
+Unified response format (plan §3.6):
     {"error": {"code": str, "message": str, "details": dict}}
 
-Codigos HTTP (plan §3.5):
-    DomainError -> 409 (o 400 cuando la regla lo exige)
+HTTP codes (plan §3.5):
+    DomainError -> 409 (or 400 when the rule requires it)
     ValidationFailed -> 422
-    AssistantUnavailable -> 503 (con payload de contingencia extra)
+    AssistantUnavailable -> 503 (with extra fallback payload)
     AuthError -> 401
     Forbidden -> 403
+
+User-facing messages are kept in Spanish (RNF-4, AGENTS.md).
 """
 
 from fastapi import FastAPI, Request
@@ -16,7 +18,7 @@ from fastapi.responses import JSONResponse
 
 
 class DomainError(Exception):
-    """Regla de negocio violada (plan §3.7). Por defecto 409; admite 400."""
+    """A business rule was violated (plan §3.7). Defaults to 409; 400 allowed."""
 
     def __init__(self, code: str, message: str, status_code: int = 409, details: dict | None = None) -> None:
         super().__init__(message)
@@ -27,7 +29,7 @@ class DomainError(Exception):
 
 
 class ValidationFailed(Exception):
-    """Dato invalido por esquema o regla de validacion de dominio (422)."""
+    """Invalid data by schema or domain validation rule (422)."""
 
     def __init__(self, code: str, message: str, details: dict | None = None) -> None:
         super().__init__(message)
@@ -37,10 +39,10 @@ class ValidationFailed(Exception):
 
 
 class AssistantUnavailable(Exception):
-    """El asistente de IA ha caido o no responde dentro del limite (503).
+    """The AI assistant is down or does not respond within the limit (503).
 
-    El payload de contingencia (`fallback`) se anade a la respuesta para
-    habilitar el formulario manual prellenado (RF-7, RNF-10).
+    The fallback payload is added to the response to enable the pre-filled
+    manual form (RF-7, RNF-10).
     """
 
     def __init__(self, code: str, message: str, fallback: dict | None = None, details: dict | None = None) -> None:
@@ -52,9 +54,9 @@ class AssistantUnavailable(Exception):
 
 
 class AuthError(Exception):
-    """No autenticado o sesion caducada (401)."""
+    """Not authenticated or the session has expired (401)."""
 
-    def __init__(self, code: str = "SESION_REQUERIDA", message: str = "No existe una sesion activa.",
+    def __init__(self, code: str = "SESSION_REQUIRED", message: str = "No existe una sesión activa.",
                  details: dict | None = None) -> None:
         super().__init__(message)
         self.code = code
@@ -63,9 +65,9 @@ class AuthError(Exception):
 
 
 class Forbidden(Exception):
-    """El rol de la sesion no permite la accion (403)."""
+    """The session's role is not allowed to perform the action (403)."""
 
-    def __init__(self, code: str = "ROL_NO_PERMITIDO", message: str = "El rol actual no permite esta accion.",
+    def __init__(self, code: str = "ROLE_NOT_ALLOWED", message: str = "El rol actual no permite esta acción.",
                  details: dict | None = None) -> None:
         super().__init__(message)
         self.code = code
@@ -105,7 +107,7 @@ async def _handle_forbidden(request: Request, exc: Forbidden) -> JSONResponse:
 
 
 def register_exception_handlers(app: FastAPI) -> None:
-    """Registra los manejadores globales sobre la instancia de FastAPI."""
+    """Registers the global handlers on the FastAPI instance."""
     app.add_exception_handler(DomainError, _handle_domain_error)
     app.add_exception_handler(ValidationFailed, _handle_validation_failed)
     app.add_exception_handler(AssistantUnavailable, _handle_assistant_unavailable)

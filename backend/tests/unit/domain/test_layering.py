@@ -1,42 +1,42 @@
-"""Tests del contrato compartido de ideas y la regla de capas (T-008).
+"""Shared idea contract and layering rule tests (T-008).
 
-El contrato `IdeaLedger` resuelve el acoplamiento entre las features
-`assistant`/`validation` y `ideas` (nota de acoplamiento del plan §1.2).
+The `IdeaLedger` contract resolves coupling between the `assistant`/
+`validation` features and `ideas` (plan §1.2 coupling note).
 """
 
 import inspect
 import pathlib
 
 BACKEND_ROOT = pathlib.Path(__file__).resolve().parents[3]
-PROTEGIDAS = ("assistant", "validation")
+PROTECTED = ("assistant", "validation")
 
 
-def test_contrato_expuesto_en_shared() -> None:
+def test_contract_exposed_in_shared() -> None:
     from shared.contracts.idea_ledger import IdeaLedger
 
-    metodos = {"obtener", "listar_por_estado", "listar_por_origen", "guardar_campos_vigentes", "obtener_version"}
-    nombres = {m for m, _ in inspect.getmembers(IdeaLedger, predicate=inspect.isfunction)}
-    assert metodos.issubset(nombres)
+    expected = {"get", "list_by_state", "list_by_origin", "save_current_fields", "get_version"}
+    defined = {name for name, _ in inspect.getmembers(IdeaLedger, predicate=inspect.isfunction)}
+    assert expected.issubset(defined)
 
 
-def test_contrato_no_importa_de_features() -> None:
-    texto = (BACKEND_ROOT / "shared" / "contracts" / "idea_ledger.py").read_text(encoding="utf-8")
-    assert "from features" not in texto
-    assert "import features" not in texto
+def test_contract_does_not_import_features() -> None:
+    text = (BACKEND_ROOT / "shared" / "contracts" / "idea_ledger.py").read_text(encoding="utf-8")
+    assert "from features" not in text
+    assert "import features" not in text
 
 
-def test_protegidas_no_importan_de_features_externos() -> None:
-    infracciones = []
-    for protegida in PROTEGIDAS:
-        raiz = BACKEND_ROOT / "features" / protegida
-        for archivo in raiz.rglob("*.py"):
-            if archivo.name == "__init__.py":
+def test_protected_features_do_not_import_external_features() -> None:
+    violations = []
+    for protected in PROTECTED:
+        root = BACKEND_ROOT / "features" / protected
+        for path in root.rglob("*.py"):
+            if path.name == "__init__.py":
                 continue
-            contenido = archivo.read_text(encoding="utf-8")
-            for linea in contenido.splitlines():
-                limpio = linea.strip()
-                if limpio.startswith(("import ", "from ")):
-                    for otra in ("auth", "capture", "ideas", "users", "notifications"):
-                        if f"features.{otra}" in limpio:
-                            infracciones.append(f"{protegida}: {archivo.name} -> {limpio}")
-    assert not infracciones, "\n".join(infracciones)
+            content = path.read_text(encoding="utf-8")
+            for line in content.splitlines():
+                stripped = line.strip()
+                if stripped.startswith(("import ", "from ")):
+                    for other in ("auth", "capture", "ideas", "users", "notifications"):
+                        if f"features.{other}" in stripped:
+                            violations.append(f"{protected}: {path.name} -> {stripped}")
+    assert not violations, "\n".join(violations)

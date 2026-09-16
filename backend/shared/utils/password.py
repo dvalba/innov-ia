@@ -1,46 +1,46 @@
-"""Derivacion de contraseñas con solo biblioteca estandar (T-003, decision D10).
+"""Password hashing with the standard library only (T-003, plan decision D10).
 
-Formato del hash: `innov$<salt_hex>$<sha256(salt + clave)>`.
+Hash format: `innov$<salt_hex>$<sha256(salt + password)>`.
 
-NOTA (plan D10): `hashlib.sha256` con salt cubre el alcance del MVP. Se deja
-documentado como riesgo a reforzar en produccion (p. ej. bcrypt/argon2) si se
-actualiza la politica de dependencias.
+NOTE (plan D10): `hashlib.sha256` with salt covers the MVP scope. Documented
+as a hardening risk for production (e.g. bcrypt/argon2) should the dependency
+policy change.
 """
 
 import hashlib
 import secrets
 
-_SALTO_BYTES = 16
-_HASH_ALGORITMO = "sha256"
-_PREFIJO = "innov"
+_SALT_BYTES = 16
+_HASH_ALGORITHM = "sha256"
+_PREFIX = "innov"
 
 
-def hash_password(clave: str) -> str:
-    """Deriva el hash (salt + sha256) de la clave."""
-    salt = secrets.token_bytes(_SALTO_BYTES)
-    derive = hashlib.new(_HASH_ALGORITMO)
-    derive.update(salt)
-    derive.update(clave.encode("utf-8"))
-    return f"{_PREFIJO}${salt.hex()}${derive.hexdigest()}"
+def hash_password(password: str) -> str:
+    """Derives the hash (salt + sha256) of the password."""
+    salt = secrets.token_bytes(_SALT_BYTES)
+    digest = hashlib.new(_HASH_ALGORITHM)
+    digest.update(salt)
+    digest.update(password.encode("utf-8"))
+    return f"{_PREFIX}${salt.hex()}${digest.hexdigest()}"
 
 
-def verify_password(clave: str, hashed: str) -> bool:
-    """Verifica la clave contra el hash; `False` ante formato inválido."""
-    partes = hashed.split("$")
-    if len(partes) != 3 or partes[0] != _PREFIJO:
+def verify_password(password: str, hashed: str) -> bool:
+    """Verifies the password against the hash; `False` on invalid format."""
+    parts = hashed.split("$")
+    if len(parts) != 3 or parts[0] != _PREFIX:
         return False
     try:
-        salt = bytes.fromhex(partes[1])
+        salt = bytes.fromhex(parts[1])
     except ValueError:
         return False
-    derive = hashlib.new(_HASH_ALGORITMO)
-    derive.update(salt)
-    derive.update(clave.encode("utf-8"))
-    return secrets.compare_digest(derive.hexdigest(), partes[2])
+    digest = hashlib.new(_HASH_ALGORITHM)
+    digest.update(salt)
+    digest.update(password.encode("utf-8"))
+    return secrets.compare_digest(digest.hexdigest(), parts[2])
 
 
 def generate_temp_password(length: int = 14) -> str:
-    """Genera una contraseña temporal (RF-17) de alta entropia."""
-    alfabeto = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-    base = "".join(secrets.choice(alfabeto) for _ in range(length))
+    """Generates a high-entropy temporary password (RF-17)."""
+    alphabet = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    base = "".join(secrets.choice(alphabet) for _ in range(length))
     return base + secrets.choice("!@#_-")
