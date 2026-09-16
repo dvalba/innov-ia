@@ -54,8 +54,8 @@ class InMemoryDirectory:
     """In-memory user directory satisfying the `UserDirectory` contract.
 
     User payload keys: `id`, `username`, `name`, `area`, `contact`, `roles`
-    (list), `active` (bool), `password_hash`, `should_change_password`
-    (bool), `created_at`.
+    (list), `active` (bool), `passwordHash`, `shouldChangePassword`
+    (bool), `createdAt`.
     """
 
     def __init__(self) -> None:

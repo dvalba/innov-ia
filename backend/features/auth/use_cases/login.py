@@ -35,9 +35,9 @@ def login(command: LoginCommand, directory: UserDirectory, tokens: TokenStore) -
                         message="Las credenciales no son válidas.")
     session = tokens.issue(user["id"], tuple(user.get("roles", [])), now=command.now)
     return LoginResult(session=session, user=_public_user(user),
-                       must_change_password=bool(user.get("should_change_password", False)))
+                       must_change_password=bool(user.get("shouldChangePassword", False)))
 
 
 def _public_user(user: dict) -> dict:
-    public = {key: value for key, value in user.items() if key not in ("password_hash",)}
+    public = {key: value for key, value in user.items() if key not in ("passwordHash",)}
     return public

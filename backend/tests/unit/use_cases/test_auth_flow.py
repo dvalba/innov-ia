@@ -10,9 +10,9 @@ from features.auth.domain.session import Session
 from features.auth.infrastructure.token_store import TokenStore, verify_credentials
 from features.auth.use_cases.change_password import (
     ChangePasswordCommand,
-    change_password,
     PasswordNotForced,
     WrongCurrentPassword,
+    change_password,
 )
 from features.auth.use_cases.login import LoginCommand, login
 from features.auth.use_cases.logout import logout
@@ -35,8 +35,8 @@ def _env(directory=None):
         "contact": "ana@corp.com",
         "roles": ["proponente"],
         "active": True,
-        "password_hash": hash_password("clave123"),
-        "should_change_password": False,
+        "passwordHash": hash_password("clave123"),
+        "shouldChangePassword": False,
     })
     directory.create({
         "id": "u_2",
@@ -46,8 +46,8 @@ def _env(directory=None):
         "contact": "",
         "roles": ["proponente"],
         "active": False,
-        "password_hash": hash_password("clave456"),
-        "should_change_password": False,
+        "passwordHash": hash_password("clave456"),
+        "shouldChangePassword": False,
     })
     store = InMemoryStore()
     token_store = TokenStore(store, ttl_minutes=480, now_factory=lambda: NOW)
@@ -76,13 +76,13 @@ def test_login_invalid_credentials_single_message() -> None:
     directory, token_store = _env()
     try:
         login(LoginCommand(username="ana", password="mala", now=NOW), directory, token_store)
-        assert False, "expected AuthError"
+        raise AssertionError("expected AuthError")
     except AuthError as error:
         assert error.message == "Las credenciales no son válidas."
         assert error.code == "INVALID_CREDENTIALS"
     try:
         login(LoginCommand(username="alguien", password="mala", now=NOW), directory, token_store)
-        assert False, "expected AuthError"
+        raise AssertionError("expected AuthError")
     except AuthError as error:
         assert error.message == "Las credenciales no son válidas."
 
@@ -91,7 +91,7 @@ def test_login_deactivated_user_rejected_with_same_message() -> None:
     directory, token_store = _env()
     try:
         login(LoginCommand(username="deshab", password="clave456", now=NOW), directory, token_store)
-        assert False, "expected AuthError"
+        raise AssertionError("expected AuthError")
     except AuthError as error:
         assert error.code == "INVALID_CREDENTIALS"
         assert error.message == "Las credenciales no son válidas."
@@ -99,7 +99,7 @@ def test_login_deactivated_user_rejected_with_same_message() -> None:
 
 def test_login_sets_must_change_when_flagged() -> None:
     directory, token_store = _env()
-    directory.update("u_1", {"should_change_password": True})
+    directory.update("u_1", {"shouldChangePassword": True})
     result = login(LoginCommand(username="ana", password="clave123", now=NOW), directory, token_store)
     assert result.must_change_password is True
 
@@ -119,43 +119,43 @@ def test_me_returns_user_and_roles() -> None:
     assert result["id"] == "u_1"
     assert result["name"] == "Ana"
     assert result["roles"] == ["proponente", "admin"]
-    assert "password_hash" not in result
-    assert result["should_change_password"] is False
+    assert "passwordHash" not in result
+    assert result["shouldChangePassword"] is False
 
 
 def test_change_password_only_for_own_session() -> None:
     directory, _ = _env()
-    directory.update("u_1", {"should_change_password": True})
+    directory.update("u_1", {"shouldChangePassword": True})
     session = _session(directory, "u_2")
     try:
         change_password(ChangePasswordCommand(user_id="u_1", current="clave123", new="nueva123"),
                         session, directory)
-        assert False, "expected AuthError"
+        raise AssertionError("expected AuthError")
     except AuthError:
         pass
 
 
 def test_change_password_wrong_current_password() -> None:
     directory, _ = _env()
-    directory.update("u_1", {"should_change_password": True})
+    directory.update("u_1", {"shouldChangePassword": True})
     session = _session(directory)
     try:
         change_password(ChangePasswordCommand(user_id=session.user_id, current="mala", new="nueva123"),
                         session, directory)
-        assert False, "expected WrongCurrentPassword"
+        raise AssertionError("expected WrongCurrentPassword")
     except WrongCurrentPassword:
         pass
 
 
 def test_change_password_forced_and_clears_flag() -> None:
     directory, _ = _env()
-    directory.update("u_1", {"should_change_password": True})
+    directory.update("u_1", {"shouldChangePassword": True})
     session = _session(directory)
     updated = change_password(
         ChangePasswordCommand(user_id=session.user_id, current="clave123", new="nueva123"),
         session, directory,
     )
-    assert updated["should_change_password"] is False
+    assert updated["shouldChangePassword"] is False
     user = directory.get("u_1")
     assert verify_credentials(user, "nueva123") is True
     assert verify_credentials(user, "clave123") is False
@@ -167,18 +167,18 @@ def test_change_password_rejects_when_not_forced() -> None:
     try:
         change_password(ChangePasswordCommand(user_id=session.user_id, current="clave123", new="nueva123"),
                         session, directory)
-        assert False, "expected PasswordNotForced"
+        raise AssertionError("expected PasswordNotForced")
     except PasswordNotForced as error:
         assert error.status_code == 409
 
 
 def test_change_password_rejects_short_new_password() -> None:
     directory, _ = _env()
-    directory.update("u_1", {"should_change_password": True})
+    directory.update("u_1", {"shouldChangePassword": True})
     session = _session(directory)
     try:
         change_password(ChangePasswordCommand(user_id=session.user_id, current="clave123", new="12345"),
                         session, directory)
-        assert False, "expected DomainError"
+        raise AssertionError("expected DomainError")
     except DomainError:
         pass

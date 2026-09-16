@@ -49,12 +49,12 @@ def change_password(command: ChangePasswordCommand, session: Session, directory:
         raise DomainError("PASSWORD_TOO_SHORT",
                           "La nueva contraseña debe tener al menos 6 caracteres.", status_code=400)
     user = directory.get(command.user_id)
-    if not user.get("should_change_password", False):
+    if not user.get("shouldChangePassword", False):
         raise PasswordNotForced()
-    if user is None or not verify_password(command.current, user.get("password_hash", "")):
+    if user is None or not verify_password(command.current, user.get("passwordHash", "")):
         raise WrongCurrentPassword()
     updated = directory.update(command.user_id, {
-        "password_hash": hash_password(command.new),
-        "should_change_password": False,
+        "passwordHash": hash_password(command.new),
+        "shouldChangePassword": False,
     })
-    return {key: value for key, value in updated.items() if key != "password_hash"}
+    return {key: value for key, value in updated.items() if key != "passwordHash"}

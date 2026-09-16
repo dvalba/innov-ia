@@ -101,10 +101,10 @@ def test_seed_creates_first_admin() -> None:
     assert admin is not None
     assert admin["roles"] == ["admin"]
     assert admin["active"] is True
-    assert admin["should_change_password"] is False
+    assert admin["shouldChangePassword"] is False
     from shared.utils.password import verify_password
 
-    assert verify_password("S3guraAdmin", admin["password_hash"]) is True
+    assert verify_password("S3guraAdmin", admin["passwordHash"]) is True
 
 
 def test_seed_is_idempotent() -> None:
@@ -119,8 +119,8 @@ def test_seed_is_idempotent() -> None:
     from shared.utils.password import verify_password
 
     stored = directory.users[first["id"]]
-    assert verify_password("S3guraAdmin", stored["password_hash"]) is True
-    assert verify_password("OtraClave", stored["password_hash"]) is False
+    assert verify_password("S3guraAdmin", stored["passwordHash"]) is True
+    assert verify_password("OtraClave", stored["passwordHash"]) is False
 
 
 def test_seed_returns_none_when_no_credentials_configured() -> None:

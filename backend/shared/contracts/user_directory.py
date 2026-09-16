@@ -7,7 +7,7 @@ must verify credentials, read roles and change passwords WITHOUT importing
 
 User payload keys (spec §2.1 `User` + RF-17 implementation fields):
 `id`, `username`, `name`, `area`, `contact`, `roles` (list), `active`
-(bool), `password_hash`, `should_change_password` (bool).
+(bool), `passwordHash`, `shouldChangePassword` (bool).
 """
 
 from typing import Protocol, runtime_checkable

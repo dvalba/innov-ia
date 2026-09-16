@@ -87,9 +87,9 @@ def seed_first_admin(directory: UserDirectory,
         "contact": "",
         "roles": [ROLE_ADMIN],
         "active": True,
-        "password_hash": hash_password(password),
-        "should_change_password": False,
-        "created_at": moment.isoformat(),
+        "passwordHash": hash_password(password),
+        "shouldChangePassword": False,
+        "createdAt": moment.isoformat(),
     })
 
 
@@ -97,4 +97,4 @@ def verify_credentials(user: dict | None, password: str) -> bool:
     """True when the user exists, is active and the password matches."""
     if user is None or not user.get("active", True):
         return False
-    return verify_password(password, user.get("password_hash", ""))
+    return verify_password(password, user.get("passwordHash", ""))

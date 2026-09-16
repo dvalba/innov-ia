@@ -55,6 +55,6 @@ def test_session_requires_user_id_and_token() -> None:
     for user_id, token in (("", "t"), ("u", ""), ("", "")):
         try:
             Session(token=token, user_id=user_id, expires_at=NOW + timedelta(1), roles=())
-            assert False, "expected DomainError"
+            raise AssertionError("expected DomainError")
         except DomainError:
             pass

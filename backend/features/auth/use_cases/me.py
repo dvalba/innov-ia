@@ -16,4 +16,4 @@ def me(session: Session, directory: UserDirectory) -> dict:
     user = directory.get(session.user_id)
     if user is None:
         raise AuthError(code="SESSION_REQUIRED", message="La sesión ya no está asociada a una cuenta.")
-    return {key: value for key, value in user.items() if key != "password_hash"}
+    return {key: value for key, value in user.items() if key != "passwordHash"}
