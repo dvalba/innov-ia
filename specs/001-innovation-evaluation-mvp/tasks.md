@@ -37,7 +37,7 @@
   - **Dependencias:** [T-001]
   - **Hecho cuando:** `shared/exceptions/handlers.py` define `DomainError`, `ValidationFailed`, `AssistantUnavailable`, `AuthError`, `Forbidden` y registra manejadores globales que devuelven el formato `{"error": {"code", "message", "details"}}` con los códigos HTTP del plan §3.5 (400/401/403/409/422/503); test en `tests/api/test_error_format.py`: lanzar cada excepción desde un endpoint de prueba devuelve el código y el formato exactos (`pytest -q` verde).
 
-- [ ] **[T-003] Backend: persistencia JSON reutilizable y utilidad de contraseñas (stdlib)**
+- [x] **[T-003] Backend: persistencia JSON reutilizable y utilidad de contraseñas (stdlib)**
   - **Covers:** RF-1..RF-20 (plan D1, D10)
   - **Dependencias:** [T-001]
   - **Hecho cuando:** `shared/utils/persistence.py` ofrece un `JsonStore` (lectura/escritura atómica por ruta, con directorio inicial) y `shared/utils/password.py` ofrece `hash_password`/`verify_password` con salt usando solo stdlib (`hashlib`); test en `tests/unit/infra/test_stores.py` y `tests/unit/infra/test_password.py` cubren round-trip, atomeidad (sin archivo parcial tras fallo simulado) y verificación de hash con/ sin salt (`pytest -q` verde).
