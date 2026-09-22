@@ -6,27 +6,31 @@ conectando el backend con su respectiva vista de frontend de extremo a extremo.
 
 ## Orden recomendado (secuencia crítica)
 
-| Orden | Archivo | Vertical (BE ↔ FE) | Tareas | # |
-|-------|---------|--------------------|--------|---|
-| 01 | [`01-nucleo-frontend.md`](01-nucleo-frontend.md) | Shell Angular, interceptores, sesión, modelos TS | T-004, T-005, T-006, T-009 | 4 |
-| 02 | [`02-autenticacion-e2e.md`](02-autenticacion-e2e.md) | Router `/users` + login, cambio forzado, cierre, guards por rol | T-016, T-037, T-038, T-039 | 4 |
-| 03 | [`03-admin-usuarios-e2e.md`](03-admin-usuarios-e2e.md) | Panel `/admin` + matriz de roles + e2e usuarios/roles | T-053, T-054, T-067 | 3 |
-| 04 | [`04-motor-ollama.md`](04-motor-ollama.md) | Cliente Ollama stdlib + prompts/reglas (solo BE; puede ir en paralelo) | T-059, T-060 | 2 |
-| 05 | [`05-idea-dominio-y-store.md`](05-idea-dominio-y-store.md) | `Idea` + validación + máquina de estados + `idea_store` | T-017, T-018, T-019 | 3 |
-| 06 | [`06-idea-casos-uso-y-router.md`](06-idea-casos-uso-y-router.md) | UC crear/editar/publicar/listar + router `/ideas` + mejora asistida | T-020, T-021, T-022, T-023, T-024 | 5 |
-| 07 | [`07-captura-dominio-y-procesamiento.md`](07-captura-dominio-y-procesamiento.md) | Conversación: reglas, store, inicio, procesamiento, título | T-025, T-026, T-027, T-028, T-029 | 5 |
-| 08 | [`08-captura-final-y-router-ui-arranque.md`](08-captura-final-y-router-ui-arranque.md) | Finalización/contingencia + router `/capture` + `new-idea` + chat | T-030, T-031, T-040, T-041, T-042 | 5 |
-| 09 | [`09-captura-resumen-manual-contingencia.md`](09-captura-resumen-manual-contingencia.md) | Resumen editable + formulario manual + contingencia 503 | T-043, T-044, T-045 | 3 |
-| 10 | [`10-notificaciones-validacion-catalogo.md`](10-notificaciones-validacion-catalogo.md) | Notificaciones (4 eventos) + cola especialista + `/catalog/public` | T-032, T-033, T-034, T-035 | 4 |
-| 11 | [`11-mis-ideas-ui.md`](11-mis-ideas-ui.md) | Listado, detalle+edición, mejoras IA, refinamiento, nota de rechazo | T-046, T-047, T-048, T-049, T-050 | 5 |
-| 12 | [`12-validacion-catalogo-campana.md`](12-validacion-catalogo-campana.md) | Cola+panel validar/rechazar + catálogo público + campana | T-051, T-052, T-055 | 3 |
-| 13 | [`13-asistente-check.md`](13-asistente-check.md) | UC asistente (refinamiento, cola) + `/assistant/check` + disparadores | T-061, T-062 | 2 |
-| 14 | [`14-cierre-backend-components.md`](14-cierre-backend-components.md) | Verificación transversal BE + `confirm-dialog` + `idea-card` en shared | T-036, T-056 | 2 |
-| 15 | [`15-e2e-ollama-real.md`](15-e2e-ollama-real.md) | E2E con Ollama real: captura, contingencia, clarificación, validación | T-063, T-064, T-065, T-066 | 4 |
-| 16 | [`16-accesibilidad-build-cierre.md`](16-accesibilidad-build-cierre.md) | Accesibilidad + build/guías + verificación spec §9 | T-057, T-058, T-068 | 3 |
+> **Estado:** las tareas de cada grupo son checkboxes marcables (`- [x]` / `- [ ]`) en su
+> archivo; el estado se actualiza al verificar la implementación contra el código y los tests.
+
+| Orden | Archivo | Vertical (BE ↔ FE) | Tareas | # | Hechas | Estado |
+|-------|---------|--------------------|--------|---|--------|--------|
+| 01 | [`01-nucleo-frontend.md`](01-nucleo-frontend.md) | Shell Angular, interceptores, sesión, modelos TS | T-004, T-005, T-006, T-009 | 4 | 4/4 | ✅ |
+| 02 | [`02-autenticacion-e2e.md`](02-autenticacion-e2e.md) | Router `/users` + login, cambio forzado, cierre, guards por rol | T-016, T-037, T-038, T-039 | 4 | 4/4 | ✅ |
+| 03 | [`03-admin-usuarios-e2e.md`](03-admin-usuarios-e2e.md) | Panel `/admin` + matriz de roles + e2e usuarios/roles | T-053, T-054, T-067 | 3 | 2/3 | 🚧 |
+| 04 | [`04-motor-ollama.md`](04-motor-ollama.md) | Cliente Ollama stdlib + prompts/reglas (solo BE; puede ir en paralelo) | T-059, T-060 | 2 | 0/2 | ⬜ |
+| 05 | [`05-idea-dominio-y-store.md`](05-idea-dominio-y-store.md) | `Idea` + validación + máquina de estados + `idea_store` | T-017, T-018, T-019 | 3 | 0/3 | ⬜ |
+| 06 | [`06-idea-casos-uso-y-router.md`](06-idea-casos-uso-y-router.md) | UC crear/editar/publicar/listar + router `/ideas` + mejora asistida | T-020, T-021, T-022, T-023, T-024 | 5 | 0/5 | ⬜ |
+| 07 | [`07-captura-dominio-y-procesamiento.md`](07-captura-dominio-y-procesamiento.md) | Conversación: reglas, store, inicio, procesamiento, título | T-025, T-026, T-027, T-028, T-029 | 5 | 0/5 | ⬜ |
+| 08 | [`08-captura-final-y-router-ui-arranque.md`](08-captura-final-y-router-ui-arranque.md) | Finalización/contingencia + router `/capture` + `new-idea` + chat | T-030, T-031, T-040, T-041, T-042 | 5 | 0/5 | ⬜ |
+| 09 | [`09-captura-resumen-manual-contingencia.md`](09-captura-resumen-manual-contingencia.md) | Resumen editable + formulario manual + contingencia 503 | T-043, T-044, T-045 | 3 | 0/3 | ⬜ |
+| 10 | [`10-notificaciones-validacion-catalogo.md`](10-notificaciones-validacion-catalogo.md) | Notificaciones (4 eventos) + cola especialista + `/catalog/public` | T-032, T-033, T-034, T-035 | 4 | 0/4 | ⬜ |
+| 11 | [`11-mis-ideas-ui.md`](11-mis-ideas-ui.md) | Listado, detalle+edición, mejoras IA, refinamiento, nota de rechazo | T-046, T-047, T-048, T-049, T-050 | 5 | 0/5 | ⬜ |
+| 12 | [`12-validacion-catalogo-campana.md`](12-validacion-catalogo-campana.md) | Cola+panel validar/rechazar + catálogo público + campana | T-051, T-052, T-055 | 3 | 0/3 | ⬜ |
+| 13 | [`13-asistente-check.md`](13-asistente-check.md) | UC asistente (refinamiento, cola) + `/assistant/check` + disparadores | T-061, T-062 | 2 | 0/2 | ⬜ |
+| 14 | [`14-cierre-backend-components.md`](14-cierre-backend-components.md) | Verificación transversal BE + `confirm-dialog` + `idea-card` en shared | T-036, T-056 | 2 | 0/2 | ⬜ |
+| 15 | [`15-e2e-ollama-real.md`](15-e2e-ollama-real.md) | E2E con Ollama real: captura, contingencia, clarificación, validación | T-063, T-064, T-065, T-066 | 4 | 0/4 | ⬜ |
+| 16 | [`16-accesibilidad-build-cierre.md`](16-accesibilidad-build-cierre.md) | Accesibilidad + build/guías + verificación spec §9 | T-057, T-058, T-068 | 3 | 0/3 | ⬜ |
 
 **Total: 4+4+3+2+3+5+5+5+3+4+5+3+2+2+4+3 = 57 tareas.** ✓ (una por grupo, sin huecos ni
-duplicados).
+duplicados). **Progreso (2026-09-22): 10/57 tareas implementadas** (G01 ✅, G02 ✅, G03 a la
+mitad: T-067 pendiente; G04–G16 sin empezar).
 
 ## Criterio de la secuencia
 

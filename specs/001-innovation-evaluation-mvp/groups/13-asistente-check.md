@@ -4,12 +4,14 @@
 refinamiento manual, cola) y el endpoint `POST /assistant/check` con sus disparadores internos
 bajo demanda. Conecta el motor de G04 con el núcleo de ideas (G06) y las notificaciones (G10).
 
+## Estado
+
+> ⬜ **Pendiente** — 0/2 tareas implementadas.
+
 ## Tareas (orden de ejecución)
 
-| # | ID | Capa | Tarea | Dependencias |
-|---|------|------|-------|--------------|
-| 1 | T-061 | BE | `check_availability.py` (ping + reintento), `suggest_title.py` (integra IA; alimenta a `capture` vía contrato), `improve_idea.py` (UC que genera versión pendiente; sin IA → solicitud pendiente, caso 10), `refine_manual.py` (versión `requestedBy=refinement` + `IDEA_REFINED` al proponente, RF-12), `run_refinement_queue.py` (cola más antigua→reciente; fallo parcial: lo conservado se queda y lo fallido sigue pendiente, caso 6; la idea sigue operativa, RF-11) | T-060 (G04), T-024 (G06), T-033 (G10) |
-| 2 | T-062 | BE | `POST /assistant/check` (rol proponente; verifica disponibilidad y procesa la cola, devuelve nº de ideas refinadas + fallos) + disparadores internos en login (T-013), `/capture/start` (T-031) y al solicitar mejora (T-024); no bloquean la respuesta principal | T-061, T-013 ✓, T-031 (G08) |
+- [ ] **T-061** _(BE)_ — `check_availability.py` (ping + reintento), `suggest_title.py` (integra IA; alimenta a `capture` vía contrato), `improve_idea.py` (UC que genera versión pendiente; sin IA → solicitud pendiente, caso 10), `refine_manual.py` (versión `requestedBy=refinement` + `IDEA_REFINED` al proponente, RF-12), `run_refinement_queue.py` (cola más antigua→reciente; fallo parcial: lo conservado se queda y lo fallido sigue pendiente, caso 6; la idea sigue operativa, RF-11) _(T-060 G04, T-024 G06, T-033 G10)_
+- [ ] **T-062** _(BE)_ — `POST /assistant/check` (rol proponente; verifica disponibilidad y procesa la cola, devuelve nº de ideas refinadas + fallos) + disparadores internos en login (T-013), `/capture/start` (T-031) y al solicitar mejora (T-024); no bloquean la respuesta principal _(T-061, T-013 ✓, T-031 G08)_
 
 ## Flujo extremo a extremo
 

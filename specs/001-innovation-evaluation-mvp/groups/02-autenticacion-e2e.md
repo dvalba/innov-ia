@@ -5,14 +5,16 @@ de sesión y guards de rutas en frontend, conectando la API de auth (T-010..T-01
 el login y los guards del frontend. Deja lista la vertical de usuarios para que G03 (admin)
 consuma sus 403/409.
 
+## Estado
+
+> ✅ **Completado** — 4/4 tareas implementadas y verificadas (2026-09-22).
+
 ## Tareas (orden de ejecución)
 
-| # | ID | Capa | Tarea | Dependencias |
-|---|------|------|-------|--------------|
-| 1 | T-016 | BE | Router `/users`: `GET/POST /users`, `PUT /{id}/roles`, `PATCH /{id}/active` (rol admin, 403 no-admin, 409 último admin; 201 con contraseña temporal) | T-015 ✓, T-013 ✓ |
-| 2 | T-037 | FE | `AuthService` (login → `SessionService`) + página login (mensajes ES, fallo sin indicar campo) | T-006 (G01), T-013 ✓ |
-| 3 | T-038 | FE | Cierre de sesión en sidebar + diálogo de cambio forzado de contraseña en primer acceso | T-037 |
-| 4 | T-039 | FE | Guards `canActivate`: sin sesión → solo `/login`; por rol (`/validacion`→especialista, `/admin`→admin, `/captura`/`/mis-ideas`→proponente) | T-038 |
+- [x] **T-016** _(BE)_ — Router `/users`: `GET/POST /users`, `PUT /{id}/roles`, `PATCH /{id}/active` (rol admin, 403 no-admin, 409 último admin; 201 con contraseña temporal) _(T-015 ✓, T-013 ✓)_
+- [x] **T-037** _(FE)_ — `AuthService` (login → `SessionService`) + página login (mensajes ES, fallo sin indicar campo) _(T-006 G01, T-013 ✓)_
+- [x] **T-038** _(FE)_ — Cierre de sesión en sidebar + diálogo de cambio forzado de contraseña en primer acceso _(T-037)_
+- [x] **T-039** _(FE)_ — Guards `canActivate`: sin sesión → solo `/login`; por rol (`/validacion`→especialista, `/admin`→admin, `/captura`/`/mis-ideas`→proponente) _(T-038)_
 
 ## Flujo extremo a extremo
 

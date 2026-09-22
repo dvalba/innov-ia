@@ -4,13 +4,15 @@
 produce la idea asistida), el formulario manual de 7 campos con prellenado por contingencia y el
 flujo 503 a mitad de conversación (los campos capturados no se pierden, RNF-10).
 
+## Estado
+
+> ⬜ **Pendiente** — 0/3 tareas implementadas.
+
 ## Tareas (orden de ejecución)
 
-| # | ID | Capa | Tarea | Dependencias |
-|---|------|------|-------|--------------|
-| 1 | T-043 | FE | `field-summary`: al llegar `state: RESUMEN`, muestra los 7 campos editables; "Confirmar" → `POST /capture/finish` y con 201 navega a Mis ideas; si el backend rechaza (campos incompletos), muestra errores y permanece en el resumen | T-042 (G08) |
-| 2 | T-044 | FE | `manual-form` + `manual-fields`: 7 obligatorios (proponente prellenado de la cuenta y corregible), validación de no-vacío + formato de contacto (caso 12) antes de habilitar el envío, `POST /ideas` origen `manual`; acepta `prellenado` de ruta; en fallo de envío los datos permanecen (caso 17) | T-041 (G08), T-043 |
-| 3 | T-045 | FE | Contingencia a mitad: 503 `ASSISTANT_UNAVAILABLE` en `POST /capture/messages` → aviso de interrupción + "Continuar en formulario manual" pasando `fallback.capturedFields` al manual prellenado; 503 en el reinicio → reintento único (RNF-3) antes de contingencia | T-042 (G08), T-044 |
+- [ ] **T-043** _(FE)_ — `field-summary`: al llegar `state: RESUMEN`, muestra los 7 campos editables; "Confirmar" → `POST /capture/finish` y con 201 navega a Mis ideas; si el backend rechaza (campos incompletos), muestra errores y permanece en el resumen _(T-042 G08)_
+- [ ] **T-044** _(FE)_ — `manual-form` + `manual-fields`: 7 obligatorios (proponente prellenado de la cuenta y corregible), validación de no-vacío + formato de contacto (caso 12) antes de habilitar el envío, `POST /ideas` origen `manual`; acepta `prellenado` de ruta; en fallo de envío los datos permanecen (caso 17) _(T-041 G08, T-043)_
+- [ ] **T-045** _(FE)_ — Contingencia a mitad: 503 `ASSISTANT_UNAVAILABLE` en `POST /capture/messages` → aviso de interrupción + "Continuar en formulario manual" pasando `fallback.capturedFields` al manual prellenado; 503 en el reinicio → reintento único (RNF-3) antes de contingencia _(T-042 G08, T-044)_
 
 ## Flujo extremo a extremo
 

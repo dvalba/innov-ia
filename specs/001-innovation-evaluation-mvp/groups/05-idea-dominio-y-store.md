@@ -5,13 +5,15 @@ campos, validación, la máquina de estados del plan §4.6 y la persistencia JSO
 (vía el contrato `IdeaLedger` de T-008). Es cimiento de todo lo posterior de ideas/captura/
 validación.
 
+## Estado
+
+> ⬜ **Pendiente** — 0/3 tareas implementadas.
+
 ## Tareas (orden de ejecución)
 
-| # | ID | Capa | Tarea | Dependencias |
-|---|------|------|-------|--------------|
-| 1 | T-017 | BE | `domain/idea.py`: `Idea` (7 campos, `ownerId`, `origin`, `state`, `reviewedByAI`, `currentVersionId`, timestamps) + `validate.py` (`campos_completos`, formato de contacto, caso 12) | T-007 ✓ |
-| 2 | T-018 | BE | `domain/state_machine.py`: tabla de transiciones exacta §4.6 (EN_DESARROLLO→SOLICITANDO solo por request-publication; SOLICITANDO→VALIDADA por approve; SOLICITANDO→EN_DESARROLLO por reject; VALIDADA terminal); `DomainError` ante transición inválida | T-017 |
-| 3 | T-019 | BE | `infrastructure/idea_store.py`: persiste `Idea` + `IdeaVersion` con `JsonStore`, sin registro parcial (caso 17), expone operaciones vía `IdeaLedger` (T-008 ✓) | T-018, T-003 ✓ |
+- [ ] **T-017** _(BE)_ — `domain/idea.py`: `Idea` (7 campos, `ownerId`, `origin`, `state`, `reviewedByAI`, `currentVersionId`, timestamps) + `validate.py` (`campos_completos`, formato de contacto, caso 12) _(T-007 ✓)_
+- [ ] **T-018** _(BE)_ — `domain/state_machine.py`: tabla de transiciones exacta §4.6 (EN_DESARROLLO→SOLICITANDO solo por request-publication; SOLICITANDO→VALIDADA por approve; SOLICITANDO→EN_DESARROLLO por reject; VALIDADA terminal); `DomainError` ante transición inválida _(T-017)_
+- [ ] **T-019** _(BE)_ — `infrastructure/idea_store.py`: persiste `Idea` + `IdeaVersion` con `JsonStore`, sin registro parcial (caso 17), expone operaciones vía `IdeaLedger` (T-008 ✓) _(T-018, T-003 ✓)_
 
 ## Criterio de salida
 

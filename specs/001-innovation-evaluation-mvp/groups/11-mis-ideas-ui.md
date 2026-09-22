@@ -4,15 +4,17 @@
 solicitud de publicación, mejora solicitada a la IA (versión pendiente + decisión) y refinamiento
 de ideas manuales (versión refinada vs original, aceptar/ajustar en chat) + nota de rechazo.
 
+## Estado
+
+> ⬜ **Pendiente** — 0/5 tareas implementadas.
+
 ## Tareas (orden de ejecución)
 
-| # | ID | Capa | Tarea | Dependencias |
-|---|------|------|-------|--------------|
-| 1 | T-046 | FE | Listado "Mis ideas" (`GET /ideas/me`, `httpResource`): título, fecha, origen, estado con `badge-state` (G01), ordenado por fecha, estado vacío en ES; permite abrir cualquiera | T-039 (G02), T-023 (G06) |
-| 2 | T-047 | FE | `pages/detail`: 7 campos, origen/estado/`reviewedByAI` (RNF-2); en EN_DESARROLLO: formulario de edición (PUT, bloqueo visual con aviso si hay generación en curso) + botón "Solicitar publicación" (disponible aunque la idea no haya sido vista por IA); en SOLICITANDO muestra fecha y no permite edición | T-046 |
-| 3 | T-048 | FE | "Solicitar mejora a la IA" (campo de instrucción → `POST /ideas/{id}/improve`; sin IA, aviso de solicitud registrada, caso 10); versiones PENDIENTE listadas con campos propuestos y "Aceptar versión"/"Descartar" (decisión única); al aceitar pasa a vigente, idea sigue EN_DESARROLLO | T-047 |
-| 4 | T-049 | FE | `refine-view`: versión refinada diferenciada de la original (campo por campo) con "Aceptar la versión" (decisión; sigue EN_DESARROLLO) y "Ajustar detalles en el chat" (conversación precontextualizada sobre la idea, no nueva captura; sin IA → edición manual); al abrir una idea manual pendiente dispara `POST /assistant/check` | T-048, `chat-message` (G08) |
-| 5 | T-050 | FE | `reject-note`: cuando la idea fue rechazada, muestra el comentario del especialista con su identidad y fecha, en el detalle y accesible desde la notificación (G12) | T-047 |
+- [ ] **T-046** _(FE)_ — Listado "Mis ideas" (`GET /ideas/me`, `httpResource`): título, fecha, origen, estado con `badge-state` (G01), ordenado por fecha, estado vacío en ES; permite abrir cualquiera _(T-039 G02, T-023 G06)_
+- [ ] **T-047** _(FE)_ — `pages/detail`: 7 campos, origen/estado/`reviewedByAI` (RNF-2); en EN_DESARROLLO: formulario de edición (PUT, bloqueo visual con aviso si hay generación en curso) + botón "Solicitar publicación" (disponible aunque la idea no haya sido vista por IA); en SOLICITANDO muestra fecha y no permite edición _(T-046)_
+- [ ] **T-048** _(FE)_ — "Solicitar mejora a la IA" (campo de instrucción → `POST /ideas/{id}/improve`; sin IA, aviso de solicitud registrada, caso 10); versiones PENDIENTE listadas con campos propuestos y "Aceptar versión"/"Descartar" (decisión única); al aceitar pasa a vigente, idea sigue EN_DESARROLLO _(T-047)_
+- [ ] **T-049** _(FE)_ — `refine-view`: versión refinada diferenciada de la original (campo por campo) con "Aceptar la versión" (decisión; sigue EN_DESARROLLO) y "Ajustar detalles en el chat" (conversación precontextualizada sobre la idea, no nueva captura; sin IA → edición manual); al abrir una idea manual pendiente dispara `POST /assistant/check` _(T-048, `chat-message` G08)_
+- [ ] **T-050** _(FE)_ — `reject-note`: cuando la idea fue rechazada, muestra el comentario del especialista con su identidad y fecha, en el detalle y accesible desde la notificación (G12) _(T-047)_
 
 ## Flujo extremo a extremo
 

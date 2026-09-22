@@ -5,15 +5,17 @@
 (sin pérdida de campos parciales, RNF-10) e inicio/retoma + procesamiento de mensajes con
 sugerencia de título.
 
+## Estado
+
+> ⬜ **Pendiente** — 0/5 tareas implementadas.
+
 ## Tareas (orden de ejecución)
 
-| # | ID | Capa | Tarea | Dependencias |
-|---|------|------|-------|--------------|
-| 1 | T-025 | BE | `domain/conversation.py` (esquema §2.4: ACTIVA/RESUMEN/TERMINADA/CONTINGENCIA) + `capture_rules.py` (orden exacto RF-3, catálogo fijo de chips D7, chip = respuesta completa, `needsClarification` sin avanzar, 1 ACTIVA por usuario) | T-007 ✓ |
-| 2 | T-026 | BE | `infrastructure/conversation_store.py` (JsonStore): obtener ACTIVA, crear, actualizar campos sin perder existentes, marcar CONTINGENCIA/TERMINADA; RNF-10 | T-025, T-003 ✓ |
-| 3 | T-027 | BE | `start_conversation.py`: retoma ACTIVA (no crea segunda, caso 8); si IA disponible inicia con saludo + pregunta campo 1 + chips; si no, señal de formulario manual vacío | T-026, T-008 ✓, cliente IA (G04) |
-| 4 | T-028 | BE | `process_message.py`: aplica texto o chip al campo en curso; extractor IA asigna narrativa multi-campo (cada fragmento marca su campo, no se re-pregunta); aclaración si insuficiente; avanza al siguiente incompleto; al completar 7 → RESUMEN | T-027 |
-| 5 | T-029 | BE | `suggest_title.py`: tras 1ª respuesta sustantiva propone título (`accept`/`another`/`manual`); "another" genera alternativa distinta (intentos persistentes); el texto manual se guarda sin modificar | T-028 |
+- [ ] **T-025** _(BE)_ — `domain/conversation.py` (esquema §2.4: ACTIVA/RESUMEN/TERMINADA/CONTINGENCIA) + `capture_rules.py` (orden exacto RF-3, catálogo fijo de chips D7, chip = respuesta completa, `needsClarification` sin avanzar, 1 ACTIVA por usuario) _(T-007 ✓)_
+- [ ] **T-026** _(BE)_ — `infrastructure/conversation_store.py` (JsonStore): obtener ACTIVA, crear, actualizar campos sin perder existentes, marcar CONTINGENCIA/TERMINADA; RNF-10 _(T-025, T-003 ✓)_
+- [ ] **T-027** _(BE)_ — `start_conversation.py`: retoma ACTIVA (no crea segunda, caso 8); si IA disponible inicia con saludo + pregunta campo 1 + chips; si no, señal de formulario manual vacío _(T-026, T-008 ✓, cliente IA G04)_
+- [ ] **T-028** _(BE)_ — `process_message.py`: aplica texto o chip al campo en curso; extractor IA asigna narrativa multi-campo (cada fragmento marca su campo, no se re-pregunta); aclaración si insuficiente; avanza al siguiente incompleto; al completar 7 → RESUMEN _(T-027)_
+- [ ] **T-029** _(BE)_ — `suggest_title.py`: tras 1ª respuesta sustantiva propone título (`accept`/`another`/`manual`); "another" genera alternativa distinta (intentos persistentes); el texto manual se guarda sin modificar _(T-028)_
 
 ## Criterio de salida
 

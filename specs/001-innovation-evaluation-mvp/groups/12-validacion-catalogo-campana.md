@@ -4,13 +4,15 @@
 validar/rechazar (comentario obligatorio), página de catálogo público de solo lectura y la campana
 de notificaciones (contador, lista, navegación por `ideaId`, marcar leída).
 
+## Estado
+
+> ⬜ **Pendiente** — 0/3 tareas implementadas.
+
 ## Tareas (orden de ejecución)
 
-| # | ID | Capa | Tarea | Dependencias |
-|---|------|------|-------|--------------|
-| 1 | T-051 | FE | `validation/pages/queue` (7 campos, proponente nombre/área, fecha de solicitud, `httpResource`) + `validate-panel` ("Validar" → approve; "Rechazar" con comentario obligatorio, botón bloqueado sin comentario, caso 13); estados se refrescan tras la acción con confirmación ES | T-039 (G02), T-034 (G10) |
-| 2 | T-052 | FE | `catalog/pages/public`: ideas `VALIDADA_PUBLICA` (7 campos, nombre/área, fechas de registro y publicación, `httpResource`), sin datos de contacto y sin botones de edición; accesible con cualquier sesión | T-039 (G02), T-035 (G10) |
-| 3 | T-055 | FE | `notification-bell` (en el layout, G01): contador de no leídas (polling `GET /notifications`), lista con mensaje ES y fecha, navegación al objeto por `ideaId` (detalle de idea, G11) y marcar leída al consultar (POST read); sin notificaciones fuera de la app | T-006 (G01), T-033 (G10) |
+- [ ] **T-051** _(FE)_ — `validation/pages/queue` (7 campos, proponente nombre/área, fecha de solicitud, `httpResource`) + `validate-panel` ("Validar" → approve; "Rechazar" con comentario obligatorio, botón bloqueado sin comentario, caso 13); estados se refrescan tras la acción con confirmación ES _(T-039 G02, T-034 G10)_
+- [ ] **T-052** _(FE)_ — `catalog/pages/public`: ideas `VALIDADA_PUBLICA` (7 campos, nombre/área, fechas de registro y publicación, `httpResource`), sin datos de contacto y sin botones de edición; accesible con cualquier sesión _(T-039 G02, T-035 G10)_
+- [ ] **T-055** _(FE)_ — `notification-bell` (en el layout, G01): contador de no leídas (polling `GET /notifications`), lista con mensaje ES y fecha, navegación al objeto por `ideaId` (detalle de idea, G11) y marcar leída al consultar (POST read); sin notificaciones fuera de la app _(T-006 G01, T-033 G10)_
 
 ## Flujo extremo a extremo
 

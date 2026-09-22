@@ -7,12 +7,14 @@ aislamiento con un servidor HTTP simulado; desbloquea captura (G08), mejora (G06
 
 > Puede ejecutarse en paralelo desde ya: solo depende de núcleo ya hecho (T-001, T-002, T-007).
 
+## Estado
+
+> ⬜ **Pendiente** — 0/2 tareas implementadas.
+
 ## Tareas (orden de ejecución)
 
-| # | ID | Capa | Tarea | Dependencias |
-|---|------|------|-------|--------------|
-| 1 | T-059 | BE | `ollama_client.py` (stdlib `urllib`/`http.client`): `ping()`, `generate(prompt)`, timeout 60 s (RNF-3), reintento único transparente; "fallo de IA" (sin respuesta a tiempo, error de servicio, respuesta no interpretable, caso 14) → `AssistantUnavailable` | T-001 ✓ |
-| 2 | T-060 | BE | `prompts.py` (extracción de campos RF-3, sugerencia de título RF-4 con intentos a evitar, refinamiento 7 campos, mejora bajo instrucción RF-8) + `refinement.py` (cola: manual + EN_DESARROLLO + sin refinada, más antigua→reciente; interpretación de respuesta → fallo si no interpretable) | T-059 |
+- [ ] **T-059** _(BE)_ — `ollama_client.py` (stdlib `urllib`/`http.client`): `ping()`, `generate(prompt)`, timeout 60 s (RNF-3), reintento único transparente; "fallo de IA" (sin respuesta a tiempo, error de servicio, respuesta no interpretable, caso 14) → `AssistantUnavailable` _(T-001 ✓)_
+- [ ] **T-060** _(BE)_ — `prompts.py` (extracción de campos RF-3, sugerencia de título RF-4 con intentos a evitar, refinamiento 7 campos, mejora bajo instrucción RF-8) + `refinement.py` (cola: manual + EN_DESARROLLO + sin refinada, más antigua→reciente; interpretación de respuesta → fallo si no interpretable) _(T-059)_
 
 ## Criterio de salida
 

@@ -5,15 +5,17 @@
 router `/ideas` completo, incluida la orquestación backend de `improve_idea` y `adjust_in_chat`
 (que inyecta el cliente IA del grupo 04).
 
+## Estado
+
+> ⬜ **Pendiente** — 0/5 tareas implementadas.
+
 ## Tareas (orden de ejecución)
 
-| # | ID | Capa | Tarea | Dependencias |
-|---|------|------|-------|--------------|
-| 1 | T-020 | BE | `create_idea.py` (7 obligatorios + origen + ownerId; `ValidationFailed` si faltan) + `edit_idea.py` (solo EN_DESARROLLO y dueño; `DomainError` 409 si hay generación en curso) | T-019 (G05) |
-| 2 | T-021 | BE | `request_publication.py` / `approve_idea.py` (permiso especialista o autovalidación caso 9; rastro `publishedBy`/`publishedAt` + notificaciones vía contrato) / `reject_idea.py` (comentario obligatorio 400 caso 13, rastro del emisor) | T-020, T-008 ✓ |
-| 3 | T-022 | BE | `list_my_ideas.py` (solo del usuario) + `list_public.py` (SOLO `VALIDADA_PUBLICA`, sin `contact`) | T-021 |
-| 4 | T-023 | BE | `routers/ideas.py`: `POST /ideas` (201/422), `GET /ideas/me`, `GET /ideas/{id}` (403 no dueño), `PUT /ideas/{id}` (409 generando), `POST /ideas/{id}/improve`, `POST /ideas/{id}/versions/{vid}/decide`, `POST /ideas/{id}/request-publication`; esquemas Pydantic solo aquí | T-022 |
-| 5 | T-024 | BE | `improve_idea.py` (versión PENDIENTE `requestedBy=improvement`, `reviewedByAI=true`, bloquea edición; sin IA → solicitud pendiente + aviso, caso 10) + `decide` (aceptar → vigente manteniendo EN_DESARROLLO; descartar → conserva) + `adjust_in_chat` (contrato de conversación precontextualizada sobre la idea, RF-2; sin IA → edición manual) | T-023, cliente IA (G04) |
+- [ ] **T-020** _(BE)_ — `create_idea.py` (7 obligatorios + origen + ownerId; `ValidationFailed` si faltan) + `edit_idea.py` (solo EN_DESARROLLO y dueño; `DomainError` 409 si hay generación en curso) _(T-019 G05)_
+- [ ] **T-021** _(BE)_ — `request_publication.py` / `approve_idea.py` (permiso especialista o autovalidación caso 9; rastro `publishedBy`/`publishedAt` + notificaciones vía contrato) / `reject_idea.py` (comentario obligatorio 400 caso 13, rastro del emisor) _(T-020, T-008 ✓)_
+- [ ] **T-022** _(BE)_ — `list_my_ideas.py` (solo del usuario) + `list_public.py` (SOLO `VALIDADA_PUBLICA`, sin `contact`) _(T-021)_
+- [ ] **T-023** _(BE)_ — `routers/ideas.py`: `POST /ideas` (201/422), `GET /ideas/me`, `GET /ideas/{id}` (403 no dueño), `PUT /ideas/{id}` (409 generando), `POST /ideas/{id}/improve`, `POST /ideas/{id}/versions/{vid}/decide`, `POST /ideas/{id}/request-publication`; esquemas Pydantic solo aquí _(T-022)_
+- [ ] **T-024** _(BE)_ — `improve_idea.py` (versión PENDIENTE `requestedBy=improvement`, `reviewedByAI=true`, bloquea edición; sin IA → solicitud pendiente + aviso, caso 10) + `decide` (aceptar → vigente manteniendo EN_DESARROLLO; descartar → conserva) + `adjust_in_chat` (contrato de conversación precontextualizada sobre la idea, RF-2; sin IA → edición manual) _(T-023, cliente IA G04)_
 
 ## Criterio de salida
 
