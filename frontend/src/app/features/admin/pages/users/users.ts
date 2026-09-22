@@ -157,10 +157,9 @@ import { roleLabel } from '../../../../shared/utils/roles';
                         ? 'Desactivar'
                         : 'Habilitar' }}
                   </button>
-                  <app-role-matrix
-                    [user]="user"
-                    [allUsers]="list.value() ?? []"
-                    [saving]="rolesSavingId() === user.id"
+                    <app-role-matrix
+                      [user]="user"
+                      [saving]="rolesSavingId() === user.id"
                     (saveRequested)="onSaveRoles(user, $event)"
                   />
                 </div>

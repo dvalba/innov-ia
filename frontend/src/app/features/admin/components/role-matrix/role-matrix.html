@@ -11,22 +11,17 @@
           type="checkbox"
           [ngModel]="hasRole(option.code)"
           (ngModelChange)="toggle(option.code)"
-          [disabled]="saving() || (blockedByLastAdmin && option.code === ROLE_ADMIN)"
+          [disabled]="saving()"
           class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
         />
         <span>{{ option.label }}</span>
       </label>
     }
   </div>
-  @if (blockedByLastAdmin) {
-    <p class="text-xs text-amber-700" role="note">
-      Último administrador activo: no se puede dejar la plataforma sin admin.
-    </p>
-  }
   <button
     type="button"
     (click)="submit()"
-    [disabled]="saving() || blockedByLastAdmin"
+    [disabled]="saving()"
     class="mt-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:cursor-not-allowed disabled:opacity-50"
   >
     {{ saving() ? 'Guardando…' : 'Guardar roles' }}
