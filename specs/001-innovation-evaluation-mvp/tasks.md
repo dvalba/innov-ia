@@ -112,7 +112,7 @@
   - **Dependencias:** [T-014]
   - **Hecho cuando:** `create_user.py` emite contraseña temporal válida para primer acceso y la devuelve una sola vez; `assign_roles.py` valida roles conocidos y aplica la regla del último admin; `toggle_active.py` conserva cuenta, ideas e historial al desactivar; `change_password.py` de auth (T-012) reutiliza aquí la verificación de contraseña actual; tests en `tests/unit/use_cases/test_users_roles.py` cubren creación con temporal, asignación/revocación y caso 16 (historial intacto) (`pytest -q` verde).
 
-- [ ] **[T-016] users · router: endpoints /users con segregación por rol**
+- [x] **[T-016] users · router: endpoints /users con segregación por rol**
   - **Covers:** RF-17, RNF-7
   - **Dependencias:** [T-015], [T-013]
   - **Hecho cuando:** `features/users/routers/users.py` expone `GET/POST /users`, `PUT /users/{id}/roles`, `PATCH /users/{id}/active`, todos con dependencia de rol administrador (403 si no es admin); `POST /users` devuelve la contraseña temporal en la respuesta 201; test en `tests/api/test_users_api.py` cubre 201 con temporal, 403 para no-admin, 409 al desactivar el último admin (`pytest -q` verde).

@@ -131,11 +131,12 @@ def test_require_role_rejects_session_without_role(env, app) -> None:
     client = TestClient(guarded_app)
 
     # Build sessions via the same token store (bypassing /auth/login, which
-    # lives on the main app).
-    session = token_store.issue("u_1", ("proponente",), now=NOW)
+    # lives on the main app). The guard resolves with the real clock, so the
+    # tokens are issued now (otherwise they would read as expired).
+    session = token_store.issue("u_1", ("proponente",), now=datetime.now())
     assert client.get("/admin-only", headers={"Authorization": f"Bearer {session.token}"}).status_code == 403
 
-    admin_session = token_store.issue("u_admin", ("admin",), now=NOW)
+    admin_session = token_store.issue("u_admin", ("admin",), now=datetime.now())
     assert client.get("/admin-only", headers={"Authorization": f"Bearer {admin_session.token}"}).status_code == 200
 
     assert client.get("/admin-only").status_code == 401

@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.deps import get_user_directory
 from features.auth.infrastructure.token_store import seed_first_admin
 from features.auth.routers.auth import auth_router
+from features.users.routers.users import users_router
 from shared.config.settings import settings
 from shared.exceptions.handlers import register_exception_handlers
 
@@ -36,6 +37,7 @@ app = FastAPI(
 register_exception_handlers(app)
 
 app.include_router(auth_router)
+app.include_router(users_router)
 
 if settings.cors_origins:
     app.add_middleware(
