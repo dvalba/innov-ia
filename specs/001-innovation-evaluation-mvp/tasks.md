@@ -238,7 +238,7 @@
   - **Dependencias:** [T-006], [T-013]
   - **Hecho cuando:** `features/auth/services/auth.service.ts` llama a `POST /auth/login` (HttpClient en el servicio) y, en éxito, almacena la sesión vía `SessionService`; la página `features/auth/pages/login` muestra formulario usuario/contraseña con mensajes en español, notifica el fallo sin indicar qué dato es incorrecto y redirige al layout principal en éxito; operable con teclado; `ng build` pasa.
 
-- [ ] **[T-038] auth · cierre de sesión + guarda de usuario y cambio forzado de contraseña**
+- [x] **[T-038] auth · cierre de sesión + guarda de usuario y cambio forzado de contraseña**
   - **Covers:** RF-1, RF-17 (primer acceso)
   - **Dependencias:** [T-037]
   - **Hecho cuando:** El sidebar del layout expone el nombre de usuario y el botón "Cerrar sesión" (llama a `POST /auth/logout` y devuelve a login); si el usuario trae `debeCambiarContraseña`, al iniciar se muestra un diálogo para llamar a `POST /auth/change-password` antes de cualquier otra acción; `ng build` pasa.

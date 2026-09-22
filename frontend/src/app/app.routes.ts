@@ -1,7 +1,12 @@
 import { Routes } from '@angular/router';
 
 import { ROLE_ADMIN, ROLE_PROPOSER, ROLE_VALIDATOR } from './shared/types/models';
-import { loginOnly, requireRole, requireSession } from './shared/guards/route-guards';
+import {
+  loginOnly,
+  mustChangePasswordOnly,
+  requireRole,
+  requireSession,
+} from './shared/guards/route-guards';
 
 /**
  * Application routes (T-004, plan §1.1).
@@ -17,6 +22,16 @@ export const routes: Routes = [
     canActivate: [loginOnly],
     loadComponent: () =>
       import('./features/auth/pages/login/login').then((m) => m.Login),
+  },
+  {
+    // Forced change of the temporary password on first access (T-038, RF-17):
+    // only reachable while the account is in the "must change" state.
+    path: 'cambiar-contrasena',
+    canActivate: [mustChangePasswordOnly],
+    loadComponent: () =>
+      import('./features/auth/pages/change-password/change-password').then(
+        (m) => m.ChangePassword,
+      ),
   },
   {
     path: '',

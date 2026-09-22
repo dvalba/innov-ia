@@ -4,11 +4,11 @@ import { Usuario } from '../types/models';
 /** Persisted payload under a fixed localStorage key. */
 const STORAGE_KEY = 'innov-ia.sesion';
 
-function readPersisted(): { token: string; usuario: Usuario } | null {
+function readPersisted(): { token: string; usuario: Usuario; mustChangePassword?: boolean } | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { token: string; usuario: Usuario };
+    const parsed = JSON.parse(raw) as { token: string; usuario: Usuario; mustChangePassword?: boolean };
     if (!parsed?.token || !parsed?.usuario) return null;
     return parsed;
   } catch {
@@ -41,14 +41,19 @@ export class SessionService {
     if (persisted) {
       this.token.set(persisted.token);
       this.usuario.set(persisted.usuario);
+      this.mustChangePassword.set(persisted.mustChangePassword ?? false);
     }
 
     // Persist on change (imperative integration with localStorage).
     effect(() => {
       const tok = this.token();
       const user = this.usuario();
+      const forced = this.mustChangePassword();
       if (tok && user) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: tok, usuario: user }));
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({ token: tok, usuario: user, mustChangePassword: forced }),
+        );
       } else {
         localStorage.removeItem(STORAGE_KEY);
       }

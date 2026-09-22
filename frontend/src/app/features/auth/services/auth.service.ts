@@ -53,5 +53,12 @@ export class AuthService {
       newPassword,
     }));
     this.session.mustChangePassword.set(false);
+    await this.refreshUser();
+  }
+
+  /** GET /auth/me — reloads the account so the persisted session is fresh. */
+  async refreshUser(): Promise<void> {
+    const user = await firstValueFrom(this.http.get<Usuario>('/auth/me'));
+    this.session.usuario.set(user);
   }
 }
