@@ -323,7 +323,7 @@
 
 ### 3.6 Feature `admin`
 
-- [ ] **[T-053] admin · panel de usuarios (crear, desactivar, roles)**
+- [x] **[T-053] admin · panel de usuarios (crear, desactivar, roles)**
   - **Covers:** RF-17
   - **Dependencias:** [T-039], [T-016]
   - **Hecho cuando:** `features/admin/pages/users` lista los usuarios (nombre, área, roles, estado); `components/user-form` crea usuarios (username, nombre, área, contacto) y, tras 201, muestra la contraseña temporal una única vez para entregarla; permite desactivar/habilitar usuario; al intentar desactivar el último administrador muestra el error del backend (409) sin aplicar el cambio; `ng build` pasa.
