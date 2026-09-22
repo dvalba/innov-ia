@@ -1,0 +1,34 @@
+<fieldset
+  [disabled]="saving()"
+  class="flex min-w-56 flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 disabled:cursor-not-allowed disabled:opacity-60"
+  aria-label="Roles del usuario"
+>
+  <legend class="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Roles</legend>
+  <div class="flex flex-col gap-1.5">
+    @for (option of ROLE_OPCIONES; track option.code) {
+      <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+        <input
+          type="checkbox"
+          [ngModel]="hasRole(option.code)"
+          (ngModelChange)="toggle(option.code)"
+          [disabled]="saving() || (blockedByLastAdmin && option.code === ROLE_ADMIN)"
+          class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+        />
+        <span>{{ option.label }}</span>
+      </label>
+    }
+  </div>
+  @if (blockedByLastAdmin) {
+    <p class="text-xs text-amber-700" role="note">
+      Último administrador activo: no se puede dejar la plataforma sin admin.
+    </p>
+  }
+  <button
+    type="button"
+    (click)="submit()"
+    [disabled]="saving() || blockedByLastAdmin"
+    class="mt-1 rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    {{ saving() ? 'Guardando…' : 'Guardar roles' }}
+  </button>
+</fieldset>

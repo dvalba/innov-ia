@@ -33,4 +33,9 @@ export class UsersService {
   toggleActive(userId: string): Promise<Usuario> {
     return firstValueFrom(this.http.patch<Usuario>(`/users/${userId}/active`, null));
   }
+
+  /** PUT /users/{id}/roles — replaces the user's roles (T-054). */
+  setRoles(userId: string, roles: string[]): Promise<Usuario> {
+    return firstValueFrom(this.http.put<Usuario>(`/users/${userId}/roles`, { roles }));
+  }
 }

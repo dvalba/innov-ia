@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { RoleMatrix } from '../../components/role-matrix/role-matrix';
 import { UserForm } from '../../components/user-form/user-form';
 import { errorMessage } from '../../../../shared/interceptors/error.interceptor';
 import { UsersService, CreatedUser } from '../../services/users.service';
@@ -6,18 +7,18 @@ import { Usuario } from '../../../../shared/types/models';
 import { roleLabel } from '../../../../shared/utils/roles';
 
 /**
- * Users administration page (T-053, RF-17).
+ * Users administration page (T-053/T-054, RF-17).
  *
  * Lists the accounts (username, name, area, contact, roles, state), creates
  * users (the one-time temporary password is shown exactly once, with a copy
- * helper), and toggles enabled/disabled. When the backend rejects an
- * operation (409 username taken, 409 last-administrator rule) the change is
- * not applied and the message is surfaced. Users without roles are flagged
- * "Sin acceso a funciones".
+ * helper), toggles enabled/disabled and assigns/revokes roles through the
+ * role matrix. When the backend rejects an operation (409 username taken,
+ * 409 last-administrator rule) the change is not applied and the message is
+ * surfaced. Users without roles are flagged "Sin acceso a funciones".
  */
 @Component({
   selector: 'app-user-management',
-  imports: [UserForm],
+  imports: [UserForm, RoleMatrix],
   template: `
     <div class="space-y-6">
       <header class="rounded-xl border border-slate-200 bg-white p-6">
@@ -142,19 +143,27 @@ import { roleLabel } from '../../../../shared/utils/roles';
                   }
                 </div>
 
-                <button
-                  type="button"
-                  (click)="onToggle(user)"
-                  [disabled]="togglingId() === user.id"
-                  [attr.aria-label]="(user.active ? 'Desactivar' : 'Habilitar') + ' a ' + user.username"
-                  class="shrink-0 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {{ togglingId() === user.id
-                    ? 'Guardando…'
-                    : user.active
-                      ? 'Desactivar'
-                      : 'Habilitar' }}
-                </button>
+                <div class="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-start">
+                  <button
+                    type="button"
+                    (click)="onToggle(user)"
+                    [disabled]="togglingId() === user.id"
+                    [attr.aria-label]="(user.active ? 'Desactivar' : 'Habilitar') + ' a ' + user.username"
+                    class="self-start rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60 sm:self-auto"
+                  >
+                    {{ togglingId() === user.id
+                      ? 'Guardando…'
+                      : user.active
+                        ? 'Desactivar'
+                        : 'Habilitar' }}
+                  </button>
+                  <app-role-matrix
+                    [user]="user"
+                    [allUsers]="list.value() ?? []"
+                    [saving]="rolesSavingId() === user.id"
+                    (saveRequested)="onSaveRoles(user, $event)"
+                  />
+                </div>
               </li>
             }
           </ul>
@@ -173,6 +182,7 @@ export class UserManagement {
   protected readonly copied = signal(false);
   protected readonly error = signal('');
   protected readonly togglingId = signal<string | null>(null);
+  protected readonly rolesSavingId = signal<string | null>(null);
 
   protected onCreated(payload: CreatedUser): void {
     this.created.set(payload);
@@ -211,6 +221,20 @@ export class UserManagement {
       this.error.set(errorMessage(err));
     } finally {
       this.togglingId.set(null);
+    }
+  }
+
+  protected async onSaveRoles(user: Usuario, roles: string[]): Promise<void> {
+    this.error.set('');
+    this.rolesSavingId.set(user.id);
+    try {
+      await this.users.setRoles(user.id, roles);
+      this.list.reload();
+    } catch (err) {
+      // 409 last-admin (or any rejection): the change was not applied.
+      this.error.set(errorMessage(err));
+    } finally {
+      this.rolesSavingId.set(null);
     }
   }
 }

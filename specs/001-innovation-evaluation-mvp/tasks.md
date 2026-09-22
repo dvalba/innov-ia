@@ -328,7 +328,7 @@
   - **Dependencias:** [T-039], [T-016]
   - **Hecho cuando:** `features/admin/pages/users` lista los usuarios (nombre, área, roles, estado); `components/user-form` crea usuarios (username, nombre, área, contacto) y, tras 201, muestra la contraseña temporal una única vez para entregarla; permite desactivar/habilitar usuario; al intentar desactivar el último administrador muestra el error del backend (409) sin aplicar el cambio; `ng build` pasa.
 
-- [ ] **[T-054] admin · matriz de roles (asignar/revocar)**
+- [x] **[T-054] admin · matriz de roles (asignar/revocar)**
   - **Covers:** RF-17
   - **Dependencias:** [T-053]
   - **Hecho cuando:** `components/role-matrix` permite asignar/revocar uno o varios roles (proponente, especialista, administrador) por usuario (PUT /users/{id}/roles), refleja el estado actual y bloquea la UI según el error del backend (último admin); usuarios sin roles se marcan como "sin acceso a funciones"; `ng build` pasa.
