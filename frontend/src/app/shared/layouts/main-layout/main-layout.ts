@@ -44,8 +44,16 @@ export class MainLayout {
     return name.charAt(0).toUpperCase();
   }
 
+  protected get isProposer(): boolean {
+    return this.session.roles().includes(ROLE_PROPOSER);
+  }
+
   protected get isValidator(): boolean {
     return this.session.roles().includes(ROLE_VALIDATOR);
+  }
+
+  protected get isAdmin(): boolean {
+    return this.session.roles().includes(ROLE_ADMIN);
   }
 
   protected async onLogout(): Promise<void> {

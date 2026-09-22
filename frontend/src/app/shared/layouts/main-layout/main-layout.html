@@ -9,28 +9,30 @@
 
     <nav class="flex-1 px-3 py-4">
       <ul class="space-y-1">
-        <li>
-          <a
-            routerLink="/mis-ideas"
-            routerLinkActive="bg-indigo-50 text-indigo-700"
-            class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
-            >Mis ideas</a
-          >
-        </li>
+        @if (isProposer) {
+          <li>
+            <a
+              routerLink="/captura"
+              routerLinkActive="bg-indigo-50 text-indigo-700"
+              class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+              >Nueva idea</a
+            >
+          </li>
+          <li>
+            <a
+              routerLink="/mis-ideas"
+              routerLinkActive="bg-indigo-50 text-indigo-700"
+              class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+              >Mis ideas</a
+            >
+          </li>
+        }
         <li>
           <a
             routerLink="/catalogo"
             routerLinkActive="bg-indigo-50 text-indigo-700"
             class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
             >Catálogo</a
-          >
-        </li>
-        <li>
-          <a
-            routerLink="/captura"
-            routerLinkActive="bg-indigo-50 text-indigo-700"
-            class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
-            >Nueva idea</a
           >
         </li>
         @if (isValidator) {
@@ -43,14 +45,16 @@
             >
           </li>
         }
-        <li>
-          <a
-            routerLink="/admin"
-            routerLinkActive="bg-indigo-50 text-indigo-700"
-            class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
-            >Administración</a
-          >
-        </li>
+        @if (isAdmin) {
+          <li>
+            <a
+              routerLink="/admin"
+              routerLinkActive="bg-indigo-50 text-indigo-700"
+              class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+              >Administración</a
+            >
+          </li>
+        }
       </ul>
     </nav>
 
