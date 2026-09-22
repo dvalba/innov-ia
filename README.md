@@ -31,9 +31,8 @@ docs/             constitution y guías técnicas (FastAPI, Angular, Tailwind)
 
 ## Requisitos
 
-- Python 3.12+ (el venv de `backend/.venv` ya existe; si no, `python3 -m venv .venv &&
-  .venv/bin/pip install -e ".[dev]"` desde `backend/`).
-- Node.js 20+ y npm.
+- Python 3.12+ y Node.js 20+ (npm). El backend **no se instala como paquete**: se corre
+  desde `backend/` (por eso los tests pasan `pythonpath=["."]` en `pyproject.toml`).
 - Ollama corriendo en `http://localhost:11434` **solo** para las funciones de IA
   (captura asistida, mejoras, refinamiento). Login, usuarios, ideas manuales, validación y
   notificaciones funcionan sin él: el sistema degrada a manual cuando la IA no responde.
@@ -42,6 +41,9 @@ docs/             constitution y guías técnicas (FastAPI, Angular, Tailwind)
 
 ```bash
 cd backend
+# solo la primera vez:
+python3 -m venv .venv
+.venv/bin/pip install fastapi pydantic uvicorn pytest ruff httpx   # como en pyproject.toml
 INNOV_ADMIN_USERNAME=admin INNOV_ADMIN_PASSWORD=admin123 \
   .venv/bin/uvicorn app.main:app --reload
 ```
