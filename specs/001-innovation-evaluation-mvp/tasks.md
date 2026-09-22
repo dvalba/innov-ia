@@ -233,7 +233,7 @@
 
 ### 3.1 Feature `auth`
 
-- [ ] **[T-037] auth · AuthService + página de login**
+- [x] **[T-037] auth · AuthService + página de login**
   - **Covers:** RF-1
   - **Dependencias:** [T-006], [T-013]
   - **Hecho cuando:** `features/auth/services/auth.service.ts` llama a `POST /auth/login` (HttpClient en el servicio) y, en éxito, almacena la sesión vía `SessionService`; la página `features/auth/pages/login` muestra formulario usuario/contraseña con mensajes en español, notifica el fallo sin indicar qué dato es incorrecto y redirige al layout principal en éxito; operable con teclado; `ng build` pasa.
