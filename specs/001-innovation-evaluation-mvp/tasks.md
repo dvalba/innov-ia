@@ -243,7 +243,7 @@
   - **Dependencias:** [T-037]
   - **Hecho cuando:** El sidebar del layout expone el nombre de usuario y el botón "Cerrar sesión" (llama a `POST /auth/logout` y devuelve a login); si el usuario trae `debeCambiarContraseña`, al iniciar se muestra un diálogo para llamar a `POST /auth/change-password` antes de cualquier otra acción; `ng build` pasa.
 
-- [ ] **[T-039] auth · guard de rutas por sesión y rol**
+- [x] **[T-039] auth · guard de rutas por sesión y rol**
   - **Covers:** RF-1, RNF-7
   - **Dependencias:** [T-038]
   - **Hecho cuando:** `app.routes.ts` aplica `canActivate` a las rutas protegidas: `/login` bloqueado si hay sesión activa; las rutas por rol (`/validacion` → especialista, `/admin` → administrador, `/captura` y `/mis-ideas` → proponente) redirigen a la página de inicio del layout si el rol no corresponde; sin sesión activa solo se muestra login (RF-1); `ng build` pasa.
