@@ -119,17 +119,17 @@
 
 ### 2.3 Feature `ideas` (entidad central; RF-9, RF-10, RF-19, RF-20 + máquina de estados)
 
-- [ ] **[T-017] ideas · dominio: entidad Idea y validación de campos (RNF-5, caso 12)**
+- [x] **[T-017] ideas · dominio: entidad Idea y validación de campos (RNF-5, caso 12)**
   - **Covers:** RF-9, RF-19, RNF-5
   - **Dependencias:** [T-007]
   - **Hecho cuando:** `features/ideas/domain/idea.py` define `Idea` con los 7 campos, `ownerId`, `origin`, `state`, `reviewedByAI`, `currentVersionId` y timestamps/rastro, conforme al esquema §2.2; `validate.py` implementa `campos_completos` (ninguno vacío u omitido) y validación de formato del contacto (no-vacío + formato correo/teléfono); test en `tests/unit/domain/test_idea_validation.py` cubre campos completos/parciales y contacto inválido (caso 12) (`pytest -q` verde).
 
-- [ ] **[T-018] ideas · dominio: máquina de estados (RNF-9)**
+- [x] **[T-018] ideas · dominio: máquina de estados (RNF-9)**
   - **Covers:** RF-10, RF-15, RF-16, RNF-9
   - **Dependencias:** [T-017]
   - **Hecho cuando:** `state_machine.py` implementa la tabla de transiciones exacta del plan §4.6 (EN_DESARROLLO→SOLICITANDO_PUBLICACION solo por request-publication; SOLICITANDO→VALIDADA PUBLICA por approve; SOLICITANDO→EN_DESARROLLO por reject; VALIDADA_PUBLICA terminal) y lanza `DomainError` ante transición no permitida; test en `tests/unit/domain/test_state_machine.py` cubre todas las transiciones válidas y cada transición inválida (`pytest -q` verde).
 
-- [ ] **[T-019] ideas · infraestructura: idea_store (persistence JSON + IdeaVersion)**
+- [x] **[T-019] ideas · infraestructura: idea_store (persistence JSON + IdeaVersion)**
   - **Covers:** RF-8, RF-9, RF-10, RF-19 (D1)
   - **Dependencias:** [T-018], [T-003]
   - **Hecho cuando:** `infrastructure/idea_store.py` persiste `Idea` e `IdeaVersion` (esquema §2.5) con `JsonStore`, con obtención por id con bloqueo de registro parcial (caso 17: si falla el guardado, no queda estado intermedio); expone operaciones usadas por el resto de features vía el contrato `IdeaLedger` (T-008); test en `tests/unit/infra/test_idea_store.py` cubre guardado, carga, listado por estado y fallo sin registro parcial (`pytest -q` verde).
