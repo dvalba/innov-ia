@@ -11,7 +11,7 @@ router `/ideas` completo, incluida la orquestación backend de `improve_idea` y 
 
 ## Tareas (orden de ejecución)
 
-- [ ] **T-020** _(BE)_ — `create_idea.py` (7 obligatorios + origen + ownerId; `ValidationFailed` si faltan) + `edit_idea.py` (solo EN_DESARROLLO y dueño; `DomainError` 409 si hay generación en curso) _(T-019 G05)_
+- [x] **T-020** _(BE)_ — `create_idea.py` (7 obligatorios + origen + ownerId; `ValidationFailed` si faltan) + `edit_idea.py` (solo EN_DESARROLLO y dueño; `DomainError` 409 si hay generación en curso) _(T-019 G05)_
 - [ ] **T-021** _(BE)_ — `request_publication.py` / `approve_idea.py` (permiso especialista o autovalidación caso 9; rastro `publishedBy`/`publishedAt` + notificaciones vía contrato) / `reject_idea.py` (comentario obligatorio 400 caso 13, rastro del emisor) _(T-020, T-008 ✓)_
 - [ ] **T-022** _(BE)_ — `list_my_ideas.py` (solo del usuario) + `list_public.py` (SOLO `VALIDADA_PUBLICA`, sin `contact`) _(T-021)_
 - [ ] **T-023** _(BE)_ — `routers/ideas.py`: `POST /ideas` (201/422), `GET /ideas/me`, `GET /ideas/{id}` (403 no dueño), `PUT /ideas/{id}` (409 generando), `POST /ideas/{id}/improve`, `POST /ideas/{id}/versions/{vid}/decide`, `POST /ideas/{id}/request-publication`; esquemas Pydantic solo aquí _(T-022)_
@@ -33,3 +33,12 @@ router `/ideas` completo, incluida la orquestación backend de `improve_idea` y 
   conversión a real la hace `run_refinement_queue` (G15) al recuperar la IA.
 * El router no reimplementa lógica de dominio: transición y validación viven en G05/T-020/T-021.
   `adjust_in_chat` expose un contrato que la UI de G09 consume sin acoplar a `capture`.
+
+## Registro de verificación (G06, 2026-09-23)
+
+**Automatizado** — `pytest -q` en `backend/`: 213 passed; `ruff check .` limpio. Uno por
+tarea (commits separados):
+
+| Tarea | Verificación | Resultado |
+|---|---|---|
+| T-020 | `create_idea.py`: 7 campos + origen (`asistida`/`manual`) + `ownerId` en `EN_DESARROLLO`; `ValidationFailed` 422 si faltan campos o el contacto es inválido (RNF-5, caso 12) sin registro parcial (caso 17), origen desconocido 400. `edit_idea.py`: solo dueño (403, RNF-7) y solo `EN_DESARROLLO` (409; §8.8), 404 inexistente, 409 `generando` con aviso (RF-9), 422 campos incompletos; persistencia por CAS `update_state` (RNF-9). Bandera `generando` en `Idea` (round-trip sin pérdida) y en `IdeaStore.add_version(generating=...)`; `decide()` la libera cuando no queda versión PENDIENTE | ✅ 17 tests (`test_edit_idea.py` 12 + `test_idea_store.py` 5 nuevos) |

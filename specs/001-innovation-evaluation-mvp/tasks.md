@@ -134,7 +134,7 @@
   - **Dependencias:** [T-018], [T-003]
   - **Hecho cuando:** `infrastructure/idea_store.py` persiste `Idea` e `IdeaVersion` (esquema §2.5) con `JsonStore`, con obtención por id con bloqueo de registro parcial (caso 17: si falla el guardado, no queda estado intermedio); expone operaciones usadas por el resto de features vía el contrato `IdeaLedger` (T-008); test en `tests/unit/infra/test_idea_store.py` cubre guardado, carga, listado por estado y fallo sin registro parcial (`pytest -q` verde).
 
-- [ ] **[T-020] ideas · casos de uso: crear y editar idea (bloqueo durante generación)**
+- [x] **[T-020] ideas · casos de uso: crear y editar idea (bloqueo durante generación)**
   - **Covers:** RF-9, RNF-5
   - **Dependencias:** [T-019]
   - **Hecho cuando:** `create_idea.py` crea la idea con los 7 campos obligatorios + origen + ownerId (rechaza con `ValidationFailed` si faltan campos); `edit_idea.py` permite editar cualquier campo mientras la idea esté en EN_DESARROLLO y en el dueño, y lanza `DomainError` (409) si existe generación en curso (flag `generando`); tests en `tests/unit/use_cases/test_edit_idea.py` cubren edición válida, edición bloqueada durante generación y edición por no-duéño (`pytest -q` verde).
