@@ -79,6 +79,13 @@ def test_idea_payload_round_trip_is_lossless() -> None:
     assert Idea.from_payload(idea.to_payload()) == idea
 
 
+def test_rejection_note_defaults_to_none_and_round_trips() -> None:
+    assert _idea().rejectionNote is None
+    note = {"by": "u_experto", "byName": "Experto", "comment": "Faltan costos", "at": "2026-09-16T10:00:00"}
+    idea = _idea(rejectionNote=note)
+    assert Idea.from_payload(idea.to_payload()).rejectionNote == note
+
+
 def test_idea_requires_id_and_owner() -> None:
     with pytest.raises(DomainError) as error:
         _idea(id="")
