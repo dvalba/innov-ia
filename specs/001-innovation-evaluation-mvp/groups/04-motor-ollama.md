@@ -9,12 +9,12 @@ aislamiento con un servidor HTTP simulado; desbloquea captura (G08), mejora (G06
 
 ## Estado
 
-> ⬜ **Pendiente** — 0/2 tareas implementadas.
+> ✅ **Completado** — 2/2 tareas implementadas (2026-09-23).
 
 ## Tareas (orden de ejecución)
 
-- [ ] **T-059** _(BE)_ — `ollama_client.py` (stdlib `urllib`/`http.client`): `ping()`, `generate(prompt)`, timeout 60 s (RNF-3), reintento único transparente; "fallo de IA" (sin respuesta a tiempo, error de servicio, respuesta no interpretable, caso 14) → `AssistantUnavailable` _(T-001 ✓)_
-- [ ] **T-060** _(BE)_ — `prompts.py` (extracción de campos RF-3, sugerencia de título RF-4 con intentos a evitar, refinamiento 7 campos, mejora bajo instrucción RF-8) + `refinement.py` (cola: manual + EN_DESARROLLO + sin refinada, más antigua→reciente; interpretación de respuesta → fallo si no interpretable) _(T-059)_
+- [x] **T-059** _(BE)_ — `ollama_client.py` (stdlib `urllib`/`http.client`): `ping()`, `generate(prompt)`, timeout 60 s (RNF-3), reintento único transparente; "fallo de IA" (sin respuesta a tiempo, error de servicio, respuesta no interpretable, caso 14) → `AssistantUnavailable` _(T-001 ✓)_
+- [x] **T-060** _(BE)_ — `prompts.py` (extracción de campos RF-3, sugerencia de título RF-4 con intentos a evitar, refinamiento 7 campos, mejora bajo instrucción RF-8) + `refinement.py` (cola: manual + EN_DESARROLLO + sin refinada, más antigua→reciente; interpretación de respuesta → fallo si no interpretable) _(T-059)_
 
 ## Criterio de salida
 
