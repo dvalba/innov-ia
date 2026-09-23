@@ -66,6 +66,8 @@ class Idea:
     publishedAt: str | None = None
     publishedBy: str | None = None
     rejectionNote: dict | None = None
+    generando: bool = False
+    improvementRequest: dict | None = None
 
     def __post_init__(self) -> None:
         if not self.id or not str(self.id).strip():
@@ -129,6 +131,8 @@ class Idea:
                 "publishedAt": self.publishedAt,
                 "publishedBy": self.publishedBy,
                 "rejectionNote": self.rejectionNote,
+                "generando": self.generando,
+                "improvementRequest": self.improvementRequest,
             }
         )
         return payload
@@ -155,6 +159,8 @@ class Idea:
                 publishedAt=payload.get("publishedAt"),
                 publishedBy=payload.get("publishedBy"),
                 rejectionNote=payload.get("rejectionNote"),
+                generando=payload.get("generando", False),
+                improvementRequest=payload.get("improvementRequest"),
             )
         except KeyError as missing:
             raise IdeaError(f"El registro de la idea está incompleto; falta «{missing.args[0]}».") from missing

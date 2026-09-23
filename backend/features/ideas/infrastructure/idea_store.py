@@ -145,8 +145,14 @@ class IdeaStore:
 
     # -- versions (IdeaVersion, schema §2.5) -----------------------------------
 
-    def add_version(self, *, idea_id: str, fields: dict, requested_by: str) -> dict:
-        """Registers a PENDIENTE version of a registered idea (RF-8/RF-11/RF-13)."""
+    def add_version(self, *, idea_id: str, fields: dict, requested_by: str,
+                    generating: bool = False) -> dict:
+        """Registers a PENDIENTE version of a registered idea (RF-8/RF-11/RF-13).
+
+        With `generating`, the idea is additionally flagged `generando` in its
+        own record (RF-9/RNF-9: manual editing is blocked while the assistant
+        is producing the version).
+        """
         if self.get(idea_id) is None:
             raise DomainError("IDEA_NOT_FOUND", "La versión requiere una idea registrada.", status_code=404)
         if requested_by not in VERSION_ORIGINS:
@@ -182,6 +188,8 @@ class IdeaStore:
             return {**data, version_id: payload}
 
         self._versions.update(apply)
+        if generating:
+            self.update(idea_id, {"generando": True})
         return self.get_version(idea_id, version_id)  # type: ignore[return-value]
 
     def get_version(self, idea_id: str, version_id: str) -> dict | None:
@@ -206,6 +214,8 @@ class IdeaStore:
         `fields` when provided), is marked `reviewedByAI`, and its
         `currentVersionId` moves to it — the idea keeps its current state
         (decision #1); the previously current version is marked ACEPTADA.
+        Either way the `generando` flag is cleared: the version the assistant
+        was producing has been resolved, so manual editing unblocks (RF-9).
         """
         version = self.get_version(idea_id, version_id)
         if version is None:
@@ -251,4 +261,8 @@ class IdeaStore:
             return result
 
         self._versions.update(apply_versions)
+        if idea_payload.get("generando") and not any(
+            entry["status"] == "PENDIENTE" for entry in self.versions_of(idea_id)
+        ):
+            self.update(idea_id, {"generando": False})
         return self.get_version(idea_id, version_id)  # type: ignore[return-value]

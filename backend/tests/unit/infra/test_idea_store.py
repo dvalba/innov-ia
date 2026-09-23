@@ -322,3 +322,49 @@ def test_update_merges_scalar_changes(store: IdeaStore) -> None:
     assert updated["reviewedByAI"] is True
     with pytest.raises(DomainError):
         store.update("nope", {"reviewedByAI": True})
+
+
+# -- generation flag (RF-9, T-020/T-024) -----------------------------------------
+
+
+def test_add_version_with_generating_flags_the_idea(store: IdeaStore) -> None:
+    store.create(_idea())
+    store.add_version(idea_id="idea_a", fields=_fields(title="Generada"),
+                      requested_by="improvement", generating=True)
+    flag = store.get("idea_a")
+    assert flag["generando"] is True
+    # the idea is fully intact aside from the flag
+    assert flag["title"] == "Optimización del proceso de aprobación de proveedores"
+
+
+def test_add_version_without_generating_leaves_the_idea_unflagged(store: IdeaStore) -> None:
+    store.create(_idea())
+    store.add_version(idea_id="idea_a", fields=_fields(), requested_by="refinement")
+    assert store.get("idea_a")["generando"] is False
+    assert Idea.from_payload(store.get("idea_a")).generando is False  # round trip
+
+
+def test_generating_flag_survives_between_instances(store: IdeaStore, tmp_path: pathlib.Path) -> None:
+    store.create(_idea())
+    store.add_version(idea_id="idea_a", fields=_fields(), requested_by="improvement", generating=True)
+    fresh = IdeaStore(JsonStore(tmp_path / "ideas.json"), JsonStore(tmp_path / "versions.json"))
+    assert fresh.get("idea_a")["generando"] is True
+
+
+def test_decide_clears_the_generating_flag(store: IdeaStore) -> None:
+    store.create(_idea())
+    version = store.add_version(idea_id="idea_a", fields=_fields(title="Final"),
+                                requested_by="improvement", generating=True)
+    store.decide(idea_id="idea_a", version_id=version["id"], accept=False)
+    assert store.get("idea_a")["generando"] is False
+
+
+def test_deciding_a_pending_version_while_another_generation_runs_keeps_the_flag(store: IdeaStore) -> None:
+    store.create(_idea())
+    first = store.add_version(idea_id="idea_a", fields=_fields(title="Una"), requested_by="improvement",
+                              generating=True)
+    store.add_version(idea_id="idea_a", fields=_fields(title="Dos"), requested_by="improvement")
+    store.decide(idea_id="idea_a", version_id=first["id"], accept=True)
+    assert store.get("idea_a")["generando"] is True  # the second generation is still in flight
+    store.decide(idea_id="idea_a", version_id="ver_idea_a_02", accept=False)
+    assert store.get("idea_a")["generando"] is False
