@@ -399,7 +399,7 @@
   - **Dependencias:** [T-065], [T-051], [T-055]
   - **Hecho cuando:** Proponente solicita publicación (notificación IDEA_REQUESTED a todos los especialistas); especialista valida → VALIDADA_PUBLICA con rastro (quién/cuándo) y notificación al proponente, idea visible en el catálogo; especialista rechaza con comentario → vuelve a EN_DESARROLLO con el comentario visible y notificación al proponente; la autovalidación (proponente que también es especialista) funciona con rastro (caso 9); el contador de la campana refleja cada evento y solo esos; `pytest -q` verde; smoke manual documentado.
 
-- [ ] **[T-067] Integración: usuarios/roles e2e (crear, temporal, revocar, último admin)**
+- [x] **[T-067] Integración: usuarios/roles e2e (crear, temporal, revocar, último admin)**
   - **Covers:** RF-17, caso 16
   - **Dependencias:** [T-054], [T-016]
   - **Hecho cuando:** El admin crea un usuario (recibe contraseña temporal), el usuario inicia sesión y está obligado a cambiarse la contraseña; el admin revoca roles/desactiva el usuario: pierde el acceso pero sus ideas e historial se conservan; las ideas en SOLICITANDO_PUBLICACION de un usuario desactivado siguen validables por otros especialistas; desactivar/revocar el último administrador está bloqueado en UI y backend (409); `pytest -q` verde; smoke manual documentado.

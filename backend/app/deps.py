@@ -7,7 +7,8 @@ expressed with `Annotated` typed dependencies, overridable in tests.
 
 Typed dependency aliases:
   - `TokenStoreDep` / `UserDirectoryDep`: DI providers (override in tests).
-  - `SessionDep`: active bearer `Session` (401 when absent/expired).
+  - `SessionDep`: active bearer `Session` (401 when absent/expired or when the
+    account is deactivated; roles are re-read live on every request).
   - `role_dependency(roles)`: `Session` plus a required role subset (403).
 """
 
@@ -60,11 +61,14 @@ def _extract_token(request: Request) -> str | None:
     return token or None
 
 
-def require_session(request: Request, tokens: TokenStoreDep) -> Session:
+def require_session(request: Request, tokens: TokenStoreDep,
+                    directory: UserDirectoryDep) -> Session:
     """Returns the active `Session` for the bearer token or raises 401.
 
     Covers case 15: an expired session is rejected (RNF-7: without a session,
-    no access).
+    no access). The account is re-read on every request (live session):
+    deactivating a user or stripping it of its roles (RF-17, case 16) removes
+    the access immediately, without waiting for the session to expire.
     """
     token = _extract_token(request)
     if token is None:
@@ -72,7 +76,13 @@ def require_session(request: Request, tokens: TokenStoreDep) -> Session:
     session = tokens.resolve(token, now=datetime.now())
     if session is None:
         raise AuthError(code="SESSION_REQUIRED", message="La sesión ha caducado o no es válida.")
-    return session
+    user = directory.get(session.user_id)
+    if user is None or not user.get("active", True):
+        tokens.revoke(token)
+        raise AuthError(code="SESSION_REVOKED",
+                        message="La cuenta no está habilitada; el acceso ha sido revocado.")
+    return Session(token=session.token, user_id=session.user_id,
+                   expires_at=session.expires_at, roles=tuple(user.get("roles", [])))
 
 
 SessionDep = Annotated[Session, Depends(require_session)]
@@ -82,6 +92,8 @@ def require_role(*roles: str):
     """Builds a guard that requires the session to hold all the given roles."""
 
     def _guard(session: SessionDep) -> Session:
+        if not roles:
+            return session
         if not session.has_roles(tuple(roles)):
             raise Forbidden(
                 code="ROLE_NOT_ALLOWED", message=f"Se requiere el rol: {', '.join(roles)}."
