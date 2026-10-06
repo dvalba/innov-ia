@@ -144,7 +144,7 @@
   - **Dependencias:** [T-020], [T-008]
   - **Hecho cuando:** `request_publication.py` transiciona a SOLICITANDO_PUBLICACION (única vía, fija `requestDate`); `approve_idea.py` valida permiso de especialista (o autovalidación, caso 9), transiciona a VALIDADA_PUBLICA, registra `publishedBy`/`publishedAt`, emite notificación IDEA_PUBLISHED al proponente e IDEA_REQUESTED a todos los especialistas en la transición de solicitud; `reject_idea.py` exige comentario no vacío (400 sin él, caso 13), devuelve a EN_DESARROLLO, adjunta el comentario con la identidad del emisor y notifica IDEA_REJECTED; tests en `tests/unit/use_cases/test_publication.py` cubren los tres flujos, autovalidación con rastro, rechazo sin comentario y transición doble (RNF-9: la segunda descarta con 409) (`pytest -q` verde).
 
-- [ ] **[T-022] ideas · casos de uso: listado de "mis ideas" y catálogo público**
+- [x] **[T-022] ideas · casos de uso: listado de "mis ideas" y catálogo público**
   - **Covers:** RF-19, RF-20
   - **Dependencias:** [T-021]
   - **Hecho cuando:** `list_my_ideas.py` devuelve solo las ideas del usuario (título, fecha, origen, estado) y `list_public.py` devuelve SOLO `VALIDADA_PUBLICA` (cualquier dueño) sin el campo `contact` del proponente; test en `tests/unit/use_cases/test_listings.py` verifica el filtro por dueño, el filtro de estado y la supresión de datos de contacto (`pytest -q` verde).

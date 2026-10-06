@@ -16,7 +16,7 @@ conectando el backend con su respectiva vista de frontend de extremo a extremo.
 | 03 | [`03-admin-usuarios-e2e.md`](03-admin-usuarios-e2e.md) | Panel `/admin` + matriz de roles + e2e usuarios/roles | T-053, T-054, T-067 | 3 | 3/3 | ✅ |
 | 04 | [`04-motor-ollama.md`](04-motor-ollama.md) | Cliente Ollama stdlib + prompts/reglas (solo BE; puede ir en paralelo) | T-059, T-060 | 2 | 2/2 | ✅ |
 | 05 | [`05-idea-dominio-y-store.md`](05-idea-dominio-y-store.md) | `Idea` + validación + máquina de estados + `idea_store` | T-017, T-018, T-019 | 3 | 3/3 | ✅ |
-| 06 | [`06-idea-casos-uso-y-router.md`](06-idea-casos-uso-y-router.md) | UC crear/editar/publicar/listar + router `/ideas` + mejora asistida | T-020, T-021, T-022, T-023, T-024 | 5 | 1/5 | ⬜ |
+| 06 | [`06-idea-casos-uso-y-router.md`](06-idea-casos-uso-y-router.md) | UC crear/editar/publicar/listar + router `/ideas` + mejora asistida | T-020, T-021, T-022, T-023, T-024 | 5 | 3/5 | ⬜ |
 | 07 | [`07-captura-dominio-y-procesamiento.md`](07-captura-dominio-y-procesamiento.md) | Conversación: reglas, store, inicio, procesamiento, título | T-025, T-026, T-027, T-028, T-029 | 5 | 0/5 | ⬜ |
 | 08 | [`08-captura-final-y-router-ui-arranque.md`](08-captura-final-y-router-ui-arranque.md) | Finalización/contingencia + router `/capture` + `new-idea` + chat | T-030, T-031, T-040, T-041, T-042 | 5 | 0/5 | ⬜ |
 | 09 | [`09-captura-resumen-manual-contingencia.md`](09-captura-resumen-manual-contingencia.md) | Resumen editable + formulario manual + contingencia 503 | T-043, T-044, T-045 | 3 | 0/3 | ⬜ |
@@ -29,8 +29,8 @@ conectando el backend con su respectiva vista de frontend de extremo a extremo.
 | 16 | [`16-accesibilidad-build-cierre.md`](16-accesibilidad-build-cierre.md) | Accesibilidad + build/guías + verificación spec §9 | T-057, T-058, T-068 | 3 | 0/3 | ⬜ |
 
 **Total: 4+4+3+2+3+5+5+5+3+4+5+3+2+2+4+3 = 57 tareas.** ✓ (una por grupo, sin huecos ni
-duplicados). **Progreso (2026-09-23): 19/57 tareas implementadas** (G01 ✅, G02 ✅, G03 ✅,
-G04 ✅, G05 ✅, G06 1/5; G07–G16 sin empezar).
+duplicados). **Progreso (2026-10-06): 21/57 tareas implementadas** (G01 ✅, G02 ✅, G03 ✅,
+G04 ✅, G05 ✅, G06 3/5; G07–G16 sin empezar).
 
 ## Criterio de la secuencia
 
