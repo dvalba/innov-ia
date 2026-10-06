@@ -139,7 +139,7 @@
   - **Dependencias:** [T-019]
   - **Hecho cuando:** `create_idea.py` crea la idea con los 7 campos obligatorios + origen + ownerId (rechaza con `ValidationFailed` si faltan campos); `edit_idea.py` permite editar cualquier campo mientras la idea esté en EN_DESARROLLO y en el dueño, y lanza `DomainError` (409) si existe generación en curso (flag `generando`); tests en `tests/unit/use_cases/test_edit_idea.py` cubren edición válida, edición bloqueada durante generación y edición por no-duéño (`pytest -q` verde).
 
-- [ ] **[T-021] ideas · casos de uso: solicitud de publicación, aprobación y rechazo**
+- [x] **[T-021] ideas · casos de uso: solicitud de publicación, aprobación y rechazo**
   - **Covers:** RF-10, RF-15, RF-16, RNF-8
   - **Dependencias:** [T-020], [T-008]
   - **Hecho cuando:** `request_publication.py` transiciona a SOLICITANDO_PUBLICACION (única vía, fija `requestDate`); `approve_idea.py` valida permiso de especialista (o autovalidación, caso 9), transiciona a VALIDADA_PUBLICA, registra `publishedBy`/`publishedAt`, emite notificación IDEA_PUBLISHED al proponente e IDEA_REQUESTED a todos los especialistas en la transición de solicitud; `reject_idea.py` exige comentario no vacío (400 sin él, caso 13), devuelve a EN_DESARROLLO, adjunta el comentario con la identidad del emisor y notifica IDEA_REJECTED; tests en `tests/unit/use_cases/test_publication.py` cubren los tres flujos, autovalidación con rastro, rechazo sin comentario y transición doble (RNF-9: la segunda descarta con 409) (`pytest -q` verde).

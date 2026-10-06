@@ -9,6 +9,13 @@ from shared.contracts.idea_ledger import (
     STATE_VALIDADA_PUBLICA,
     IdeaLedger,
 )
+from shared.contracts.roles import (
+    KNOWN_ROLES,
+    ROLE_ADMIN,
+    ROLE_PROPOSER,
+    ROLE_SPECIALIST,
+    list_specialists,
+)
 from shared.contracts.user_directory import UserDirectory
 
 __all__ = [
@@ -19,5 +26,10 @@ __all__ = [
     "STATE_SOLICITANDO_PUBLICACION",
     "STATE_VALIDADA_PUBLICA",
     "IdeaLedger",
+    "KNOWN_ROLES",
+    "ROLE_ADMIN",
+    "ROLE_PROPOSER",
+    "ROLE_SPECIALIST",
+    "list_specialists",
     "UserDirectory",
 ]

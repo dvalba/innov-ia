@@ -1,12 +1,12 @@
 """Users domain tests (T-014): User entity and the "last administrator" rule."""
 
 from features.users.domain.user import (
-    ROLE_PROPOSER,
     ROLE_VALIDATOR,
     UnknownRole,
     Usuario,
     is_last_active_admin,
 )
+from shared.contracts.roles import ROLE_PROPOSER
 from shared.exceptions.handlers import DomainError
 
 

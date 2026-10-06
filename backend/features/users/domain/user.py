@@ -7,15 +7,13 @@ and are shared with the frontend through the documented payload keys.
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from shared.contracts.roles import KNOWN_ROLES, ROLE_ADMIN, ROLE_SPECIALIST
 from shared.exceptions.handlers import DomainError
 
 # Known roles (spec §5 roles / plan §3.1 endpoint tables). A user without
-# roles cannot access the platform functions (RF-17).
-ROLE_PROPOSER = "proponente"
-ROLE_VALIDATOR = "especialista"
-ROLE_ADMIN = "admin"
-
-KNOWN_ROLES: tuple[str, ...] = (ROLE_PROPOSER, ROLE_VALIDATOR, ROLE_ADMIN)
+# roles cannot access the platform functions (RF-17). The reference values
+# are the shared role contract consumed by the whole platform (T-021).
+ROLE_VALIDATOR = ROLE_SPECIALIST
 
 
 class UnknownRole(DomainError):
