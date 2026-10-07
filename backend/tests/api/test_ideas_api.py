@@ -1,18 +1,25 @@
-"""Ideas router API tests (T-023, RF-8, RF-9, RF-10, RF-19).
+"""Ideas router API tests (T-023/T-024, RF-8, RF-9, RF-10, RF-19).
 
 Covers the proponent surface of `/ideas`: creation (201 / 422 RNF-5 / 400
 origin), "Mis ideas" (owner-only summary), detail (403 not the owner, 404),
-manual editing (409 generating RF-9, 409 state), the improvement request
-(case 10: no IA yet — pending request + notice), the accept/discard decision
-(`currentVersionId` moves on accept, EN_DESARROLLO kept, decision once) and
-the publication request (409 on the second transition, RNF-9).
+manual editing (409 generating RF-9, 409 state), the AI improvement
+(T-024 orchestration: with the IA a `requestedBy=improvement` PENDIENTE
+version is returned and manual editing blocks; without it the case-10
+pending request + notice), the accept/discard decision (`currentVersionId`
+moves on accept, EN_DESARROLLO kept, decision once) and the publication
+request (409 on the second transition, RNF-9).
+
+The `auth` fixture injects an unavailable assistant by default (deterministic
+case-10, no network to the local Ollama); the with-IA tests re-override the
+provider with an available mock whose reply is programmed in-place.
 
 Versions for the `decide` tests are registered directly on the in-memory
-ledger — exactly what the T-024 assistant client will produce
-(`requestedBy=improvement`, `PENDIENTE`); the router under test is only the
+ledger — the same shape the assistant client produces
+(`requestedBy=improvement`, `PENDIENTE`); the router under test is the
 decide endpoint itself.
 """
 
+import json
 from datetime import datetime
 
 import pytest
@@ -24,7 +31,7 @@ from features.auth.infrastructure.token_store import TokenStore
 from features.ideas.domain.validate import validar_campos
 from features.ideas.infrastructure.idea_store import IdeaStore
 from shared.utils.password import hash_password
-from tests.conftest import InMemoryDirectory, InMemoryStore
+from tests.conftest import InMemoryDirectory, InMemoryStore, OllamaMock
 
 
 def _fields(**overrides: object) -> dict:
@@ -44,10 +51,15 @@ def _fields(**overrides: object) -> dict:
 
 
 def _register_version(ledger: IdeaStore, idea_id: str, title: str) -> dict:
-    """Registers a PENDIENTE improvement version, as T-024/IA would do."""
+    """Registers a PENDIENTE improvement version, as the assistant produces it."""
     fields = _fields(title=title)
     assert not validar_campos(fields), "test fixture must be complete"
     return ledger.add_version(idea_id=idea_id, fields=fields, requested_by="improvement")
+
+
+def _improved_fields_json(**overrides: object) -> str:
+    """A strict-JSON reply with the 7 complete fields (interpretable by the domain)."""
+    return json.dumps(_fields(**overrides))
 
 
 @pytest.fixture()
@@ -91,6 +103,11 @@ def auth(directory, idea_ledger):
     main_app.dependency_overrides[deps_module.get_user_directory] = lambda: directory
     main_app.dependency_overrides[deps_module.get_token_store] = lambda: token_store
     main_app.dependency_overrides[deps_module.get_idea_ledger] = lambda: idea_ledger
+    # Deterministic case-10 by default: no network to the local Ollama. The
+    # with-IA tests re-override the provider with an available mock in-place.
+    main_app.dependency_overrides[deps_module.get_assistant_client] = (
+        lambda: OllamaMock(available=False)
+    )
 
     def _client(user_id: str = "u_ana", token: bool = True) -> TestClient:
         if not token:
@@ -273,6 +290,63 @@ def test_improve_403_non_owner_and_404_unknown(auth) -> None:
                                json={"instruction": "X"}).status_code == 403
     assert auth().post("/ideas/idea_nadie/improve",
                        json={"instruction": "X"}).status_code == 404
+
+
+def test_improve_409_while_a_generation_is_in_flight(auth, idea_ledger) -> None:
+    idea = auth().post("/ideas", json=_fields()).json()
+    idea_ledger.add_version(idea_id=idea["id"], fields=_fields(title="Generando"),
+                            requested_by="improvement", generating=True)
+
+    response = auth().post(f"/ideas/{idea['id']}/improve", json={"instruction": "X"})
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "GENERATION_IN_PROGRESS"
+
+
+# -- POST /ideas/{id}/improve (RF-8, con IA — T-024) ---------------------------------
+
+
+def test_improve_with_ia_creates_a_pending_version_and_blocks_edits(auth) -> None:
+    mock = OllamaMock(available=True)
+    mock.respond = lambda prompt: _improved_fields_json(
+        expectedBenefit="180 horas ahorradas al mes, cuantificadas.")
+    main_app.dependency_overrides[deps_module.get_assistant_client] = lambda: mock
+
+    idea = auth().post("/ideas", json=_fields()).json()
+    response = auth().post(f"/ideas/{idea['id']}/improve",
+                           json={"instruction": "Cuantifica el beneficio"})
+    assert response.status_code == 200
+    body = response.json()
+    version = body["version"]
+    assert version["requestedBy"] == "improvement"
+    assert version["status"] == "PENDIENTE"
+    assert version["fields"]["expectedBenefit"].startswith("180 horas")
+    assert "Cuantifica el beneficio" in mock.prompts[0]
+
+    stored = auth().get(f"/ideas/{idea['id']}").json()["idea"]
+    assert stored["reviewedByAI"] is True
+    assert stored["generando"] is True
+    assert stored["title"] == idea["title"]  # the proposal is never auto-applied (RF-8)
+
+    edit = auth().put(f"/ideas/{idea['id']}", json=_fields(title="Nunca"))
+    assert edit.status_code == 409
+    assert edit.json()["error"]["code"] == "GENERATION_IN_PROGRESS"
+
+
+def test_improve_with_an_uninterpretable_reply_returns_the_case_10_notice(auth) -> None:
+    mock = OllamaMock(available=True)
+    mock.respond = lambda prompt: "respuesta sin JSON"
+    main_app.dependency_overrides[deps_module.get_assistant_client] = lambda: mock
+
+    idea = auth().post("/ideas", json=_fields()).json()
+    response = auth().post(f"/ideas/{idea['id']}/improve", json={"instruction": "X"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["notice"] == "IA no disponible; tu solicitud quedará registrada."
+    assert body["improvementRequest"]["instruction"] == "X"
+
+    detail = auth().get(f"/ideas/{idea['id']}").json()
+    assert detail["idea"]["reviewedByAI"] is False
+    assert detail["versions"] == []
 
 
 # -- POST /ideas/{id}/versions/{vid}/decide (RF-8, RF-13, decision once) -------------------

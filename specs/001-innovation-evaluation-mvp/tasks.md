@@ -154,7 +154,7 @@
   - **Dependencias:** [T-022]
   - **Hecho cuando:** `features/ideas/routers/ideas.py` expone `POST /ideas` (201; 422 con campos faltantes), `GET /ideas/me`, `GET /ideas/{id}` (403 si no es el dueño), `PUT /ideas/{id}` (409 si está generando), `POST /ideas/{id}/improve`, `POST /ideas/{id}/versions/{vid}/decide` (aceptar/descartar), `POST /ideas/{id}/request-publication`; esquemas Pydantic solo en esta capa; tests en `tests/api/test_ideas_api.py` cubren 201/422/403/409 y la decisión aceptar/descartar con cambio de `currentVersionId` al aceptar (`pytest -q` verde).
 
-- [ ] **[T-024] ideas · mejora asistida y ajuste en chat: orquestación y versión pendiente (RF-8, RF-13)**
+- [x] **[T-024] ideas · mejora asistida y ajuste en chat: orquestación y versión pendiente (RF-8, RF-13)**
   - **Covers:** RF-8, RF-13
   - **Dependencias:** [T-023], [T-008]
   - **Hecho cuando:** `improve_idea.py` genera (vía cliente de asistente inyectado) una `IdeaVersion` PENDIENTE con `requestedBy=improvement`, marca `reviewedByAI=true` y bloquea edición (T-020); si el asistente no está disponible, guarda la solicitud pendiente y devuelve aviso (caso 10); `decide` con "aceptar" aplica la versión como vigente manteniendo EN_DESARROLLO, con "descartar" conserva la vigente; `adjust_in_chat` (conversión) expone el contrato para reabrir conversación precontextualizada sobre la idea (no captura nueva, RF-2); si en el ajuste la IA no está, se ofrece edición manual; tests en `tests/unit/use_cases/test_refinement.py` (bloque RF-8/RF-13) cubren mejora con/ sin IA, decisión, y ajuste sin IA → edición manual (`pytest -q` verde).

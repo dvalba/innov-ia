@@ -1,5 +1,6 @@
 """Shared contracts between features (Constitution §3.2 / §4.2)."""
 
+from shared.contracts.assistant_client import AssistantClient
 from shared.contracts.idea_ledger import (
     IDEA_FIELDS,
     ORIGIN_ASISTIDA,
@@ -19,6 +20,7 @@ from shared.contracts.roles import (
 from shared.contracts.user_directory import UserDirectory
 
 __all__ = [
+    "AssistantClient",
     "IDEA_FIELDS",
     "ORIGIN_ASISTIDA",
     "ORIGIN_MANUAL",
