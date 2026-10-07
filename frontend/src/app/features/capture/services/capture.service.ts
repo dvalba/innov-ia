@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { Conversation, SugerenciaTitulo, TituloAction } from '../../../shared/types/models';
+import { Conversation, IdeaFields, SugerenciaTitulo, TituloAction } from '../../../shared/types/models';
 
 /** `GET /capture/assistant-status` (RF-7): availability probe. */
 export interface AssistantStatus {
@@ -54,6 +54,14 @@ export interface ActivateManualResult {
   conversationId: string;
   state: string;
   capturedFields: Record<string, string>;
+}
+
+/** `POST /ideas` (RF-7, RNF-5) outcome: the registered idea payload (summary). */
+export interface IdeaCreada {
+  id: string;
+  ownerId: string;
+  origin: string;
+  state: string;
 }
 
 /** The manual contingency payload (notice + captured fields, RNF-10). */
@@ -221,6 +229,20 @@ export class CaptureService {
     this.resumen.set(null);
     this.retomada.set(false);
     this.contingencia.set(null);
+  }
+
+  /**
+   * POST /ideas (RF-7, RNF-5) — register the manual idea (origin `manual`).
+   * The 7 fields go as objects; the owner comes from the session. The 7-field
+   * completeness and the contact format (case 12) are validated by the ideas
+   * domain (a 422 leaves the form data untouched, caso 17).
+   */
+  async crearManual(campos: IdeaFields): Promise<IdeaCreada> {
+    const r = await firstValueFrom(
+      this.http.post<IdeaCreada>('/ideas', { ...campos, origin: 'manual' }),
+    );
+    this.reiniciar();
+    return r;
   }
 
   /**

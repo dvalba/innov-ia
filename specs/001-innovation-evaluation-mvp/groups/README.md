@@ -19,7 +19,7 @@ conectando el backend con su respectiva vista de frontend de extremo a extremo.
 | 06 | [`06-idea-casos-uso-y-router.md`](06-idea-casos-uso-y-router.md) | UC crear/editar/publicar/listar + router `/ideas` + mejora asistida | T-020, T-021, T-022, T-023, T-024 | 5 | 5/5 | ✅ |
 | 07 | [`07-captura-dominio-y-procesamiento.md`](07-captura-dominio-y-procesamiento.md) | Conversación: reglas, store, inicio, procesamiento, título | T-025, T-026, T-027, T-028, T-029 | 5 | 5/5 | ✅ |
 | 08 | [`08-captura-final-y-router-ui-arranque.md`](08-captura-final-y-router-ui-arranque.md) | Finalización/contingencia + router `/capture` + `new-idea` + chat | T-030, T-031, T-040, T-041, T-042 | 5 | 5/5 | ✅ |
-| 09 | [`09-captura-resumen-manual-contingencia.md`](09-captura-resumen-manual-contingencia.md) | Resumen editable + formulario manual + contingencia 503 | T-043, T-044, T-045 | 3 | 0/3 | ⬜ |
+| 09 | [`09-captura-resumen-manual-contingencia.md`](09-captura-resumen-manual-contingencia.md) | Resumen editable + formulario manual + contingencia 503 | T-043, T-044, T-045 | 3 | 3/3 | ✅ |
 | 10 | [`10-notificaciones-validacion-catalogo.md`](10-notificaciones-validacion-catalogo.md) | Notificaciones (4 eventos) + cola especialista + `/catalog/public` | T-032, T-033, T-034, T-035 | 4 | 0/4 | ⬜ |
 | 11 | [`11-mis-ideas-ui.md`](11-mis-ideas-ui.md) | Listado, detalle+edición, mejoras IA, refinamiento, nota de rechazo | T-046, T-047, T-048, T-049, T-050 | 5 | 0/5 | ⬜ |
 | 12 | [`12-validacion-catalogo-campana.md`](12-validacion-catalogo-campana.md) | Cola+panel validar/rechazar + catálogo público + campana | T-051, T-052, T-055 | 3 | 0/3 | ⬜ |
@@ -29,8 +29,8 @@ conectando el backend con su respectiva vista de frontend de extremo a extremo.
 | 16 | [`16-accesibilidad-build-cierre.md`](16-accesibilidad-build-cierre.md) | Accesibilidad + build/guías + verificación spec §9 | T-057, T-058, T-068 | 3 | 0/3 | ⬜ |
 
 **Total: 4+4+3+2+3+5+5+5+3+4+5+3+2+2+4+3 = 57 tareas.** ✓ (una por grupo, sin huecos ni
-duplicados). **Progreso (2026-10-07): 33/57 tareas implementadas** (G01 ✅, G02 ✅, G03 ✅,
-G04 ✅, G05 ✅, G06 ✅, G07 ✅, G08 ✅; G09–G16 sin empezar).
+duplicados). **Progreso (2026-10-07): 36/57 tareas implementadas** (G01 ✅, G02 ✅, G03 ✅,
+G04 ✅, G05 ✅, G06 ✅, G07 ✅, G08 ✅, G09 ✅; G10–G16 sin empezar).
 
 ## Criterio de la secuencia
 

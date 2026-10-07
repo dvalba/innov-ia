@@ -104,3 +104,93 @@ export function parseStructuredField(raw: string | undefined | null): unknown {
     return raw;
   }
 }
+
+/** The editable 7-field form shared by the summary (RF-6) and the manual form (RF-7). */
+export interface FormResumen {
+  title: string;
+  description: string;
+  problem: string;
+  expectedBenefit: string;
+  strategicAlignment: string;
+  proponent: { name: string; area: string; contact: string };
+  estimatedResources: { time: string; people: string; budget: string };
+}
+
+// Case 12: a valid contact is an e-mail or a 7–15 digit phone (mirror of the
+// `ideas` domain validator); the UI only uses it to enable the send, the domain
+// remains the source of truth.
+const _EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const _PHONE_CHARS_RE = /[\s\-().]+/g;
+
+/** True when `contact` is a well-formed e-mail or phone (case 12). */
+export function contactoValido(contacto: string): boolean {
+  const v = contacto.trim();
+  if (!v) return false;
+  if (_EMAIL_RE.test(v)) return true;
+  const digits = v.replace(_PHONE_CHARS_RE, '').replace(/^\+/, '');
+  return /^\d+$/.test(digits) && digits.length >= 7 && digits.length <= 15;
+}
+
+function _texto(valor: unknown): string {
+  if (valor === undefined || valor === null) return '';
+  if (typeof valor === 'string') return valor;
+  return String(valor);
+}
+
+/**
+ * Builds the editable 7-field form from a raw field map (the RESUMEN summary or
+ * the contingency `capturedFields`). `cuenta` (the account proponent) fills any
+ * missing proponent part, as in the manual contingency (RNF-10: nothing is lost
+ * and the proponent is prefilled from the account).
+ */
+export function construirResumen(
+  base: Record<string, unknown>,
+  cuenta?: { name: string; area: string; contact: string },
+): FormResumen {
+  const objeto = (valor: unknown): Record<string, string | undefined> | undefined => {
+    if (typeof valor === 'object' && valor !== null) return valor as Record<string, string>;
+    const parseado = parseStructuredField(valor as string | undefined);
+    return typeof parseado === 'object' && parseado !== null
+      ? (parseado as Record<string, string>)
+      : undefined;
+  };
+  const pro = objeto(base['proponent']) ?? {};
+  const est = objeto(base['estimatedResources']) ?? {};
+  const parte = (val: string | undefined, fallback: string) =>
+    val && val.trim() !== '' ? val : fallback;
+  return {
+    title: _texto(base['title']),
+    description: _texto(base['description']),
+    problem: _texto(base['problem']),
+    expectedBenefit: _texto(base['expectedBenefit']),
+    strategicAlignment: _texto(base['strategicAlignment']),
+    proponent: {
+      name: parte(pro['name'], cuenta?.name ?? ''),
+      area: parte(pro['area'], cuenta?.area ?? ''),
+      contact: parte(pro['contact'], cuenta?.contact ?? ''),
+    },
+    estimatedResources: {
+      time: est['time'] ?? '',
+      people: est['people'] ?? '',
+      budget: est['budget'] ?? '',
+    },
+  };
+}
+
+/** True when the form is complete: all 7 parts non-empty + a valid contact (RNF-5, case 12). */
+export function resumenCompleto(f: FormResumen): boolean {
+  const textosLlenos = [
+    f.title,
+    f.description,
+    f.problem,
+    f.expectedBenefit,
+    f.strategicAlignment,
+    f.proponent.name,
+    f.proponent.area,
+    f.proponent.contact,
+    f.estimatedResources.time,
+    f.estimatedResources.people,
+    f.estimatedResources.budget,
+  ].every((t) => t.trim() !== '');
+  return textosLlenos && contactoValido(f.proponent.contact);
+}

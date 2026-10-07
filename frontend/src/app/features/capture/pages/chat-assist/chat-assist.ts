@@ -12,6 +12,7 @@ import { errorMessage } from '../../../../shared/interceptors/error.interceptor'
 import { TituloAccion } from '../../components/title-suggestion/title-suggestion';
 import { ChatMessage, MensajeChat } from '../../components/chat-message/chat-message';
 import { TitleSuggestion } from '../../components/title-suggestion/title-suggestion';
+import { FieldSummary } from '../../components/field-summary/field-summary';
 import { CaptureService } from '../../services/capture.service';
 import { FIELD_LABEL, FIELD_ORDER, parseStructuredField } from '../../services/fieldsMeta';
 
@@ -31,7 +32,7 @@ let secuencia = 0;
  */
 @Component({
   selector: 'app-chat-assist',
-  imports: [FormsModule, ChatMessage, TitleSuggestion],
+  imports: [FormsModule, ChatMessage, TitleSuggestion, FieldSummary],
   templateUrl: './chat-assist.html',
   styleUrl: './chat-assist.css',
 })
@@ -56,6 +57,13 @@ export class ChatAssist {
 
   protected readonly texto = signal('');
   protected readonly errorEnvio = signal('');
+
+  /** A confirmation is in flight (the finish call). */
+  protected readonly confirmando = signal(false);
+  /** The field names the backend rejected on the last confirmation (RNF-5, case 12). */
+  protected readonly camposError = signal<string[]>([]);
+  /** A generic confirmation error that is not a field rejection. */
+  protected readonly errorConfirmar = signal('');
 
   constructor() {
     // Start at the bottom of the seeded transcript.
@@ -129,11 +137,43 @@ export class ChatAssist {
   }
 
   protected irManual(): void {
+    // RF-7 / RNF-10: the contingency keeps the captured fields in the shared
+    // `CaptureService`; the manual form reads them on arrival and pre-fills, so
+    // nothing is lost in this handoff (the transparent single retry, RNF-3, is
+    // the Ollama client's, G04/T-059).
     void this.router.navigate(['/captura/manual']);
   }
 
   protected irInicio(): void {
     void this.router.navigate(['/captura']);
+  }
+
+  /**
+   * Confirms the editable summary (T-043, RF-6): `POST /capture/finish`; a 201
+   * navigates to "Mis ideas", a 422 (incomplete fields / bad contact) names the
+   * rejected fields and the summary stays editable.
+   */
+  protected async onConfirmar(campos: Record<string, unknown>): Promise<void> {
+    const id = this.capture.conversacionId();
+    if (!id || this.confirmando()) return;
+    this.confirmando.set(true);
+    this.camposError.set([]);
+    this.errorConfirmar.set('');
+    try {
+      await this.capture.finalizar(id, campos);
+      this.empujar('system', 'Idea registrada; dirigiéndonos a Mis ideas.');
+      void this.router.navigate(['/mis-ideas']);
+    } catch (err) {
+      const body = err as { error?: { code?: string; details?: { fields?: string[] } } };
+      if (body?.error?.code === 'IDEA_FIELDS_INVALID' && Array.isArray(body.error.details?.fields)) {
+        this.camposError.set(body.error.details!.fields!);
+      } else {
+        this.errorConfirmar.set(errorMessage(err));
+      }
+    } finally {
+      this.confirmando.set(false);
+      this.despues();
+    }
   }
 
   /** The 503 fallback captured fields, as display rows. */
@@ -143,15 +183,6 @@ export class ChatAssist {
       campo: FIELD_LABEL[(campo as keyof typeof FIELD_LABEL)] ?? campo,
       valor: this.formatearValor(campo, valor),
     }));
-  }
-
-  /** The editable summary rows (read-only display; editing is G09). */
-  protected filasResumen(): Array<{ campo: string; valor: string }> {
-    const r = this.resumen() ?? {};
-    return FIELD_ORDER.map((campo) => ({
-      campo: FIELD_LABEL[campo],
-      valor: this.formatearValor(campo, r[campo]),
-    })).filter((f) => f.valor !== '');
   }
 
   private textoAccionTitulo(a: TituloAccion): string {

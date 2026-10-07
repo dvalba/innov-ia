@@ -265,17 +265,17 @@
   - **Dependencias:** [T-041]
   - **Hecho cuando:** `pages/chat-assist` renderiza la burbuja de mensajes (`components/chat-message`, papeles usuario/asistente), la lista de chips del campo en curso (selección = respuesta completa; se mantienen hasta que el campo se responde) y el bloque `components/title-suggestion` con acciones Aceptar / Pedir otra / Escribir (el texto escrito se envía sin modificación); acceso a `POST /capture/messages` con `quickOptionSelected` o texto libre; carga visible durante cada llamada a la IA (RNF-3); `ng build` pasa.
 
-- [ ] **[T-043] capture · resumen editable y confirmación de la idea asistida**
+- [x] **[T-043] capture · resumen editable y confirmación de la idea asistida**
   - **Covers:** RF-6, RNF-5
   - **Dependencias:** [T-042]
   - **Hecho cuando:** Al llegar `state: RESUMEN`, `components/field-summary` muestra los 7 campos editables con los valores capturados; el botón "Confirmar" llama a `POST /capture/finish` con el resumen (editado o no) y, con 201, navega a "Mis ideas" mostrando el nuevo estado; si el backend rechaza (campos incompletos), muestra los errores y permanece en el resumen; `ng build` pasa.
 
-- [ ] **[T-044] capture · formulario manual (7 campos obligatorios, prellenado, envío)**
+- [x] **[T-044] capture · formulario manual (7 campos obligatorios, prellenado, envío)**
   - **Covers:** RF-7, RNF-5
   - **Dependencias:** [T-041], [T-043]
   - **Hecho cuando:** `pages/manual-form` + `components/manual-fields` presentan los 7 campos obligatorios (Proponente prellenado desde la cuenta y corregible), validan no-vacio y formato de contacto (caso 12) antes de habilitar el envío, y envían a `POST /ideas` con origen `manual`; aceptan `prellenado` de ruta (campos ya capturados) tras un 503 de contingencia; en fallo de envío los datos permanecen en pantalla (caso 17); `ng build` pasa.
 
-- [ ] **[T-045] capture · contingencia a mitad de conversación (503 → prellenado)**
+- [x] **[T-045] capture · contingencia a mitad de conversación (503 → prellenado)**
   - **Covers:** RF-7 (caso 2), RNF-10, RNF-3
   - **Dependencias:** [T-042], [T-044]
   - **Hecho cuando:** Si `POST /capture/messages` devuelve 503 `ASSISTANT_UNAVAILABLE`, el chat muestra un aviso de interrupción y ofrece "Continuar en formulario manual", pasando `fallback.capturedFields` al formulario manual prellenado; los campos capturados no se pierden; si el 503 llega en el reinicio, se reenvía la misma solicitud una vez (reintento único, RNF-3) antes de contingencia; `ng build` pasa.
