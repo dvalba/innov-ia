@@ -7,7 +7,8 @@ expressed with `Annotated` typed dependencies, overridable in tests.
 
 Typed dependency aliases:
   - `TokenStoreDep` / `UserDirectoryDep` / `IdeaLedgerDep` /
-    `AssistantClientDep`: DI providers (override in tests).
+    `ConversationStoreDep` / `AssistantClientDep`: DI providers (override
+    in tests).
   - `SessionDep`: active bearer `Session` (401 when absent/expired or when the
     account is deactivated; roles are re-read live on every request).
   - `role_dependency(roles)`: `Session` plus a required role subset (403).
@@ -21,6 +22,7 @@ from fastapi import Depends, Request
 from features.assistant.infrastructure.ollama_client import OllamaClient
 from features.auth.domain.session import Session
 from features.auth.infrastructure.token_store import TokenStore
+from features.capture.infrastructure.conversation_store import ConversationStore
 from features.ideas.infrastructure.idea_store import IdeaStore
 from shared.config.settings import settings
 from shared.contracts.assistant_client import AssistantClient
@@ -74,9 +76,19 @@ def get_assistant_client() -> OllamaClient:
     )
 
 
+def _conversation_store() -> ConversationStore:
+    return ConversationStore(JsonStore(settings.data_dir / "conversations.json"))
+
+
+def get_conversation_store() -> ConversationStore:
+    """DI provider for the capture conversation store (override in tests)."""
+    return _conversation_store()
+
+
 TokenStoreDep = Annotated[TokenStore, Depends(get_token_store)]
 UserDirectoryDep = Annotated[UserDirectory, Depends(get_user_directory)]
 IdeaLedgerDep = Annotated[IdeaStore, Depends(get_idea_ledger)]
+ConversationStoreDep = Annotated[ConversationStore, Depends(get_conversation_store)]
 AssistantClientDep = Annotated[AssistantClient, Depends(get_assistant_client)]
 
 

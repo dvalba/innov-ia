@@ -24,10 +24,13 @@ import pytest
 
 from features.capture.domain import capture_rules as rules
 from features.capture.infrastructure.conversation_store import ConversationStore
+from features.capture.use_cases import activate_manual as manual_uc
+from features.capture.use_cases import finish_capture as finish_uc
 from features.capture.use_cases import process_message as msg_uc
 from features.capture.use_cases import start_conversation as start_uc
 from features.capture.use_cases import suggest_title as title_uc
-from shared.exceptions.handlers import AssistantUnavailable, DomainError
+from features.ideas.infrastructure.idea_store import IdeaStore
+from shared.exceptions.handlers import AssistantUnavailable, DomainError, ValidationFailed
 from tests.conftest import InMemoryDirectory, InMemoryStore, OllamaMock
 
 PROPOSER = "u_ana"
@@ -433,3 +436,237 @@ def test_title_actions_require_the_title_turn_an_active_conversation() -> None:
             action="accept",
         )
     assert error.value.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# T-030: finish_capture + activate_manual
+# ---------------------------------------------------------------------------
+
+
+def _ledger() -> IdeaStore:
+    return IdeaStore(InMemoryStore(), InMemoryStore())
+
+
+def _proponent_json(**overrides: str) -> str:
+    data = {"name": "Ana Torres", "area": "Compras", "contact": "ana@corp.com", **overrides}
+    return json.dumps(data, ensure_ascii=False)
+
+
+def _resumen(
+    captured: dict[str, str],
+    state: str = "RESUMEN",
+) -> tuple[ConversationStore, str]:
+    """A conversation with the given captured fields in `state` (default RESUMEN)."""
+    store = _store()
+    conv = rules.new_conversation(conversation_id="c_f", user_id=PROPOSER)
+    conv.capturedFields = dict(captured)
+    conv.currentField = None
+    conv.state = state
+    store.create(conv)
+    return store, "c_f"
+
+
+def _complete_summary(**overrides: str) -> dict:
+    """The 7 fields complete: texts + the two structured fields as JSON strings."""
+    summary = {
+        "description": "Reducir los tiempos de compra con un flujo digital.",
+        "title": "Flujo digital de compras",
+        "problem": "Retrasos en la operación de compras.",
+        "expectedBenefit": "Comprar antes y a mejor precio.",
+        "strategicAlignment": "Eficiencia operativa y ahorro.",
+        "estimatedResources": json.dumps(
+            {"time": "3 meses", "people": "2", "budget": "100000"}, ensure_ascii=False
+        ),
+        "proponent": _proponent_json(**overrides),
+    }
+    return summary
+
+
+def test_finish_registers_the_idea_and_closes_the_conversation() -> None:
+    store, cid = _resumen(_complete_summary())
+    ledger = _ledger()
+    result = finish_uc.finish_capture(
+        store, ledger, conversation_id=cid, user_id=PROPOSER, captured={}
+    )
+    # The idea is created in EN_DESARROLLO with origin asistida (RF-6), the
+    # structured fields parsed back into their objects (plan §2.2, RNF-5).
+    assert result["id"].startswith("idea_")
+    assert result["state"] == "EN_DESARROLLO"
+    assert result["origin"] == "asistida"
+    assert result["ownerId"] == PROPOSER
+    assert result["proponent"]["name"] == "Ana Torres"
+    assert result["estimatedResources"]["budget"] == "100000"
+    assert result["conversationId"] == cid
+    # The conversation is closed as TERMINADA (one per user, RF-2).
+    assert store.get(cid)["state"] == "TERMINADA"
+    assert [p["id"] for p in ledger.list_by_origin("asistida", "EN_DESARROLLO")] == [result["id"]]
+
+
+def test_finish_with_a_missing_field_rejects_and_keeps_the_summary() -> None:
+    summary = _complete_summary()
+    del summary["title"]
+    store, cid = _resumen(summary)
+    ledger = _ledger()
+    # The stored summary is itself incomplete: without a confirmed payload the
+    # finish is a ValidationFailed (422) and nothing is registered (RNF-5).
+    with pytest.raises(ValidationFailed) as error:
+        finish_uc.finish_capture(
+            store, ledger, conversation_id=cid, user_id=PROPOSER, captured={}
+        )
+    assert "title" in error.value.details["fields"]
+    assert ledger.list() == []
+    assert store.get(cid)["state"] == "RESUMEN"
+
+
+def test_a_malformed_contact_rejects_the_finish() -> None:
+    store, cid = _resumen(_complete_summary())
+    ledger = _ledger()
+    # The proponent contact is part of RNF-5 (case 12): an empty contact
+    # blocks the registration even though the 7 fields are present.
+    with pytest.raises(ValidationFailed) as error:
+        finish_uc.finish_capture(
+            store,
+            ledger,
+            conversation_id=cid,
+            user_id=PROPOSER,
+            captured={"proponent": _proponent_json(contact="")},
+        )
+    assert "proponent" in error.value.details["fields"]
+    assert ledger.list() == []
+    assert store.get(cid)["state"] == "RESUMEN"
+
+
+def test_the_confirmed_summary_wins_over_the_stored_values() -> None:
+    store, cid = _resumen(_complete_summary(title="Título original"))
+    ledger = _ledger()
+    result = finish_uc.finish_capture(
+        store, ledger, conversation_id=cid, user_id=PROPOSER,
+        captured={"title": "Título corregido por el proponente"},
+    )
+    # The confirmed (edited) value overrides the capture (the summary is editable).
+    assert result["title"] == "Título corregido por el proponente"
+    # The rest of the summary is kept untouched.
+    assert result["description"] == _complete_summary()["description"]
+
+
+def test_finish_from_any_other_state_is_refused_and_leaves_nothing() -> None:
+    """Case 7: without a confirmed summary (state != RESUMEN), even a perfect
+    payload registers no idea and changes nothing."""
+    for state in ("ACTIVA", "TERMINADA", "CONTINGENCIA"):
+        store, cid = _resumen(_complete_summary(), state=state)
+        ledger = _ledger()
+        with pytest.raises(DomainError) as error:
+            finish_uc.finish_capture(
+                store, ledger, conversation_id=cid, user_id=PROPOSER,
+                captured=_complete_summary(),
+            )
+        assert error.value.status_code == 409
+        assert ledger.list() == []  # no draft, no partial record
+        assert store.get(cid)["state"] == state
+
+
+def test_no_draft_saved_when_no_finish_happens() -> None:
+    """Case 7 (no draft): abandoning the capture before confirming leaves no
+    idea and the conversation exactly as it was."""
+    store, cid = _resumen(_complete_summary())
+    ledger = _ledger()
+    # No finish call at all: the ledger stays empty.
+    assert ledger.list() == []
+    assert store.get(cid)["state"] == "RESUMEN"
+    # And a conversation still in flight (ACTIVA) is equally untouchable.
+    store2, cid2 = _resumen({"description": "d", "title": "t"}, state="ACTIVA")
+    store2.set_current_field(cid2, "problem")
+    with pytest.raises(DomainError) as error:
+        finish_uc.finish_capture(
+            store2, _ledger(), conversation_id=cid2, user_id=PROPOSER,
+            captured=_complete_summary(),
+        )
+    assert error.value.status_code == 409
+    assert store2.get(cid2)["state"] == "ACTIVA"
+
+
+def test_finish_requires_the_conversation_to_exist_and_be_owned() -> None:
+    ledger = _ledger()
+    with pytest.raises(DomainError) as error:
+        finish_uc.finish_capture(
+            _store(), ledger, conversation_id="c_inexistente", user_id=PROPOSER
+        )
+    assert error.value.status_code == 404
+    store, cid = _resumen(_complete_summary())
+    with pytest.raises(DomainError) as error:
+        finish_uc.finish_capture(
+            store, ledger, conversation_id=cid, user_id="u_otro"
+        )
+    assert error.value.status_code == 403
+    assert store.get(cid)["state"] == "RESUMEN"
+
+
+def test_finish_from_contingency_rejects_even_a_complete_payload() -> None:
+    # A contingency conversation never confirmed its summary: the only path
+    # forward for its data is the manual form (RF-7), not the assisted finish.
+    store, cid = _resumen(_complete_summary(), state="CONTINGENCIA")
+    with pytest.raises(DomainError) as error:
+        finish_uc.finish_capture(
+            store, _ledger(), conversation_id=cid, user_id=PROPOSER,
+            captured=_complete_summary(),
+        )
+    assert error.value.status_code == 409
+
+
+# -- activate_manual ---------------------------------------------------------
+
+
+def test_activate_manual_from_active_marks_contingency_and_prefills() -> None:
+    store, cid = _captured({"description": "lo capturado"}, "title")
+    result = manual_uc.activate_manual(store, conversation_id=cid, user_id=PROPOSER)
+    assert result["state"] == "CONTINGENCIA"
+    # The captured fields travel raw (RNF-10: nothing lost) so the manual form
+    # pre-fills with what the user already said.
+    assert result["capturedFields"]["description"] == "lo capturado"
+    assert store.get(cid)["state"] == "CONTINGENCIA"
+
+
+def test_activate_manual_from_resumen_marks_contingency() -> None:
+    store, cid = _resumen(_complete_summary())
+    result = manual_uc.activate_manual(store, conversation_id=cid, user_id=PROPOSER)
+    assert result["state"] == "CONTINGENCIA"
+    assert result["capturedFields"]["title"] == _complete_summary()["title"]
+    assert store.get(cid)["state"] == "CONTINGENCIA"
+
+
+def test_activate_manual_is_idempotent_when_already_contingency() -> None:
+    store, cid = _resumen(_complete_summary(), state="CONTINGENCIA")
+    before = store.get(cid)
+    result = manual_uc.activate_manual(store, conversation_id=cid, user_id=PROPOSER)
+    assert result["state"] == "CONTINGENCIA"
+    assert result["capturedFields"] == before["capturedFields"]
+    assert store.get(cid) == before  # nothing rewritten
+
+
+def test_activate_manual_requires_an_unfinished_owned_conversation() -> None:
+    store, cid = _resumen(_complete_summary(), state="TERMINADA")
+    with pytest.raises(DomainError) as error:
+        manual_uc.activate_manual(store, conversation_id=cid, user_id=PROPOSER)
+    assert error.value.status_code == 409  # the idea was already registered
+    with pytest.raises(DomainError) as error:
+        manual_uc.activate_manual(store, conversation_id="c_inexistente", user_id=PROPOSER)
+    assert error.value.status_code == 404
+    with pytest.raises(DomainError) as error:
+        manual_uc.activate_manual(store, conversation_id=cid, user_id="u_otro")
+    assert error.value.status_code == 403
+    assert store.get(cid)["state"] == "TERMINADA"
+
+
+def test_partial_fields_are_kept_when_activating_manual() -> None:
+    partial = {
+        "description": "una idea a medias",
+        "problem": "retrasos",
+        "proponent": _proponent_json(),
+    }
+    store, cid = _captured(partial, "title")
+    result = manual_uc.activate_manual(store, conversation_id=cid, user_id=PROPOSER)
+    # The partial capture is pre-filled as stored: structured fields are the
+    # JSON strings, exactly like the 503 fallback (RNF-10).
+    assert set(result["capturedFields"]) == set(partial)
+    assert result["capturedFields"]["proponent"] == partial["proponent"]
+    assert store.get(cid)["capturedFields"] == partial

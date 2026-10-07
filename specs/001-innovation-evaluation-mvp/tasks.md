@@ -186,12 +186,12 @@
   - **Dependencias:** [T-028]
   - **Hecho cuando:** `suggest_title.py`: tras la primera respuesta sustantiva propone título con acciones `accept/another/manual`; "another" genera una sugerencia distinta de las anteriores (lista de intentos persistente en la conversación); el texto escrito manualmente se guarda sin modificación; tests cubren propuesta inicial, alternativa distinta y aceptación de texto manual (`pytest -q` verde).
 
-- [ ] **[T-030] capture · casos de uso: finalización (resumen confirmado → idea asistida) y activación manual prellenada**
+- [x] **[T-030] capture · casos de uso: finalización (resumen confirmado → idea asistida) y activación manual prellenada**
   - **Covers:** RF-6, RF-7 (caso 2), RNF-5, RNF-10
   - **Dependencias:** [T-029], [T-020]
   - **Hecho cuando:** `finish_capture.py` valida los 7 campos completos (RNF-5) desde el resumen confirmado, registra la idea EN_DESARROLLO con origen `asistida` y termina la conversación (sin borrador: nada si no se confirma, caso 7); `activate_manual.py` marca la conversación en CONTINGENCIA y devuelve los `capturedFields` para prellenar el formulario manual sin pérdida; tests cubren finalización completa, finalización con campo faltante (rechazo), y activación manual con campos parciales conservados (`pytest -q` verde).
 
-- [ ] **[T-031] capture · router: endpoints /capture (start, messages, finish, activate-manual, assistant-status)**
+- [x] **[T-031] capture · router: endpoints /capture (start, messages, finish, activate-manual, assistant-status)**
   - **Covers:** RF-2, RF-3, RF-4, RF-5, RF-6, RF-7
   - **Dependencias:** [T-030], [T-013]
   - **Hecho cuando:** `features/capture/routers/capture.py` expone `POST /capture/start`, `POST /capture/messages` (200 con asistente/siguiente pregunta; 503 con `{error: {code: ASSISTANT_UNAVAILABLE}, fallback: {capturedFields}}` si la IA cae a mitad), `POST /capture/finish` (201 idea), `POST /capture/activate-manual`, `GET /capture/assistant-status` (OK/UNAVAILABLE); dependencia de rol proponente; tests en `tests/api/test_capture_api.py` cubren el flujo completo de chat (inicio → mensajes → resumen → finish 201) y el fallback 503 prellenado (casos 1, 2) (`pytest -q` verde).
@@ -250,17 +250,17 @@
 
 ### 3.2 Feature `capture`
 
-- [ ] **[T-040] capture · `fieldsMeta` (orden fijo + chips) y `CaptureService` base**
+- [x] **[T-040] capture · `fieldsMeta` (orden fijo + chips) y `CaptureService` base**
   - **Covers:** RF-3, RF-5, RNF-4
   - **Dependencias:** [T-009], [T-031]
   - **Hecho cuando:** `features/capture/services/fieldsMeta.ts` define el orden fido de los 7 campos, la pregunta en español por campo y el catálogo fijo de chips por campo (en espejo del backend, D7); `capture.service.ts` envuelve `POST /capture/start`, `POST /capture/messages`, `GET /capture/assistant-status` con manejo de estado de carga (RNF-3); `ng build` pasa.
 
-- [ ] **[T-041] capture · página new-idea (decisión asistida vs manual)**
+- [x] **[T-041] capture · página new-idea (decisión asistida vs manual)**
   - **Covers:** RF-2, RF-7 (caso 1)
   - **Dependencias:** [T-040]
   - **Hecho cuando:** `pages/new-idea` consulta `GET /capture/assistant-status`: si OK abre la conversación asistida; si UNAVAILABLE despliega directamente el formulario manual con aviso claro de contingencia; si el backend informa conversación ACTIVA existente ofrece "Retomar conversación" (caso 8, RF-2); `ng build` pasa.
 
-- [ ] **[T-042] capture · componente chat (mensajes, chips y sugerencia de título)**
+- [x] **[T-042] capture · componente chat (mensajes, chips y sugerencia de título)**
   - **Covers:** RF-5, RF-4
   - **Dependencias:** [T-041]
   - **Hecho cuando:** `pages/chat-assist` renderiza la burbuja de mensajes (`components/chat-message`, papeles usuario/asistente), la lista de chips del campo en curso (selección = respuesta completa; se mantienen hasta que el campo se responde) y el bloque `components/title-suggestion` con acciones Aceptar / Pedir otra / Escribir (el texto escrito se envía sin modificación); acceso a `POST /capture/messages` con `quickOptionSelected` o texto libre; carga visible durante cada llamada a la IA (RNF-3); `ng build` pasa.

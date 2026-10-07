@@ -14,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.deps import get_user_directory
 from features.auth.infrastructure.token_store import seed_first_admin
 from features.auth.routers.auth import auth_router
+from features.capture.routers.capture import capture_router
 from features.ideas.routers.ideas import ideas_router
 from features.users.routers.users import users_router
 from shared.config.settings import settings
@@ -40,6 +41,7 @@ register_exception_handlers(app)
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(ideas_router)
+app.include_router(capture_router)
 
 if settings.cors_origins:
     app.add_middleware(
@@ -56,11 +58,10 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-# Router registration (auth — T-013) completed above. Placeholders for the
-# remaining features (wired by their respective tasks):
+# Router registration (auth — T-013, ideas — T-023, capture — T-031)
+# completed above. Placeholders for the remaining features (wired by their
+# respective tasks):
 #   features.users.routers.users.users_router              (T-016)
-#   features.ideas.routers.ideas.ideas_router              (T-023)
-#   features.capture.routers.capture.capture_router        (T-031)
 #   features.notifications.routers.notifications.notif_router (T-033)
 #   features.validation.routers.validation.validation_router (T-034)
 #   features.ideas.routers.catalog.catalog_router          (T-035)

@@ -53,7 +53,21 @@ export const routes: Routes = [
             path: '',
             loadComponent: () =>
               import('./features/capture/pages/new-idea/new-idea').then(
-                (m) => m.NewIdea,
+                m => m.NewIdea,
+              ),
+          },
+          {
+            path: 'chat-assist',
+            loadComponent: () =>
+              import('./features/capture/pages/chat-assist/chat-assist').then(
+                (m) => m.ChatAssist,
+              ),
+          },
+          {
+            path: 'manual',
+            loadComponent: () =>
+              import('./features/capture/pages/manual/manual').then(
+                (m) => m.ManualIdea,
               ),
           },
         ],

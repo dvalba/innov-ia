@@ -1,0 +1,149 @@
+<div class="flex h-[75vh] w-full max-w-2xl flex-col mx-auto">
+  @if (sinConversacion()) {
+    <div class="flex flex-1 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 shadow-lg text-center">
+      <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-2xl font-bold text-slate-400">
+        ?
+      </div>
+      <h1 class="text-xl font-semibold text-slate-900">No hay captura en curso</h1>
+      <p class="mt-1 mb-5 max-w-sm text-sm text-slate-500">
+        Comienza una nueva idea para abrir la conversación con el asistente.
+      </p>
+      <button
+        type="button"
+        (click)="irInicio()"
+        class="rounded-lg bg-indigo-600 px-4 py-2 font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+      >
+        Ir a Nueva idea
+      </button>
+    </div>
+  } @else {
+    <div class="flex flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+      <div class="border-b border-slate-200 bg-slate-50 px-5 py-3">
+        <p class="text-sm font-semibold text-slate-900">
+          @if (estadoConv() === 'RESUMEN') {
+            Resumen de la idea
+          } @else {
+            Pregunta {{ progreso() }} de 7
+            @if (campoActual()) {
+              — {{ campoActual() }}
+            }
+          }
+        </p>
+        <p class="text-xs text-slate-500">
+          @if (estadoConv() === 'RESUMEN') {
+            Los 7 campos quedaron cerrados.
+          } @else if (cargando()) {
+            El asistente está escribiendo…
+          } @else {
+            Responde con tus propias palabras o usa una de las opciones rápidas.
+          }
+        </p>
+      </div>
+
+      <div #scroll class="flex-1 space-y-3 overflow-y-auto bg-slate-50 p-5">
+        @for (m of transcript(); track m.id) {
+          <app-chat-message [mensaje]="m"></app-chat-message>
+        }
+        @if (turno()?.titleSuggestion) {
+          <app-title-suggestion
+            [sugerencia]="turno()!.titleSuggestion!"
+            [cargando]="cargando()"
+            (accion)="onTitulo($event)"
+          ></app-title-suggestion>
+        }
+        @if (contingencia()) {
+          <div
+            class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm"
+            role="alert"
+          >
+            <p class="mb-2 font-medium text-amber-800">
+              El asistente no está disponible.
+            </p>
+            <p class="mb-3 text-amber-700">{{ contingencia()?.notice }}</p>
+            @if (camposPreservados().length > 0) {
+              <ul class="mb-3 space-y-1">
+                @for (c of camposPreservados(); track c.campo) {
+                  <li class="text-amber-800">
+                    <span class="font-medium">{{ c.campo }}:</span>
+                    <span class="break-words">{{ c.valor }}</span>
+                  </li>
+                }
+              </ul>
+            }
+            <button
+              type="button"
+              (click)="irManual()"
+              class="rounded-lg bg-amber-500 px-3 py-1.5 font-medium text-white transition hover:bg-amber-600"
+            >
+              Continuar con formulario manual
+            </button>
+          </div>
+        }
+        @if (estadoConv() === 'RESUMEN' && !contingencia()) {
+          <div class="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
+            <p class="mb-2 font-medium text-slate-800">Resumen de lo capturado</p>
+            <ul class="space-y-2">
+              @for (f of filasResumen(); track f.campo) {
+                <li>
+                  <span class="font-medium text-slate-700">{{ f.campo }}:</span>
+                  <span class="whitespace-pre-wrap break-words text-slate-600">{{ f.valor }}</span>
+                </li>
+              }
+            </ul>
+            <p class="mt-3 text-xs text-slate-500">
+              Pronto podrás revisar y confirmar este resumen para registrar tu idea.
+            </p>
+          </div>
+        }
+        @if (cargando()) {
+          <p class="flex items-center gap-2 text-xs text-slate-400" aria-live="polite">
+            <span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"></span>
+            El asistente está escribiendo…
+          </p>
+        }
+        @if (errorEnvio()) {
+          <p role="alert" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+            {{ errorEnvio() }}
+          </p>
+        }
+      </div>
+
+      @if (estadoConv() === 'ACTIVA' && !contingencia()) {
+        <div class="border-t border-slate-200 bg-white p-4">
+          @if (estadoConv() === 'ACTIVA' && turno()?.quickOptions && turno()!.quickOptions!.length > 0 && !cargando()) {
+            <div class="mb-3 flex flex-wrap gap-2">
+              @for (chip of turno()!.quickOptions!; track chip) {
+                <button
+                  type="button"
+                  (click)="elegirChip(chip)"
+                  [disabled]="cargando()"
+                  class="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {{ chip }}
+                </button>
+              }
+            </div>
+          }
+          <form (ngSubmit)="enviarMensaje()" class="flex items-center gap-2">
+            <input
+              type="text"
+              name="mensaje"
+              [ngModel]="texto()"
+              (ngModelChange)="texto.set($event)"
+              placeholder="Escribe tu respuesta…"
+              [disabled]="cargando()"
+              class="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:bg-slate-50"
+            />
+            <button
+              type="submit"
+              [disabled]="cargando() || texto().trim() === ''"
+              class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Enviar
+            </button>
+          </form>
+        </div>
+      }
+    </div>
+  }
+</div>
