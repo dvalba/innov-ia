@@ -15,8 +15,11 @@ from app.deps import get_user_directory
 from features.auth.infrastructure.token_store import seed_first_admin
 from features.auth.routers.auth import auth_router
 from features.capture.routers.capture import capture_router
+from features.ideas.routers.catalog import catalog_router
 from features.ideas.routers.ideas import ideas_router
+from features.notifications.routers.notifications import notifications_router
 from features.users.routers.users import users_router
+from features.validation.routers.validation import validation_router
 from shared.config.settings import settings
 from shared.exceptions.handlers import register_exception_handlers
 
@@ -42,6 +45,9 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(ideas_router)
 app.include_router(capture_router)
+app.include_router(notifications_router)
+app.include_router(validation_router)
+app.include_router(catalog_router)
 
 if settings.cors_origins:
     app.add_middleware(
@@ -58,11 +64,7 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-# Router registration (auth — T-013, ideas — T-023, capture — T-031)
-# completed above. Placeholders for the remaining features (wired by their
-# respective tasks):
-#   features.users.routers.users.users_router              (T-016)
-#   features.notifications.routers.notifications.notif_router (T-033)
-#   features.validation.routers.validation.validation_router (T-034)
-#   features.ideas.routers.catalog.catalog_router          (T-035)
+# Router registration (auth — T-013, ideas — T-023, capture — T-031,
+# notifications/validation/catalog — T-033/T-034/T-035) completed above.
+# Placeholder for the remaining feature (wired by its task):
 #   features.assistant.routers.assistant.assistant_router  (T-062)

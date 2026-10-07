@@ -31,7 +31,7 @@ from typing import Literal
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from app.deps import AssistantClientDep, IdeaLedgerDep, role_dependency
+from app.deps import AssistantClientDep, IdeaLedgerDep, RequestedEmitterDep, role_dependency
 from features.auth.domain.session import Session
 from features.ideas.infrastructure.idea_store import IdeaStore
 from features.ideas.use_cases.create_idea import create_idea
@@ -152,6 +152,11 @@ def decide_version_endpoint(idea_id: str, version_id: str, payload: DecideReques
 
 @ideas_router.post("/{idea_id}/request-publication")
 def request_publication_endpoint(idea_id: str, session: ProponentDep,
-                                 ledger: IdeaLedgerDep) -> dict:
-    """Moves the idea to SOLICITANDO_PUBLICACION (RF-10, the only way)."""
-    return request_publication(ledger, idea_id=idea_id, user_id=session.user_id)
+                                 ledger: IdeaLedgerDep, emit: RequestedEmitterDep) -> dict:
+    """Moves the idea to SOLICITANDO_PUBLICACION (RF-10, the only way).
+
+    Fans `IDEA_REQUESTED` out to every active specialist (RF-18); the emitter
+    is injected from the composition root (G10/T-033).
+    """
+    return request_publication(ledger, idea_id=idea_id, user_id=session.user_id,
+                               emit_notification=emit)

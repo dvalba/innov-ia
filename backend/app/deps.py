@@ -7,13 +7,20 @@ expressed with `Annotated` typed dependencies, overridable in tests.
 
 Typed dependency aliases:
   - `TokenStoreDep` / `UserDirectoryDep` / `IdeaLedgerDep` /
-    `ConversationStoreDep` / `AssistantClientDep`: DI providers (override
-    in tests).
+    `ConversationStoreDep` / `AssistantClientDep` /
+    `NotificationStoreDep`: DI providers (override in tests).
+  - `RefinedEmitterDep` / `PublishedEmitterDep` / `RejectedEmitterDep` /
+    `RequestedEmitterDep` (G10/T-033): emitters for the four RF-18
+    notification events. Each takes the updated `Idea` produced by the
+    `ideas` use cases; `Requested` fans out to every active specialist.
+    They wire the shared `notifications` use cases from the composition
+    root so `ideas`/`assistant` never import `notifications`.
   - `SessionDep`: active bearer `Session` (401 when absent/expired or when the
     account is deactivated; roles are re-read live on every request).
   - `role_dependency(roles)`: `Session` plus a required role subset (403).
 """
 
+from collections.abc import Callable
 from datetime import datetime
 from typing import Annotated
 
@@ -23,7 +30,13 @@ from features.assistant.infrastructure.ollama_client import OllamaClient
 from features.auth.domain.session import Session
 from features.auth.infrastructure.token_store import TokenStore
 from features.capture.infrastructure.conversation_store import ConversationStore
+from features.ideas.domain.idea import Idea
 from features.ideas.infrastructure.idea_store import IdeaStore
+from features.notifications.infrastructure.notification_store import NotificationStore
+from features.notifications.use_cases.create_notification import (
+    create_notification,
+    fanout_requested,
+)
 from shared.config.settings import settings
 from shared.contracts.assistant_client import AssistantClient
 from shared.contracts.user_directory import UserDirectory
@@ -85,11 +98,89 @@ def get_conversation_store() -> ConversationStore:
     return _conversation_store()
 
 
+def _notification_store() -> NotificationStore:
+    return NotificationStore(JsonStore(settings.data_dir / "notifications.json"))
+
+
+def get_notification_store() -> NotificationStore:
+    """DI provider for the notification store (override in tests)."""
+    return _notification_store()
+
+
 TokenStoreDep = Annotated[TokenStore, Depends(get_token_store)]
 UserDirectoryDep = Annotated[UserDirectory, Depends(get_user_directory)]
 IdeaLedgerDep = Annotated[IdeaStore, Depends(get_idea_ledger)]
 ConversationStoreDep = Annotated[ConversationStore, Depends(get_conversation_store)]
 AssistantClientDep = Annotated[AssistantClient, Depends(get_assistant_client)]
+NotificationStoreDep = Annotated[NotificationStore, Depends(get_notification_store)]
+
+
+def _refined_emitter(store, directory):
+    """IDEA_REFINED: the IA refined the proponent's manual idea (RF-12)."""
+
+    def _emit(idea) -> None:
+        create_notification(
+            store, user_id=idea.ownerId, event_type="IDEA_REFINED", idea_id=idea.id
+        )
+
+    return _emit
+
+
+def _published_emitter(store):
+    """IDEA_PUBLISHED: the specialist validated and published the idea (RF-15)."""
+
+    def _emit(idea) -> None:
+        create_notification(
+            store, user_id=idea.ownerId, event_type="IDEA_PUBLISHED", idea_id=idea.id
+        )
+
+    return _emit
+
+
+def _rejected_emitter(store):
+    """IDEA_REJECTED: the specialist rejected the idea (RF-16)."""
+
+    def _emit(idea) -> None:
+        create_notification(
+            store, user_id=idea.ownerId, event_type="IDEA_REJECTED", idea_id=idea.id
+        )
+
+    return _emit
+
+
+def _requested_emitter(store, directory):
+    """IDEA_REQUESTED: fanned out to every active specialist (RF-18)."""
+
+    def _emit(idea) -> None:
+        fanout_requested(store, directory, idea_id=idea.id)
+
+    return _emit
+
+
+def get_refined_emitter(store: NotificationStoreDep, directory: UserDirectoryDep):
+    """Builds the IDEA_REFINED emitter (bound to the shared notification store)."""
+    return _refined_emitter(store, directory)
+
+
+def get_published_emitter(store: NotificationStoreDep):
+    """Builds the IDEA_PUBLISHED emitter (bound to the shared notification store)."""
+    return _published_emitter(store)
+
+
+def get_rejected_emitter(store: NotificationStoreDep):
+    """Builds the IDEA_REJECTED emitter (bound to the shared notification store)."""
+    return _rejected_emitter(store)
+
+
+def get_requested_emitter(store: NotificationStoreDep, directory: UserDirectoryDep):
+    """Builds the IDEA_REQUESTED fanout emitter (RF-18), bound to the directory."""
+    return _requested_emitter(store, directory)
+
+
+RefinedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_refined_emitter)]
+PublishedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_published_emitter)]
+RejectedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_rejected_emitter)]
+RequestedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_requested_emitter)]
 
 
 def _extract_token(request: Request) -> str | None:

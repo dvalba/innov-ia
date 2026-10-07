@@ -6,14 +6,17 @@ G06, visibilidad sin datos de contacto) + el endpoint del catálogo público.
 
 ## Estado
 
-> ⬜ **Pendiente** — 0/4 tareas implementadas.
+> ✅ **Completado** — 4/4 tareas implementadas (2026-10-07). Nota: el punto de
+> emisión `IDEA_REFINED` queda enlazado al caso de uso `refine_manual` de G13
+> (T-061); en G10 el emisor está registrado en la composición raíz y ejercitado,
+> pero aún sin endpoint que lo dispare.
 
 ## Tareas (orden de ejecución)
 
-- [ ] **T-032** _(BE)_ — `domain/notification.py` (SOLO `IDEA_REFINED, IDEA_PUBLISHED, IDEA_REJECTED, IDEA_REQUESTED`) + `infrastructure/notification_store.py` (JsonStore, por usuario, leída/no leída) _(T-003 ✓)_
-- [ ] **T-033** _(BE)_ — `create_notification.py` (eventos del proponente con `ideaId`; fanout `IDEA_REQUESTED` a **todos** los especialistas) + `list_notifications.py` (lista + contador) + `mark_read.py` + `routers/notifications.py` (`GET /notifications`, `POST /notifications/{id}/read` solo destinatario) + puntos de emisión registrados desde `ideas`/`assistant` vía contrato _(T-032, T-021 G06)_
-- [ ] **T-034** _(BE)_ — `domain/queue_rules.py` (solo SOLICITANDO_PUBLICACION; proponente sin contacto) + `use_cases/review_queue.py` + `routers/validation.py` (`GET /validation/queue`, `POST /validation/{id}/approve`, `POST /validation/{id}/reject`; rol especialista 403) reutilizando `approve_idea`/`reject_idea` _(T-021 G06, T-033, T-013 ✓)_
-- [ ] **T-035** _(BE)_ — `GET /catalog/public`: solo sesión activa (cualquier rol, 401 sin sesión), ideas `VALIDADA_PUBLICA` con 7 campos, nombre/área del proponente, fechas de registro y publicación; sin `contact` _(T-022 G06)_
+- [x] **T-032** _(BE)_ — `domain/notification.py` (SOLO `IDEA_REFINED, IDEA_PUBLISHED, IDEA_REJECTED, IDEA_REQUESTED`) + `infrastructure/notification_store.py` (JsonStore, por usuario, leída/no leída) _(T-003 ✓)_
+- [x] **T-033** _(BE)_ — `create_notification.py` (eventos del proponente con `ideaId`; fanout `IDEA_REQUESTED` a **todos** los especialistas) + `list_notifications.py` (lista + contador) + `mark_read.py` + `routers/notifications.py` (`GET /notifications`, `POST /notifications/{id}/read` solo destinatario) + puntos de emisión registrados desde `ideas`/`assistant` vía contrato _(T-032, T-021 G06)_
+- [x] **T-034** _(BE)_ — `domain/queue_rules.py` (solo SOLICITANDO_PUBLICACION; proponente sin contacto) + `use_cases/review_queue.py` + `routers/validation.py` (`GET /validation/queue`, `POST /validation/{id}/approve`, `POST /validation/{id}/reject`; rol especialista 403) reutilizando `approve_idea`/`reject_idea` _(T-021 G06, T-033, T-013 ✓)_
+- [x] **T-035** _(BE)_ — `GET /catalog/public`: solo sesión activa (cualquier rol, 401 sin sesión), ideas `VALIDADA_PUBLICA` con 7 campos, nombre/área del proponente, fechas de registro y publicación; sin `contact` _(T-022 G06)_
 
 ## Criterio de salida
 

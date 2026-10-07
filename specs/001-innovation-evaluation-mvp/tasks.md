@@ -198,24 +198,24 @@
 
 ### 2.5 Feature `notifications` (RF-12, RF-15, RF-16, RF-18)
 
-- [ ] **[T-032] notifications · dominio + infraestructura: entidad, tipos de evento y store**
+- [x] **[T-032] notifications · dominio + infraestructura: entidad, tipos de evento y store**
   - **Covers:** RF-18
   - **Dependencias:** [T-003]
   - **Hecho cuando:** `domain/notification.py` define `Notificacion` (esquema §2.7) con SOLO los 4 tipos `IDEA_REFINED, IDEA_PUBLISHED, IDEA_REJECTED, IDEA_REQUESTED`; `infrastructure/notification_store.py` persiste con `JsonStore` (por usuario, leída/no leída); test en `tests/unit/infra/test_notification_store.py` cubra creación, listado por usuario y contador no leídas (`pytest -q` verde).
 
-- [ ] **[T-033] notifications · casos de uso + router: crear, listar, marcar leída, fanout a especialistas**
+- [x] **[T-033] notifications · casos de uso + router: crear, listar, marcar leída, fanout a especialistas**
   - **Covers:** RF-12, RF-15, RF-16, RF-18
   - **Dependencias:** [T-032], [T-021]
   - **Hecho cuando:** `create_notification.py` crea notificación al proponente (con `ideaId` para acceso directo) en los 3 eventos del proponente (refinada, publicada, rechazada) y hace fanout de `IDEA_REQUESTED` a **todos** los usuarios con rol especialista; `list_notifications.py` devuelve lista + contador de no leídas; `mark_read.py` marca leída; `routers/notifications.py` expone `GET /notifications` y `POST /notifications/{id}/read` (solo el destinatario); se registran los puntos de emisión de RF-12/RF-15/RF-16 desde lasfeatures `ideas`/`assistant` vía contrato compartido; tests en `tests/api/test_notifications_api.py` cubren los 4 y solo los 4 eventos, fanout, contador y marcar leída (`pytest -q` verde).
 
 ### 2.6 Feature `validation` (RF-14, RF-15, RF-16)
 
-- [ ] **[T-034] validation · dominio + casos de uso + router: cola del especialista**
+- [x] **[T-034] validation · dominio + casos de uso + router: cola del especialista**
   - **Covers:** RF-14, RF-15, RF-16
   - **Dependencias:** [T-021], [T-033], [T-013]
   - **Hecho cuando:** `domain/queue_rules.py` define la visibilidad de la cola (solo SOLICITANDO_PUBLICACION; proponente solo nombre y área, SIN datos de contacto); `use_cases/review_queue.py` lista la cola con 7 campos, proponente (nombre/área) y fecha de solicitud; `routers/validation.py` expone `GET /validation/queue`, `POST /validation/{id}/approve` (reutiliza `approve_idea`), `POST /validation/{id}/reject` (reutiliza `reject_idea`; 400 sin comentario); rol especialista (403 si no); tests en `tests/api/test_validation_api.py` cubren contenido de cola sin contacto, aprobación con rastro y notificaciones, rechazo con/sin comentario (caso 13) (`pytest -q` verde).
 
-- [ ] **[T-035] validation/ideas · catálogo público: endpoint /catalog/public**
+- [x] **[T-035] validation/ideas · catálogo público: endpoint /catalog/public**
   - **Covers:** RF-20, RNF-7
   - **Dependencias:** [T-022]
   - **Hecho cuando:** `GET /catalog/public` (registrado en `routers/catalog.py` o en `ideas`) requiere solo sesión activa (cualquier rol) y devuelve las ideas `VALIDADA_PUBLICA` con 7 campos, nombre/área del proponente, fecha de registro y de publicación; sin `contact`; test en `tests/api/test_catalog_api.py` verifica que solo aparezca VALIDADA_PUBLICA, la ausencia de contacto y el 401 sin sesión (`pytest -q` verde).
