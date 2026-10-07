@@ -76,6 +76,21 @@ export interface IdeaFields {
   estimatedResources: RecursosEstimados;
 }
 
+/** Expert rejection note (RF-16, RNF-8, case 13): who rejected, when, why. */
+export interface NotaRechazo {
+  by: string;
+  byName: string;
+  comment: string;
+  at: string;
+}
+
+/** A saved pending improvement request (case 10, plan §4.5), stored on the idea. */
+export interface SolicitudMejora {
+  instruction: string;
+  requestedBy: string;
+  requestedAt: string;
+}
+
 /** `Idea` entity (plan §2.2): the 7 fields + ownership, origin, state and audit. */
 export interface Idea extends IdeaFields {
   id: string;
@@ -88,6 +103,27 @@ export interface Idea extends IdeaFields {
   requestDate: string | null;
   publishedAt: string | null;
   publishedBy: string | null;
+  /** The expert's rejection note when the idea was rejected (RF-16, T-050). */
+  rejectionNote: NotaRechazo | null;
+  /** `true` while the assistant is producing a version (manual edit blocked, RNF-9). */
+  generando: boolean;
+  /** A pending AI improvement request when the IA was unavailable (case 10, RF-8). */
+  improvementRequest: SolicitudMejora | null;
+}
+
+/** `GET /ideas/me` entry (RF-19): the "Mis ideas" summary. */
+export interface IdeaResumen {
+  id: string;
+  title: string;
+  createdAt: string;
+  origin: IdeaOrigin;
+  state: IdeaState;
+}
+
+/** `GET /ideas/{id}` payload (RF-19): the idea plus its versions (oldest first). */
+export interface IdeaDetalle {
+  idea: Idea;
+  versions: IdeaVersion[];
 }
 
 /** Proactive title suggestion block (RF-4, plan §2.3). */

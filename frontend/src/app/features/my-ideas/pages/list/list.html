@@ -1,0 +1,69 @@
+<div class="space-y-5">
+  <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h1 class="text-xl font-semibold text-slate-900">Mis ideas</h1>
+      <p class="mt-1 text-sm text-slate-500">
+        Tus iniciativas con su estado. Abre cualquiera para revisarla o editarla.
+      </p>
+    </div>
+    <a
+      routerLink="/captura"
+      class="shrink-0 self-start rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 sm:self-auto"
+    >
+      Nueva idea
+    </a>
+  </header>
+
+  @if (miLista.error()) {
+    <div role="alert" class="rounded-xl border border-red-200 bg-red-50 p-4">
+      <p class="text-sm text-red-700">No se pudieron cargar tus ideas. Reintentando vuelve a esta página.</p>
+    </div>
+  } @else if (miLista.isLoading()) {
+    <p role="status" class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+      Cargando tus ideas…
+    </p>
+  } @else {
+    @if ((miLista.value() ?? []).length === 0) {
+      <div class="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
+        <p class="text-sm font-medium text-slate-700">Todavía no tienes iniciativas registradas</p>
+        <p class="mt-1 text-sm text-slate-500">
+          Empieza una nueva con el asistente o captúrala de forma manual.
+        </p>
+        <a
+          routerLink="/captura"
+          class="mt-5 inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+        >
+          Crear mi primera idea
+        </a>
+      </div>
+    } @else {
+      <ul class="space-y-3">
+        @for (idea of miLista.value()!; track idea.id) {
+          <li>
+            <a
+              [routerLink]="['/mis-ideas', idea.id]"
+              class="group flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 transition hover:border-indigo-300 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div class="min-w-0 flex-1">
+                <p class="truncate text-base font-semibold text-slate-900 group-hover:text-indigo-700">
+                  {{ idea.title || 'Sin título' }}
+                </p>
+                <p class="mt-1 text-sm text-slate-500">
+                  Registrada el {{ formatearDia(idea.createdAt) }}
+                  <span class="mx-1 text-slate-300">·</span>
+                  Origen {{ origenLabel(idea.origin) }}
+                </p>
+              </div>
+              <div class="flex shrink-0 items-center gap-3">
+                <app-badge-state [estado]="idea.state" />
+                <span aria-hidden="true" class="text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-indigo-500">
+                  →
+                </span>
+              </div>
+            </a>
+          </li>
+        }
+      </ul>
+    }
+  }
+</div>

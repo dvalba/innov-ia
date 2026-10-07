@@ -1,0 +1,128 @@
+<div class="rounded-xl border border-slate-200 bg-white p-6">
+  <h2 class="text-base font-semibold text-slate-900">Pedir una mejora a la IA</h2>
+  <p class="mt-1 text-sm text-slate-500">
+    Describe cómo quieres mejorar la iniciativa. Si la IA no está disponible, tu
+    solicitud queda registrada y se procesará después.
+  </p>
+
+  <form (ngSubmit)="solicitar()" class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+    <div class="flex-1">
+      <label for="mejora-instruccion" class="mb-1 block text-sm font-medium text-slate-700">
+        Instrucción
+      </label>
+      <input
+        id="mejora-instruccion"
+        type="text"
+        [value]="instruccion()"
+        (input)="instruccion.set($any($event.target).value)"
+        placeholder="Ej.: haz el beneficio medible en pesos"
+        [disabled]="enviando() || ocupado()"
+        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:bg-slate-50"
+      />
+    </div>
+    <button
+      type="submit"
+      [disabled]="enviando() || instruccion().trim() === ''"
+      class="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {{ enviando() ? 'Enviando…' : 'Solicitar mejora' }}
+    </button>
+  </form>
+
+  @if (error()) {
+    <div
+      role="alert"
+      class="mt-4 flex items-start justify-between gap-4 rounded-lg bg-red-50 px-4 py-3"
+    >
+      <p class="text-sm text-red-700">{{ error() }}</p>
+      <button
+        type="button"
+        (click)="limpiarError()"
+        class="shrink-0 text-sm text-red-600 underline hover:text-red-800"
+      >
+        Cerrar
+      </button>
+    </div>
+  }
+
+  @if (aviso()) {
+    <div
+      role="status"
+      aria-live="polite"
+      class="mt-4 flex items-start justify-between gap-4 rounded-lg bg-amber-50 px-4 py-3"
+    >
+      <p class="text-sm text-amber-800">{{ aviso() }}</p>
+      <button
+        type="button"
+        (click)="limpiarAviso()"
+        class="shrink-0 text-sm text-amber-700 underline hover:text-amber-900"
+      >
+        Cerrar
+      </button>
+    </div>
+  }
+
+  @if (solicitudRegistrada() && !aviso()) {
+    <div role="status" class="mt-4 rounded-lg bg-amber-50 px-4 py-3">
+      <p class="text-sm text-amber-800">
+        Tienes una solicitud de mejora registrada el
+        <span class="font-semibold">{{ formatearDia(solicitudRegistrada()!.requestedAt) }}</span>
+        que se procesará cuando la IA vuelva a estar disponible.
+      </p>
+    </div>
+  }
+
+  <h3 class="mt-6 text-sm font-semibold text-slate-700">Versiones pendientes</h3>
+  @if (versiones().length === 0) {
+    <p class="mt-2 text-sm text-slate-500">
+      No hay versiones pendientes por decidir.
+    </p>
+  } @else {
+    <ul class="mt-2 space-y-4">
+      @for (v of versiones(); track v.id) {
+        <li class="rounded-lg border border-slate-200 p-4">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-sm font-medium text-slate-900">
+              Versión {{ v.version }}
+              <span class="font-normal text-slate-500">· propuesta el {{ formatearDia(v.createdAt) }}</span>
+            </p>
+            <p class="text-xs text-slate-500">
+              Origen de versión: {{ versionOrigenLabel(v.requestedBy) }}
+            </p>
+          </div>
+
+          <dl class="mt-3 grid gap-2 sm:grid-cols-2">
+            @for (campo of campos; track campo.clave) {
+              @let clave = campo.clave;
+              <div class="rounded-md bg-slate-50 px-3 py-2">
+                <dt class="text-xs font-medium text-slate-500">{{ campo.etiqueta }}</dt>
+                <dd class="mt-0.5 break-words text-sm text-slate-800">
+                  {{ formatearDetalle(clave, v.fields[clave]) }}
+                </dd>
+              </div>
+            }
+          </dl>
+
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              [disabled]="enviando() || ocupado()"
+              (click)="decidir(v, 'accept')"
+              class="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-300 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Aceptar versión
+            </button>
+            <button
+              type="button"
+              [disabled]="enviando() || ocupado()"
+              (click)="decidir(v, 'discard')"
+              class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Descartar
+            </button>
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</div>

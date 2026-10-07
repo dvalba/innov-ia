@@ -282,27 +282,27 @@
 
 ### 3.3 Feature `my-ideas`
 
-- [ ] **[T-046] my-ideas · listado "Mis ideas"**
+- [x] **[T-046] my-ideas · listado "Mis ideas"**
   - **Covers:** RF-19
   - **Dependencias:** [T-039], [T-023]
   - **Hecho cuando:** `features/my-ideas/pages/list` muestra las ideas del usuario (título, fecha de registro, origen, estado con `badge-state`) vía `httpResource` (`GET /ideas/me`), ordenadas por fecha, y permite abrir cualquiera; estado vacío con mensaje en español; `ng build` pasa.
 
-- [ ] **[T-047] my-ideas · detalle con acciones según estado + edición manual**
+- [x] **[T-047] my-ideas · detalle con acciones según estado + edición manual**
   - **Covers:** RF-9, RF-10
   - **Dependencias:** [T-046]
   - **Hecho cuando:** `pages/detail` muestra los 7 campos, origen/estado/`reviewedByAI` (RNF-2) y, si la idea está en EN_DESARROLLO: formulario de edición de cualquier campo (PUT, con bloqueo visual con aviso mientras el backend informa generación en curso) y botón "Solicitar publicación" (disponible aunque la idea no haya sido vista por la IA); en SOLICITANDO_PUBLICACION muestra la fecha de solicitud y no permite edición; `ng build` pasa.
 
-- [ ] **[T-048] my-ideas · mejoras solicitadas a la IA (instrucción, versión pendiente, decisión)**
+- [x] **[T-048] my-ideas · mejoras solicitadas a la IA (instrucción, versión pendiente, decisión)**
   - **Covers:** RF-8
   - **Dependencias:** [T-047]
   - **Hecho cuando:** El detalle ofrece "Solicitar mejora a la IA" con campo de instrucción (envía a `POST /ideas/{id}/improve`); si la IA no está disponible muestra el aviso de solicitud registrada (caso 10); las versiones PENDIENTE se listan con los campos propuestos y botones "Aceptar versión" / "Descartar" (decisión única por versión); al aceptar, la versión pasa a ser la vigente y la idea sigue en EN_DESARROLLO; `ng build` pasa.
 
-- [ ] **[T-049] my-ideas · refinamiento de ideas manuales: versión refinada vs original + ajustar en chat**
+- [x] **[T-049] my-ideas · refinamiento de ideas manuales: versión refinada vs original + ajustar en chat**
   - **Covers:** RF-11, RF-12, RF-13
   - **Dependencias:** [T-048], [T-042]
   - **Hecho cuando:** `components/refine-view` muestra la versión refinada diferenciada de la original (campo por campo) con botones "Aceptar la versión" / "Ajustar detalles en el chat"; al aceptar (decision endpoint) la idea sigue EN_DESARROLLO; al ajustar, se abre la conversación asistida precontextualizada sobre la idea (no nueva captura) y, si la IA no está disponible, ofrece la edición manual; al abrir una idea manual pendiente la app dispara `POST /assistant/check`; `ng build` pasa.
 
-- [ ] **[T-050] my-ideas · nota de rechazo visible**
+- [x] **[T-050] my-ideas · nota de rechazo visible**
   - **Covers:** RF-16
   - **Dependencias:** [T-047]
   - **Hecho cuando:** `components/reject-note` muestra, cuando la idea fue rechazada, el comentario del especialista con su identidad y la fecha, en el detalle de la idea y accesible desde la notificación; `ng build` pasa.
