@@ -161,27 +161,27 @@
 
 ### 2.4 Feature `capture` (RF-2..RF-7)
 
-- [ ] **[T-025] capture · dominio: conversación y reglas de captura (orden fijo, chips fijos, aclaración)**
+- [x] **[T-025] capture · dominio: conversación y reglas de captura (orden fijo, chips fijos, aclaración)**
   - **Covers:** RF-2, RF-3, RF-5
   - **Dependencias:** [T-007]
   - **Hecho cuando:** `domain/conversation.py` define `Conversation` (esquema §2.4: estado ACTIVA/RESUMEN/TERMINADA/CONTINGENCIA, campos capturados, campo en curso, orden) y `capture_rules.py` fija el orden exacto de RF-3, el catálogo fijo de chips por campo (D7) y las reglas: una conversación ACTIVA por usuario, chip = respuesta completa, chips disponibles hasta que el campo se responda, y `needsClarification` cuando la respuesta es insuficiente (sin avanzar); test en `tests/unit/domain/test_capture_rules.py` cubre orden, salto de campos ya capturados, aclaración y límite de 1 conversación activa (`pytest -q` verde).
 
-- [ ] **[T-026] capture · infraestructura: conversation_store**
+- [x] **[T-026] capture · infraestructura: conversation_store**
   - **Covers:** RF-2, RF-7, RNF-10
   - **Dependencias:** [T-025], [T-003]
   - **Hecho cuando:** `infrastructure/conversation_store.py` persiste `Conversation` con `JsonStore` ofreciendo: obtener la conversación ACTIVA del usuario, crear, actualizar campos capturados (sin perder los existentes), marcar CONTINGENCIA/TERMINADA; test en `tests/unit/infra/test_conversation_store.py` verifica recuperación de campos parciales tras relectura (RNF-10) (`pytest -q` verde).
 
-- [ ] **[T-027] capture · casos de uso: iniciar/retomar conversación**
+- [x] **[T-027] capture · casos de uso: iniciar/retomar conversación**
   - **Covers:** RF-2, RF-7 (caso 1)
   - **Dependencias:** [T-026], [T-008]
   - **Hecho cuando:** `start_conversation.py`: si hay conversación ACTIVA la retoma (no crea segunda, RF-2/caso 8); si el asistente está disponible inicia con saludo + primera pregunta (campo 1: descripción) + chips; si NO está disponible devuelve señal de formulario manual vacío; tests en `tests/unit/use_cases/test_capture_flow.py` (bloque inicio) cubren retoma, inicio y contingencia al iniciar (`pytest -q` verde).
 
-- [ ] **[T-028] capture · casos de uso: procesamiento de mensaje (narrativa multi-campo, siguiente pregunta, aclaración)**
+- [x] **[T-028] capture · casos de uso: procesamiento de mensaje (narrativa multi-campo, siguiente pregunta, aclaración)**
   - **Covers:** RF-3, RF-5
   - **Dependencias:** [T-027]
   - **Hecho cuando:** `process_message.py` aplica el texto o el chip seleccionado al campo en curso, usa el extractor de la IA para asignar fragmentos narrativos a uno o varios campos (cada fragmento asignado marca su campo y no se vuelve a preguntar), pide aclaración si la respuesta es insuficiente y avanza al siguiente campo incompleto; al completar los 7 pasa la conversación a RESUMEN; tests cubren: narrativa que completa varios campos a la vez, chip como respuesta completa, aclaración por respuesta insuficiente, y salto sin repetir campos (`pytest -q` verde).
 
-- [ ] **[T-029] capture · casos de uso: título sugerido (propuesta, alternativa, manual)**
+- [x] **[T-029] capture · casos de uso: título sugerido (propuesta, alternativa, manual)**
   - **Covers:** RF-4
   - **Dependencias:** [T-028]
   - **Hecho cuando:** `suggest_title.py`: tras la primera respuesta sustantiva propone título con acciones `accept/another/manual`; "another" genera una sugerencia distinta de las anteriores (lista de intentos persistente en la conversación); el texto escrito manualmente se guarda sin modificación; tests cubren propuesta inicial, alternativa distinta y aceptación de texto manual (`pytest -q` verde).
