@@ -149,7 +149,7 @@
   - **Dependencias:** [T-021]
   - **Hecho cuando:** `list_my_ideas.py` devuelve solo las ideas del usuario (título, fecha, origen, estado) y `list_public.py` devuelve SOLO `VALIDADA_PUBLICA` (cualquier dueño) sin el campo `contact` del proponente; test en `tests/unit/use_cases/test_listings.py` verifica el filtro por dueño, el filtro de estado y la supresión de datos de contacto (`pytest -q` verde).
 
-- [ ] **[T-023] ideas · router: endpoints /ideas (detalle, edición, mejora-solicitud, decisión de versión, solicitud de publicación)**
+- [x] **[T-023] ideas · router: endpoints /ideas (detalle, edición, mejora-solicitud, decisión de versión, solicitud de publicación)**
   - **Covers:** RF-8, RF-9, RF-10, RF-19
   - **Dependencias:** [T-022]
   - **Hecho cuando:** `features/ideas/routers/ideas.py` expone `POST /ideas` (201; 422 con campos faltantes), `GET /ideas/me`, `GET /ideas/{id}` (403 si no es el dueño), `PUT /ideas/{id}` (409 si está generando), `POST /ideas/{id}/improve`, `POST /ideas/{id}/versions/{vid}/decide` (aceptar/descartar), `POST /ideas/{id}/request-publication`; esquemas Pydantic solo en esta capa; tests en `tests/api/test_ideas_api.py` cubren 201/422/403/409 y la decisión aceptar/descartar con cambio de `currentVersionId` al aceptar (`pytest -q` verde).

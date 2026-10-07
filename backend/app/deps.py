@@ -6,7 +6,8 @@ reusable session/role guards used by the feature routers. Everything is
 expressed with `Annotated` typed dependencies, overridable in tests.
 
 Typed dependency aliases:
-  - `TokenStoreDep` / `UserDirectoryDep`: DI providers (override in tests).
+  - `TokenStoreDep` / `UserDirectoryDep` / `IdeaLedgerDep`: DI providers
+    (override in tests).
   - `SessionDep`: active bearer `Session` (401 when absent/expired or when the
     account is deactivated; roles are re-read live on every request).
   - `role_dependency(roles)`: `Session` plus a required role subset (403).
@@ -19,6 +20,7 @@ from fastapi import Depends, Request
 
 from features.auth.domain.session import Session
 from features.auth.infrastructure.token_store import TokenStore
+from features.ideas.infrastructure.idea_store import IdeaStore
 from shared.config.settings import settings
 from shared.contracts.user_directory import UserDirectory
 from shared.exceptions.handlers import AuthError, Forbidden
@@ -49,8 +51,21 @@ def get_user_directory() -> UserDirectory:
     return _user_directory()
 
 
+def _idea_ledger() -> IdeaStore:
+    return IdeaStore(
+        JsonStore(settings.data_dir / "ideas.json"),
+        JsonStore(settings.data_dir / "idea_versions.json"),
+    )
+
+
+def get_idea_ledger():
+    """DI provider for the idea ledger (override in tests)."""
+    return _idea_ledger()
+
+
 TokenStoreDep = Annotated[TokenStore, Depends(get_token_store)]
 UserDirectoryDep = Annotated[UserDirectory, Depends(get_user_directory)]
+IdeaLedgerDep = Annotated[IdeaStore, Depends(get_idea_ledger)]
 
 
 def _extract_token(request: Request) -> str | None:
