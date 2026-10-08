@@ -51,6 +51,10 @@ def auth(directory):
     token_store = TokenStore(InMemoryStore(), ttl_minutes=480, now_factory=datetime.now)
     main_app.dependency_overrides[deps_module.get_user_directory] = lambda: directory
     main_app.dependency_overrides[deps_module.get_token_store] = lambda: token_store
+    # T-062: no assistant checks in these tests (no real Ollama/JSON stores).
+    main_app.dependency_overrides[deps_module.get_assistant_check] = (
+        lambda: (lambda: {"status": "OK", "refined": 0, "failed": 0, "pending": 0})
+    )
 
     def _client(user_id: str = "u_admin", roles: tuple[str, ...] = ("admin",),
                 token: bool = True) -> TestClient:

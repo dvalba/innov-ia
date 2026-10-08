@@ -10,14 +10,15 @@ Endpoints:
 
 from datetime import datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
 
-from app.deps import SessionDep, TokenStoreDep, UserDirectoryDep
+from app.deps import AssistantCheckDep, SessionDep, TokenStoreDep, UserDirectoryDep
 from features.auth.use_cases.change_password import ChangePasswordCommand, change_password
 from features.auth.use_cases.login import LoginCommand, login
 from features.auth.use_cases.logout import logout
 from features.auth.use_cases.me import me
+from shared.contracts.roles import ROLE_PROPOSER
 
 auth_router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -33,9 +34,14 @@ class ChangePasswordRequest(BaseModel):
 
 
 @auth_router.post("/login")
-def login_endpoint(payload: LoginRequest, directory: UserDirectoryDep, tokens: TokenStoreDep) -> dict:
+def login_endpoint(payload: LoginRequest, directory: UserDirectoryDep, tokens: TokenStoreDep,
+                   background: BackgroundTasks, check: AssistantCheckDep) -> dict:
     result = login(LoginCommand(username=payload.username, password=payload.password, now=datetime.now()),
                    directory, tokens)
+    # On-demand refinement verification on login (RF-11 decision #4): the
+    # check runs in the background so the response is never blocked.
+    if ROLE_PROPOSER in result.user.get("roles", ()):
+        background.add_task(check)
     return {
         "token": result.session.token,
         "user": result.user,

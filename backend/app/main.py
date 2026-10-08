@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.deps import get_user_directory
+from features.assistant.routers.assistant import assistant_router
 from features.auth.infrastructure.token_store import seed_first_admin
 from features.auth.routers.auth import auth_router
 from features.capture.routers.capture import capture_router
@@ -42,6 +43,7 @@ app = FastAPI(
 register_exception_handlers(app)
 
 app.include_router(auth_router)
+app.include_router(assistant_router)
 app.include_router(users_router)
 app.include_router(ideas_router)
 app.include_router(capture_router)
@@ -64,7 +66,6 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-# Router registration (auth — T-013, ideas — T-023, capture — T-031,
-# notifications/validation/catalog — T-033/T-034/T-035) completed above.
-# Placeholder for the remaining feature (wired by its task):
-#   features.assistant.routers.assistant.assistant_router  (T-062)
+# Router registration completed above: auth (T-013), assistant (T-062),
+# users, ideas (T-023), capture (T-031), notifications/validation/catalog
+# (T-033/T-034/T-035).

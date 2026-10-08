@@ -67,3 +67,19 @@ class IdeaLedger(Protocol):
     def get_version(self, idea_id: str, version_id: str) -> dict | None:
         """Returns the `IdeaVersion` payload or `None`."""
         ...
+
+    def versions_of(self, idea_id: str) -> Iterable[dict]:
+        """All `IdeaVersion` payloads of the idea, oldest to newest (RF-11 queue)."""
+        ...
+
+    def add_version(self, *, idea_id: str, fields: dict, requested_by: str,
+                    generating: bool = False) -> dict:
+        """Registers a PENDIENTE version (RF-8/RF-11); returns its payload."""
+        ...
+
+    def update(self, idea_id: str, changes: dict) -> dict:
+        """Merges scalar payload changes (e.g. `reviewedByAI`, `improvementRequest`).
+
+        Returns the updated payload. Raises `DomainError` if the idea is missing.
+        """
+        ...

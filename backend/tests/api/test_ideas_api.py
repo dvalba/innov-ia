@@ -108,6 +108,10 @@ def auth(directory, idea_ledger):
     main_app.dependency_overrides[deps_module.get_assistant_client] = (
         lambda: OllamaMock(available=False)
     )
+    # T-062: the /improve background check must not reach the real stores.
+    main_app.dependency_overrides[deps_module.get_assistant_check] = (
+        lambda: (lambda: {"status": "OK", "refined": 0, "failed": 0, "pending": 0})
+    )
 
     def _client(user_id: str = "u_ana", token: bool = True) -> TestClient:
         if not token:

@@ -38,16 +38,18 @@ Business rules live in the use cases (T-027..T-030) and `ConversationStore`
 from collections.abc import Iterable
 from typing import Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
 
 from app.deps import (
+    AssistantCheckDep,
     AssistantClientDep,
     ConversationStoreDep,
     IdeaLedgerDep,
     UserDirectoryDep,
     role_dependency,
 )
+from features.assistant.use_cases.check_availability import check_availability
 from features.auth.domain.session import Session
 from features.capture.infrastructure.conversation_store import ConversationStore
 from features.capture.use_cases.activate_manual import activate_manual
@@ -112,15 +114,18 @@ def _resolve_id(
 def assistant_status_endpoint(session: ProponentDep, assistant: AssistantClientDep) -> dict:
     """The assistant availability (RF-7): probes the client's ping without
     triggering anything (the refinement queue is /assistant/check, T-062)."""
-    return {"status": "OK" if assistant.ping() else "UNAVAILABLE"}
+    return check_availability(assistant)
 
 
 @capture_router.post("/start")
 def start_endpoint(session: ProponentDep, store: ConversationStoreDep,
-                   assistant: AssistantClientDep, directory: UserDirectoryDep) -> dict:
+                   assistant: AssistantClientDep, directory: UserDirectoryDep,
+                   background: BackgroundTasks, check: AssistantCheckDep) -> dict:
     """Starts (or resumes) the capture conversation (RF-2, case 8); without the
     assistant it returns the manual-form signal (RF-7 case 1), creating
-    nothing."""
+    nothing. The on-demand refinement verification (RF-11) runs in the
+    background so the response is never blocked."""
+    background.add_task(check)
     return start_conversation(store, assistant, directory, user_id=session.user_id)
 
 

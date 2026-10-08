@@ -28,10 +28,16 @@ is orchestrated there with the injected assistant client (G04).
 
 from typing import Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
 
-from app.deps import AssistantClientDep, IdeaLedgerDep, RequestedEmitterDep, role_dependency
+from app.deps import (
+    AssistantCheckDep,
+    AssistantClientDep,
+    IdeaLedgerDep,
+    RequestedEmitterDep,
+    role_dependency,
+)
 from features.auth.domain.session import Session
 from features.ideas.infrastructure.idea_store import IdeaStore
 from features.ideas.use_cases.create_idea import create_idea
@@ -130,12 +136,16 @@ def edit_idea_endpoint(idea_id: str, payload: IdeaFieldsIn, session: ProponentDe
 
 @ideas_router.post("/{idea_id}/improve")
 def improve_idea_endpoint(idea_id: str, payload: ImproveRequest, session: ProponentDep,
-                           ledger: IdeaLedgerDep, assistant: AssistantClientDep) -> dict:
+                          ledger: IdeaLedgerDep, assistant: AssistantClientDep,
+                          background: BackgroundTasks, check: AssistantCheckDep) -> dict:
     """Requests an AI improvement (RF-8): with the IA a pending version is
     registered for the proponent to accept/discard; without it the request is
-    saved as pending on the idea with the case-10 notice (plan §4.5)."""
-    return improve_idea(ledger, assistant, idea_id=idea_id, owner_id=session.user_id,
-                        instruction=payload.instruction)
+    saved as pending on the idea with the case-10 notice (plan §4.5). The
+    on-demand refinement verification (RF-11) runs in the background."""
+    result = improve_idea(ledger, assistant, idea_id=idea_id, owner_id=session.user_id,
+                          instruction=payload.instruction)
+    background.add_task(check)
+    return result
 
 
 @ideas_router.post("/{idea_id}/versions/{version_id}/decide")

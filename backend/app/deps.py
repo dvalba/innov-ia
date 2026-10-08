@@ -27,6 +27,7 @@ from typing import Annotated
 from fastapi import Depends, Request
 
 from features.assistant.infrastructure.ollama_client import OllamaClient
+from features.assistant.use_cases.run_refinement_queue import run_refinement_queue
 from features.auth.domain.session import Session
 from features.auth.infrastructure.token_store import TokenStore
 from features.capture.infrastructure.conversation_store import ConversationStore
@@ -181,6 +182,27 @@ RefinedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_refined_emitte
 PublishedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_published_emitter)]
 RejectedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_rejected_emitter)]
 RequestedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_requested_emitter)]
+
+
+def get_assistant_check(ledger: IdeaLedgerDep, assistant: AssistantClientDep,
+                        emit: RefinedEmitterDep) -> Callable[[], dict]:
+    """Builds the on-demand assistant check (T-062, RF-11).
+
+    Wraps `run_refinement_queue` bound to the ledger, the assistant and the
+    IDEA_REFINED emitter (the idea payload is adapted to the `Idea` the
+    emitter contract expects). The zero-arg callable performs the pass when
+    invoked; building it is cheap — no probe until the check runs.
+    """
+
+    def _check() -> dict:
+        return run_refinement_queue(
+            ledger, assistant, emit=lambda payload: emit(Idea.from_payload(payload))
+        )
+
+    return _check
+
+
+AssistantCheckDep = Annotated[Callable[[], dict], Depends(get_assistant_check)]
 
 
 def _extract_token(request: Request) -> str | None:

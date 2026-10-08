@@ -369,12 +369,12 @@
   - **Dependencias:** [T-059]
   - **Hecho cuando:** `domain/prompts.py` contiene las plantillas de prompts en español: extracción de campos de narrativa libre (RF-3), sugerencia de título con lista de intentos a evitar (RF-4), refinamiento de idea manual (7 campos), mejora bajo instrucción (RF-8); `domain/refinement.py` define la cola: ideas EN_DESARROLLO con origen manual y sin versión refinada válida, ordenadas de más antigua a más reciente, y la interpretación de la respuesta de la IA (valida los 7 campos; si no es interpretable se trata como fallo); tests en `tests/unit/domain/test_refinement.py` cubren el filtro de cola, el orden y la interpretación inválida → fallo (`pytest -q` verde).
 
-- [ ] **[T-061] assistant · casos de uso: disponibilidad, sugerencia de título, mejora, refinamiento, cola**
+- [x] **[T-061] assistant · casos de uso: disponibilidad, sugerencia de título, mejora, refinamiento, cola**
   - **Covers:** RF-4, RF-8, RF-11, RF-12
   - **Dependencias:** [T-060], [T-024], [T-033]
   - **Hecho cuando:** `check_availability.py` (ping + reintento), `suggest_title.py` (integra IA; alimenta a `capture` vía contrato), `improve_idea.py` (genera versión pendiente; si la IA no está, guarda solicitud pendiente para la siguiente verificación — caso 10), `refine_manual.py` (genera versión con `requestedBy=refinement` + notificación IDEA_REFINED al proponente, RF-12), `run_refinement_queue.py` (procesa toda la cola de más antigua a más reciente; si un item falla, lo conservado se queda y lo fallido sigue pendiente — caso 6; el refinamiento conservado se queda y las ideas siguen operando — RF-11); tests en `tests/unit/use_cases/test_refinement.py` cubren cola completa, fallo parcial, mejora sin IA (solicitud pendiente) y disparadores (`pytest -q` verde).
 
-- [ ] **[T-062] assistant · router: /assistant/check con disparadores bajo demanda**
+- [x] **[T-062] assistant · router: /assistant/check con disparadores bajo demanda**
   - **Covers:** RF-11
   - **Dependencias:** [T-061], [T-013]
   - **Hecho cuando:** `POST /assistant/check` requiere rol proponente y: verifica disponibilidad; si está disponible procesa la cola (más antigua → más reciente) y devuelve el resultado (nº de ideas refinadas, fallos); se invoca internamente también al iniciar sesión (login — T-013), al iniciar captura (`/capture/start` — T-031) y al solicitar mejora (T-024), según decisión #4; los disparadores internos no bloquean la respuesta principal (resultado disponible en la cola/notificaciones); tests en `tests/api/test_assistant_api.py` cubren la invocación directa, la integración con login/capture e idempotencia (`pytest -q` verde).

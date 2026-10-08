@@ -53,6 +53,10 @@ def auth_client(app, env) -> TestClient:
 
     app.dependency_overrides[deps_module.get_user_directory] = lambda: directory
     app.dependency_overrides[deps_module.get_token_store] = lambda: token_store
+    # T-062: the login trigger must not reach the real Ollama/JSON stores.
+    app.dependency_overrides[deps_module.get_assistant_check] = (
+        lambda: (lambda: {"status": "OK", "refined": 0, "failed": 0, "pending": 0})
+    )
     return TestClient(app)
 
 

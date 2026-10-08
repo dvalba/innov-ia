@@ -15,6 +15,9 @@ import pathlib
 
 import pytest
 
+from features.assistant.use_cases.check_availability import check_availability
+from features.assistant.use_cases.refine_manual import refine_manual
+from features.assistant.use_cases.run_refinement_queue import run_refinement_queue
 from features.ideas.infrastructure.idea_store import IdeaStore
 from features.ideas.use_cases.adjust_in_chat import adjust_in_chat
 from features.ideas.use_cases.create_idea import create_idea
@@ -392,6 +395,315 @@ def test_adjust_outside_en_desarrollo_is_409(store: IdeaStore, ollama_mock: Olla
                            owner_id=f"u_{state[:3]}")
         assert error.value.status_code == 409
         assert error.value.code == "IDEA_NOT_ADJUSTABLE"
+
+
+# -- check_availability (T-061, RF-7) -------------------------------------------------
+
+
+def test_check_availability_reports_ok_when_the_ia_is_up(ollama_mock: OllamaMock) -> None:
+    assert check_availability(ollama_mock) == {"status": "OK"}
+
+
+def test_check_availability_reports_unavailable_when_the_ia_is_down(
+    ollama_mock: OllamaMock,
+) -> None:
+    ollama_mock.available = False
+    assert check_availability(ollama_mock) == {"status": "UNAVAILABLE"}
+
+
+# -- refine_manual (T-061, RF-11/RF-12) -------------------------------------------------
+
+
+def test_refine_manual_registers_a_pending_refinement_version(
+    store: IdeaStore, ollama_mock: OllamaMock
+) -> None:
+    created = _created(store)
+    ollama_mock.respond = lambda prompt: _improved_json(title="Título refinado por la IA")
+    emitted: list[dict] = []
+
+    updated = refine_manual(
+        store, ollama_mock, idea_id=created["id"],
+        emit=lambda payload: emitted.append(payload),
+    )
+
+    assert updated is not None and updated["id"] == created["id"]
+    version = store.versions_of(created["id"])[0]
+    assert version["requestedBy"] == "refinement"
+    assert version["status"] == "PENDIENTE"
+    assert version["fields"]["title"] == "Título refinado por la IA"
+    idea = store.get(created["id"])
+    assert idea["reviewedByAI"] is True
+    assert idea["generando"] is False, "the idea keeps operating (RF-11)"
+    assert idea["state"] == "EN_DESARROLLO"
+    assert idea["title"] == created["title"], "the current fields are never overwritten"
+    assert emitted == [idea], "the RF-12 emitter receives the updated idea"
+
+
+def test_refine_manual_of_a_missing_idea_is_404(
+    store: IdeaStore, ollama_mock: OllamaMock
+) -> None:
+    with pytest.raises(DomainError) as error:
+        refine_manual(store, ollama_mock, idea_id="nope")
+    assert error.value.status_code == 404
+    assert error.value.code == "IDEA_NOT_FOUND"
+    assert ollama_mock.prompts == []
+
+
+def test_refine_manual_without_the_ia_changes_nothing(
+    store: IdeaStore, ollama_mock: OllamaMock
+) -> None:
+    created = _created(store)
+    ollama_mock.available = False
+    emitted: list[dict] = []
+
+    assert (
+        refine_manual(
+            store, ollama_mock, idea_id=created["id"],
+            emit=lambda payload: emitted.append(payload),
+        )
+        is None
+    )
+    assert store.versions_of(created["id"]) == []
+    assert store.get(created["id"])["reviewedByAI"] is False
+    assert emitted == []
+    assert ollama_mock.prompts == []
+
+
+def test_refine_manual_when_the_generation_fails_changes_nothing(
+    store: IdeaStore, ollama_mock: OllamaMock
+) -> None:
+    created = _created(store)
+
+    def _fail(prompt: str) -> str:
+        raise AssistantUnavailable("ASSISTANT_UNAVAILABLE", "Caída durante la generación.")
+
+    ollama_mock.respond = _fail
+
+    assert refine_manual(store, ollama_mock, idea_id=created["id"]) is None
+    assert store.versions_of(created["id"]) == []
+    assert store.get(created["id"])["reviewedByAI"] is False
+
+
+def test_refine_manual_with_an_uninterpretable_reply_changes_nothing(
+    store: IdeaStore, ollama_mock: OllamaMock
+) -> None:
+    created = _created(store)
+    ollama_mock.respond = lambda prompt: "sin JSON en la respuesta"
+
+    assert refine_manual(store, ollama_mock, idea_id=created["id"]) is None
+    assert store.versions_of(created["id"]) == []
+    assert store.get(created["id"])["reviewedByAI"] is False
+    assert ollama_mock.prompts, "the generation was attempted before the reply failed"
+
+
+# -- run_refinement_queue (T-061, RF-11) -------------------------------------------------
+
+
+def test_the_queue_is_empty_when_there_is_nothing_pending(
+    store: IdeaStore, ollama_mock: OllamaMock
+) -> None:
+    assert run_refinement_queue(store, ollama_mock) == {
+        "status": "OK", "refined": 0, "failed": 0, "pending": 0,
+    }
+    assert ollama_mock.prompts == []
+
+
+def test_the_queue_reports_unavailable_without_touching_the_ideas(
+    store: IdeaStore, ollama_mock: OllamaMock
+) -> None:
+    idea_a = create_idea(store, owner_id="u_a", origin="manual",
+                         fields=_fields(title="Idea en cola una"))
+    idea_b = create_idea(store, owner_id="u_b", origin="manual",
+                         fields=_fields(title="Idea en cola dos"))
+    ollama_mock.available = False
+    improve_idea(store, ollama_mock, idea_id=idea_a["id"], owner_id="u_a",
+                 instruction="Cuídame cuando vuelvas")
+
+    assert run_refinement_queue(store, ollama_mock) == {
+        "status": "UNAVAILABLE", "refined": 0, "failed": 0, "pending": 2,
+    }
+    assert ollama_mock.prompts == []
+    assert store.versions_of(idea_a["id"]) == []
+    assert store.versions_of(idea_b["id"]) == []
+    assert store.get(idea_a["id"])["improvementRequest"] is not None
+
+
+def test_the_queue_refines_the_manual_ideas_oldest_first(
+    store: IdeaStore, ollama_mock: OllamaMock
+) -> None:
+    idea_a = create_idea(store, owner_id="u_a", origin="manual",
+                         fields=_fields(title="Idea antigua"))
+    idea_b = create_idea(store, owner_id="u_b", origin="manual",
+                         fields=_fields(title="Idea reciente"))
+    idea_c = create_idea(store, owner_id="u_c", origin="asistida",
+                         fields=_fields(title="Idea asistida"))
+    store.update(idea_a["id"], {"createdAt": "2026-01-01T00:00:00"})
+    store.update(idea_b["id"], {"createdAt": "2026-01-02T00:00:00"})
+    ollama_mock.respond = lambda prompt: _improved_json()
+
+    emitted: list[dict] = []
+    summary = run_refinement_queue(
+        store, ollama_mock, emit=lambda payload: emitted.append(payload),
+    )
+
+    assert summary == {"status": "OK", "refined": 2, "failed": 0, "pending": 0}
+    assert idea_a["title"] in ollama_mock.prompts[0], "the oldest idea goes first (RF-11)"
+    assert idea_b["title"] in ollama_mock.prompts[1]
+    for idea in (idea_a, idea_b):
+        version = store.versions_of(idea["id"])[0]
+        assert version["requestedBy"] == "refinement"
+        assert version["status"] == "PENDIENTE"
+        assert store.get(idea["id"])["reviewedByAI"] is True
+    assert store.versions_of(idea_c["id"]) == [], "assisted ideas are out of the queue"
+    assert [payload["id"] for payload in emitted] == [idea_a["id"], idea_b["id"]]
+
+    again = run_refinement_queue(store, ollama_mock)
+    assert again == {"status": "OK", "refined": 0, "failed": 0, "pending": 0}, \
+        "a second pass is idempotent"
+
+
+def test_the_queue_keeps_a_failed_idea_pending_and_retries_the_next_pass(
+    store: IdeaStore, ollama_mock: OllamaMock
+) -> None:
+    idea_a = create_idea(store, owner_id="u_a", origin="manual",
+                         fields=_fields(title="Idea que fallará"))
+    idea_b = create_idea(store, owner_id="u_b", origin="manual",
+                         fields=_fields(title="Idea exitosa"))
+    store.update(idea_a["id"], {"createdAt": "2026-01-01T00:00:00"})
+    store.update(idea_b["id"], {"createdAt": "2026-01-02T00:00:00"})
+
+    def _fail_for_a(prompt: str) -> str:
+        if idea_a["title"] in prompt:
+            return "respuesta sin JSON"
+        return _improved_json()
+
+    ollama_mock.respond = _fail_for_a
+
+    assert run_refinement_queue(store, ollama_mock) == {
+        "status": "OK", "refined": 1, "failed": 1, "pending": 1,
+    }
+    assert store.versions_of(idea_b["id"]) != [], "case 6: the processed is kept"
+    assert store.versions_of(idea_a["id"]) == [], "case 6: the failed stays pending"
+    assert store.get(idea_a["id"])["state"] == "EN_DESARROLLO"
+
+    ollama_mock.respond = lambda prompt: _improved_json()
+    again = run_refinement_queue(store, ollama_mock)
+    assert again == {"status": "OK", "refined": 1, "failed": 0, "pending": 0}
+    assert store.versions_of(idea_a["id"])[0]["requestedBy"] == "refinement"
+
+
+def test_the_queue_converts_the_stored_improvement_request(
+    store: IdeaStore, ollama_mock: OllamaMock
+) -> None:
+    idea = create_idea(store, owner_id="u_req", origin="manual",
+                       fields=_fields(title="Idea con solicitud guardada"))
+    other = create_idea(store, owner_id="u_oth", origin="manual",
+                        fields=_fields(title="Idea que espera en cola"))
+    store.update(idea["id"], {"createdAt": "2026-01-01T00:00:00"})
+    store.update(other["id"], {"createdAt": "2026-01-02T00:00:00"})
+    ollama_mock.available = False
+    improve_idea(store, ollama_mock, idea_id=idea["id"], owner_id="u_req",
+                 instruction="Cuantifica el ahorro")
+
+    ollama_mock.available = True
+    ollama_mock.respond = lambda prompt: _improved_json(
+        expectedBenefit="Ahorro de 200 horas mensuales cuantificado."
+    )
+    emitted: list[dict] = []
+
+    summary = run_refinement_queue(
+        store, ollama_mock, emit=lambda payload: emitted.append(payload),
+    )
+
+    # One assistant action per idea per pass: the conversion takes this pass,
+    # the idea's own refinement is deferred to the next (no expiration).
+    assert summary == {"status": "OK", "refined": 2, "failed": 0, "pending": 1}
+    version = store.versions_of(idea["id"])[0]
+    assert version["requestedBy"] == "improvement", "case 10 keeps the improvement"
+    assert version["status"] == "PENDIENTE"
+    assert "Cuantifica el ahorro" in ollama_mock.prompts[0], \
+        "the stored instruction drives the conversion"
+    payload = store.get(idea["id"])
+    assert payload["improvementRequest"] is None, "the stored request is consumed"
+    assert payload["reviewedByAI"] is True
+    assert payload["generando"] is True, \
+        "the improvement blocks manual editing until the version is decided (RF-9)"
+    assert store.versions_of(other["id"])[0]["requestedBy"] == "refinement"
+    assert [item["id"] for item in emitted] == [idea["id"], other["id"]]
+
+
+def test_the_queue_retries_a_failed_conversion_and_later_refines_the_idea(
+    store: IdeaStore, ollama_mock: OllamaMock
+) -> None:
+    idea = create_idea(store, owner_id="u_req", origin="manual",
+                       fields=_fields(title="Idea con solicitud guardada"))
+    ollama_mock.available = False
+    improve_idea(store, ollama_mock, idea_id=idea["id"], owner_id="u_req",
+                 instruction="Mejora el alcance")
+
+    ollama_mock.available = True
+    ollama_mock.respond = lambda prompt: "sin JSON en la respuesta"
+    assert run_refinement_queue(store, ollama_mock) == {
+        "status": "OK", "refined": 0, "failed": 1, "pending": 1,
+    }
+    assert store.get(idea["id"])["improvementRequest"] is not None, \
+        "the request stays saved for the next pass"
+    assert store.versions_of(idea["id"]) == []
+
+    ollama_mock.respond = lambda prompt: _improved_json()
+    assert run_refinement_queue(store, ollama_mock) == {
+        "status": "OK", "refined": 1, "failed": 0, "pending": 1,
+    }
+    assert store.versions_of(idea["id"])[0]["requestedBy"] == "improvement"
+    assert store.get(idea["id"])["improvementRequest"] is None
+
+    # The conversion is not a refinement: one action per idea per pass, the
+    # refinement follows and the queue converges.
+    assert run_refinement_queue(store, ollama_mock) == {
+        "status": "OK", "refined": 1, "failed": 0, "pending": 0,
+    }
+    assert [v["requestedBy"] for v in store.versions_of(idea["id"])] == [
+        "improvement", "refinement",
+    ]
+
+
+def test_the_queue_converts_a_pending_request_of_an_assisted_idea(
+    store: IdeaStore, ollama_mock: OllamaMock
+) -> None:
+    idea = create_idea(store, owner_id="u_asis", origin="asistida",
+                       fields=_fields(title="Idea asistida con solicitud"))
+    store.update(idea["id"], {"createdAt": "2026-01-01T00:00:00"})
+    ollama_mock.available = False
+    improve_idea(store, ollama_mock, idea_id=idea["id"], owner_id="u_asis",
+                 instruction="Amplía los recursos")
+
+    ollama_mock.available = True
+    ollama_mock.respond = lambda prompt: _improved_json()
+
+    assert run_refinement_queue(store, ollama_mock) == {
+        "status": "OK", "refined": 1, "failed": 0, "pending": 0,
+    }
+    version = store.versions_of(idea["id"])[0]
+    assert version["requestedBy"] == "improvement"
+    assert "Amplía los recursos" in ollama_mock.prompts[0]
+
+
+def test_a_pending_request_outside_en_desarrollo_is_ignored(
+    store: IdeaStore, ollama_mock: OllamaMock
+) -> None:
+    idea = create_idea(store, owner_id="u_soli", origin="manual",
+                       fields=_fields(title="Idea ya en publicación"))
+    store.update(idea["id"], {"state": "SOLICITANDO_PUBLICACION", "improvementRequest": {
+        "instruction": "Mejora tardía",
+        "requestedBy": "u_soli",
+        "requestedAt": "2026-01-01T00:00:00",
+    }})
+
+    assert run_refinement_queue(store, ollama_mock) == {
+        "status": "OK", "refined": 0, "failed": 0, "pending": 0,
+    }
+    assert store.versions_of(idea["id"]) == []
+    assert store.get(idea["id"])["improvementRequest"] is not None, "never touched"
 
 
 # -- contracts sanity ---------------------------------------------------------------

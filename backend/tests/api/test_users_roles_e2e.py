@@ -103,6 +103,10 @@ def env():
     ideas = InMemoryIdeaLedger()
     main_app.dependency_overrides[deps_module.get_user_directory] = lambda: directory
     main_app.dependency_overrides[deps_module.get_token_store] = lambda: token_store
+    # T-062: the login trigger must not reach the real Ollama/JSON stores.
+    main_app.dependency_overrides[deps_module.get_assistant_check] = (
+        lambda: (lambda: {"status": "OK", "refined": 0, "failed": 0, "pending": 0})
+    )
     return directory, token_store, ideas
 
 

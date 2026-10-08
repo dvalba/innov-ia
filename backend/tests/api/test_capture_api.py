@@ -136,6 +136,10 @@ def auth(directory, idea_ledger, conversation_store, assistant):
         lambda: conversation_store
     )
     main_app.dependency_overrides[deps_module.get_assistant_client] = lambda: assistant
+    # T-062: /capture/start's background check must not reach the real stores.
+    main_app.dependency_overrides[deps_module.get_assistant_check] = (
+        lambda: (lambda: {"status": "OK", "refined": 0, "failed": 0, "pending": 0})
+    )
 
     def _client(user_id: str = PROPOSER, token: bool = True) -> TestClient:
         if not token:
