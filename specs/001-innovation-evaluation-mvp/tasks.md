@@ -309,14 +309,14 @@
 
 ### 3.4 Feature `validation`
 
-- [ ] **[T-051] validation · cola + panel validar/rechazar**
+- [x] **[T-051] validation · cola + panel validar/rechazar**
   - **Covers:** RF-14, RF-15, RF-16
   - **Dependencias:** [T-039], [T-034]
   - **Hecho cuando:** `features/validation/pages/queue` lista la cola (7 campos, proponente solo nombre/área, fecha de solicitud) vía `httpResource`; `components/validate-panel` permite "Validar" (POST approve) y "Rechazar" con campo de comentario obligatorio (botón bloqueado sin comentario, caso 13); los estados se refrescan tras la acción y se muestra confirmación en español; `ng build` pasa.
 
 ### 3.5 Feature `catalog`
 
-- [ ] **[T-052] catalog · página de catálogo público (solo lectura)**
+- [x] **[T-052] catalog · página de catálogo público (solo lectura)**
   - **Covers:** RF-20
   - **Dependencias:** [T-039], [T-035]
   - **Hecho cuando:** `features/catalog/pages/public` muestra las ideas VALIDADA_PUBLICA (7 campos, nombre/área del proponente, fecha de registro y de publicación) vía `httpResource`, sin datos de contacto y sin botones de edición (solo lectura); accesible para todo usuario con sesión; `ng build` pasa.
@@ -335,7 +335,7 @@
 
 ### 3.7 Componentes transversales
 
-- [ ] **[T-055] shared · campana de notificaciones (contador, lista, navegar, marcar leída)**
+- [x] **[T-055] shared · campana de notificaciones (contador, lista, navegar, marcar leída)**
   - **Covers:** RF-18, RF-12
   - **Dependencias:** [T-006], [T-033]
   - **Hecho cuando:** `shared/components/notification-bell` (en el layout) muestra contador de no leídas (polling `GET /notifications`), lista las notificaciones con mensaje en español y fecha, navega al objeto indicado por `ideaId` (detalle de idea) y marca leída al consultar el objeto (POST read); sin notificaciones fuera de la app; `ng build` pasa.

@@ -84,7 +84,12 @@
     </div>
   </aside>
 
-  <main class="flex-1 overflow-y-auto p-8">
-    <router-outlet />
+  <main class="flex min-w-0 flex-1 flex-col">
+    <header class="flex items-center justify-end border-b border-slate-200 bg-white px-6 py-2">
+      <app-notification-bell />
+    </header>
+    <div class="flex-1 overflow-y-auto p-8">
+      <router-outlet />
+    </div>
   </main>
 </div>

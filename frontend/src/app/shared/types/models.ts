@@ -167,6 +167,49 @@ export interface IdeaVersion {
   createdAt: string;
 }
 
+/** Campo 2 reduced to public visibility (RF-14/RF-20): name + area, no contact. */
+export interface ProponentePublico {
+  name: string;
+  area: string;
+}
+
+/**
+ * The 7 idea fields in their public visibility (queue + catalog, RF-14/RF-20):
+ * identical to `IdeaFields` but the proponent is reduced to name/area.
+ */
+export interface IdeaFieldsPublica {
+  title: string;
+  proponent: ProponentePublico;
+  description: string;
+  problem: string;
+  expectedBenefit: string;
+  strategicAlignment: string;
+  estimatedResources: RecursosEstimados;
+}
+
+/** `GET /validation/queue` entry (RF-14): a SOLICITANDO_PUBLICACION idea. */
+export interface IdeaCola {
+  id: string;
+  origin: IdeaOrigin;
+  requestDate: string | null;
+  fields: IdeaFieldsPublica;
+}
+
+/** `GET /catalog/public` entry (RF-20): a VALIDADA_PUBLICA idea, read-only. */
+export interface IdeaCatalogo {
+  id: string;
+  origin: IdeaOrigin;
+  createdAt: string;
+  publishedAt: string | null;
+  fields: IdeaFieldsPublica;
+}
+
+/** `GET /notifications` payload (RF-18): the list + the unread counter. */
+export interface NotificacionListado {
+  notifications: Notificacion[];
+  unread: number;
+}
+
 /** In-app notification (plan §2.7, RF-18). */
 export interface Notificacion {
   id: string;

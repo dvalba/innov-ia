@@ -4,6 +4,7 @@ import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/rou
 import { firstValueFrom } from 'rxjs';
 import { ROLE_ADMIN, ROLE_PROPOSER, ROLE_VALIDATOR } from '../../types/models';
 import { SessionService } from '../../services/session.service';
+import { NotificationBell } from '../../components/notification-bell/notification-bell';
 
 /** Friendly label for a role (UI in Spanish, RNF-4). */
 function roleLabel(role: string): string {
@@ -23,7 +24,7 @@ function roleLabel(role: string): string {
  */
 @Component({
   selector: 'app-main-layout',
-  imports: [RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, NotificationBell],
   templateUrl: './main-layout.html',
   styleUrl: './main-layout.css',
 })

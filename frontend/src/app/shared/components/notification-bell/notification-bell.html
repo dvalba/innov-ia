@@ -1,0 +1,87 @@
+<div class="relative">
+  <button
+    type="button"
+    (click)="toggle()"
+    (keydown.escape)="cerrar()"
+    [attr.aria-expanded]="abierto()"
+    aria-haspopup="true"
+    aria-label="Notificaciones"
+    class="relative flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+  >
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.8"
+      class="h-5 w-5"
+    >
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M15 17h5l-1.4-1.4a2 2 0 0 1-.6-1.4V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5m6 0v1a3 3 0 1 1-6 0v-1m6 0H9"
+      />
+    </svg>
+    @if (sinLees()) {
+      <span class="sr-only">Sin notificaciones nuevas</span>
+    } @else {
+      <span
+        class="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-semibold leading-none text-white"
+      >
+        {{ notificaciones.value()?.unread ?? 0 }}
+      </span>
+    }
+  </button>
+
+  @if (abierto()) {
+    <div
+      class="absolute right-0 z-30 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg"
+      role="menu"
+      aria-label="Lista de notificaciones"
+    >
+      <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+        <p class="text-sm font-semibold text-slate-800">Notificaciones</p>
+        <button
+          type="button"
+          (click)="cerrar()"
+          class="text-sm text-slate-400 transition hover:text-slate-600"
+        >
+          Cerrar
+        </button>
+      </div>
+      @if (notificaciones.error()) {
+        <p class="px-4 py-4 text-sm text-slate-500">No se pudieron cargar las notificaciones.</p>
+      } @else if (notificaciones.isLoading()) {
+        <p class="px-4 py-4 text-sm text-slate-500">Cargando…</p>
+      } @else {
+        @let lista = notificaciones.value()?.notifications ?? [];
+        @if (lista.length === 0) {
+          <p class="px-4 py-4 text-sm text-slate-500">Sin notificaciones.</p>
+        } @else {
+          <ul class="max-h-96 divide-y divide-slate-100 overflow-y-auto">
+            @for (n of lista; track n.id) {
+              <li class="relative">
+                <button
+                  type="button"
+                  (click)="onConsultar(n)"
+                  class="flex w-full flex-col gap-1 px-4 py-3 text-left transition hover:bg-slate-50 focus:outline-none focus:bg-indigo-50"
+                >
+                  <span class="flex items-start gap-2">
+                    @if (!n.read) {
+                      <span
+                        class="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-indigo-500"
+                        aria-hidden="true"
+                      ></span>
+                    }
+                    <span class="text-sm leading-snug text-slate-800">{{ n.message }}</span>
+                  </span>
+                  <span class="pl-3 text-xs text-slate-400">{{ formatearFecha(n.createdAt) }}</span>
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      }
+    </div>
+  }
+</div>

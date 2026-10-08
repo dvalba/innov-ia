@@ -22,15 +22,15 @@ conectando el backend con su respectiva vista de frontend de extremo a extremo.
 | 09 | [`09-captura-resumen-manual-contingencia.md`](09-captura-resumen-manual-contingencia.md) | Resumen editable + formulario manual + contingencia 503 | T-043, T-044, T-045 | 3 | 3/3 | ✅ |
 | 10 | [`10-notificaciones-validacion-catalogo.md`](10-notificaciones-validacion-catalogo.md) | Notificaciones (4 eventos) + cola especialista + `/catalog/public` | T-032, T-033, T-034, T-035 | 4 | 4/4 | ✅ |
 | 11 | [`11-mis-ideas-ui.md`](11-mis-ideas-ui.md) | Listado, detalle+edición, mejoras IA, refinamiento, nota de rechazo | T-046, T-047, T-048, T-049, T-050 | 5 | 5/5 | ✅ |
-| 12 | [`12-validacion-catalogo-campana.md`](12-validacion-catalogo-campana.md) | Cola+panel validar/rechazar + catálogo público + campana | T-051, T-052, T-055 | 3 | 0/3 | ⬜ |
+| 12 | [`12-validacion-catalogo-campana.md`](12-validacion-catalogo-campana.md) | Cola+panel validar/rechazar + catálogo público + campana | T-051, T-052, T-055 | 3 | 3/3 | ✅ |
 | 13 | [`13-asistente-check.md`](13-asistente-check.md) | UC asistente (refinamiento, cola) + `/assistant/check` + disparadores | T-061, T-062 | 2 | 0/2 | ⬜ |
 | 14 | [`14-cierre-backend-components.md`](14-cierre-backend-components.md) | Verificación transversal BE + `confirm-dialog` + `idea-card` en shared | T-036, T-056 | 2 | 0/2 | ⬜ |
 | 15 | [`15-e2e-ollama-real.md`](15-e2e-ollama-real.md) | E2E con Ollama real: captura, contingencia, clarificación, validación | T-063, T-064, T-065, T-066 | 4 | 0/4 | ⬜ |
 | 16 | [`16-accesibilidad-build-cierre.md`](16-accesibilidad-build-cierre.md) | Accesibilidad + build/guías + verificación spec §9 | T-057, T-058, T-068 | 3 | 0/3 | ⬜ |
 
 **Total: 4+4+3+2+3+5+5+5+3+4+5+3+2+2+4+3 = 57 tareas.** ✓ (una por grupo, sin huecos ni
-duplicados). **Progreso (2026-10-07): 45/57 tareas implementadas** (G01 ✅, G02 ✅, G03 ✅,
-G04 ✅, G05 ✅, G06 ✅, G07 ✅, G08 ✅, G09 ✅, G10 ✅, G11 ✅; G12–G16 sin empezar).
+duplicados). **Progreso (2026-10-08): 48/57 tareas implementadas** (G01 ✅, G02 ✅, G03 ✅,
+G04 ✅, G05 ✅, G06 ✅, G07 ✅, G08 ✅, G09 ✅, G10 ✅, G11 ✅, G12 ✅; G13–G16 sin empezar).
 
 ## Criterio de la secuencia
 
