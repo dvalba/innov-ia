@@ -40,26 +40,13 @@
       <ul class="space-y-3">
         @for (idea of miLista.value()!; track idea.id) {
           <li>
-            <a
-              [routerLink]="['/mis-ideas', idea.id]"
-              class="group flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 transition hover:border-indigo-300 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-base font-semibold text-slate-900 group-hover:text-indigo-700">
-                  {{ idea.title || 'Sin título' }}
-                </p>
-                <p class="mt-1 text-sm text-slate-500">
-                  Registrada el {{ formatearDia(idea.createdAt) }}
-                  <span class="mx-1 text-slate-300">·</span>
-                  Origen {{ origenLabel(idea.origin) }}
-                </p>
-              </div>
-              <div class="flex shrink-0 items-center gap-3">
-                <app-badge-state [estado]="idea.state" />
-                <span aria-hidden="true" class="text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-indigo-500">
-                  →
-                </span>
-              </div>
+            <a [routerLink]="['/mis-ideas', idea.id]">
+              <app-idea-card
+                variant="compact"
+                [titulo]="idea.title"
+                [metaCompacta]="'Registrada el ' + formatearDia(idea.createdAt) + ' · Origen ' + origenLabel(idea.origin)"
+                [estado]="idea.state"
+              />
             </a>
           </li>
         }

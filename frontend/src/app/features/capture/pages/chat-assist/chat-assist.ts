@@ -9,6 +9,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { errorMessage } from '../../../../shared/interceptors/error.interceptor';
+import { ConfirmDialog } from '../../../../shared/components/confirm-dialog/confirm-dialog';
 import { TituloAccion } from '../../components/title-suggestion/title-suggestion';
 import { ChatMessage, MensajeChat } from '../../components/chat-message/chat-message';
 import { TitleSuggestion } from '../../components/title-suggestion/title-suggestion';
@@ -32,7 +33,7 @@ let secuencia = 0;
  */
 @Component({
   selector: 'app-chat-assist',
-  imports: [FormsModule, ChatMessage, TitleSuggestion, FieldSummary],
+  imports: [FormsModule, ChatMessage, TitleSuggestion, FieldSummary, ConfirmDialog],
   templateUrl: './chat-assist.html',
   styleUrl: './chat-assist.css',
 })
@@ -64,6 +65,8 @@ export class ChatAssist {
   protected readonly camposError = signal<string[]>([]);
   /** A generic confirmation error that is not a field rejection. */
   protected readonly errorConfirmar = signal('');
+  /** Whether the explicit capture-abandonment confirm dialog is open (caso 7). */
+  protected readonly abandonando = signal(false);
 
   constructor() {
     // Start at the bottom of the seeded transcript.
@@ -145,6 +148,23 @@ export class ChatAssist {
   }
 
   protected irInicio(): void {
+    void this.router.navigate(['/captura']);
+  }
+
+  /** Opens the explicit abandonment confirm dialog (caso 7). */
+  protected abrirAbandono(): void {
+    if (this.cargando()) return;
+    this.abandonando.set(true);
+  }
+
+  /**
+   * Confirms the abandonment (caso 7): the in-flight conversation is dropped
+   * and nothing is saved (there are no drafts by design, D4) — the user is
+   * taken back to the "Nueva idea" entry to start clean.
+   */
+  protected confirmarAbandono(): void {
+    this.abandonando.set(false);
+    this.capture.reiniciar();
     void this.router.navigate(['/captura']);
   }
 

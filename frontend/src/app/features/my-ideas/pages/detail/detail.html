@@ -103,10 +103,10 @@
               <button
                 type="button"
                 [disabled]="publicando() || ideaGenerando()"
-                (click)="onPublicar()"
+                (click)="abrirPublicar()"
                 class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {{ publicando() ? 'Solicitando…' : 'Solicitar publicación' }}
+                Solicitar publicación
               </button>
               <p class="text-xs text-slate-400">
                 Disponible aunque la iniciativa no haya sido vista por la IA.
@@ -196,4 +196,16 @@
       </section>
     }
   }
+
+  <!-- Confirmación de "Solicitar publicación" (T-056) -->
+  <app-confirm-dialog
+    [abierto]="confirmarPublicar() || publicando()"
+    [ocupado]="publicando()"
+    titulo="Solicitar publicación"
+    mensaje="La iniciativa pasará a revisión del especialista y no podrás editarla hasta que evalúe la publicación. ¿Deseas continuar?"
+    confirmarEtiqueta="Solicitar publicación"
+    cancelarEtiqueta="Cancelar"
+    (confirmado)="onPublicar()"
+    (cancelado)="confirmarPublicar.set(false)"
+  />
 </div>

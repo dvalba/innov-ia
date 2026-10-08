@@ -1,21 +1,23 @@
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { BadgeState } from '../../../../shared/components/badge-state/badge-state';
+import { IdeaCard } from '../../../../shared/components/idea-card/idea-card';
 import { MyIdeasService } from '../../services/my-ideas.service';
 import { origenLabel } from '../../services/my-idea-fields';
 import { formatearDia } from '../../../../shared/utils/format';
 
 /**
- * "Mis ideas" listing (T-046, RF-19).
+ * "Mis ideas" listing (T-046, RF-19; T-056: shared `idea-card`).
  *
  * Lists the proponent's own ideas — title, registration date, origin and state
- * (with `badge-state`) — via `httpResource` (`GET /ideas/me`), newest first
- * (the backend orders them). Any of them can be opened into the detail page.
- * When there are no ideas, a Spanish empty state is shown.
+ * — via `httpResource` (`GET /ideas/me`), newest first (the backend orders
+ * them). Each row is the shared `idea-card` in its `compact` variant (title,
+ * date + origin and the state badge), wrapped in a `routerLink` so any of them
+ * can be opened into the detail page. When there are no ideas, a Spanish empty
+ * state is shown.
  */
 @Component({
   selector: 'app-idea-list',
-  imports: [RouterLink, BadgeState],
+  imports: [RouterLink, IdeaCard],
   templateUrl: './list.html',
 })
 export class IdeaList {

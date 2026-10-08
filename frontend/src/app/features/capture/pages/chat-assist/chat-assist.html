@@ -18,26 +18,35 @@
     </div>
   } @else {
     <div class="flex flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
-      <div class="border-b border-slate-200 bg-slate-50 px-5 py-3">
-        <p class="text-sm font-semibold text-slate-900">
-          @if (estadoConv() === 'RESUMEN') {
-            Resumen de la idea
-          } @else {
-            Pregunta {{ progreso() }} de 7
-            @if (campoActual()) {
-              — {{ campoActual() }}
+      <div class="flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-5 py-3">
+        <div>
+          <p class="text-sm font-semibold text-slate-900">
+            @if (estadoConv() === 'RESUMEN') {
+              Resumen de la idea
+            } @else {
+              Pregunta {{ progreso() }} de 7
+              @if (campoActual()) {
+                — {{ campoActual() }}
+              }
             }
-          }
-        </p>
-        <p class="text-xs text-slate-500">
-          @if (estadoConv() === 'RESUMEN') {
-            Los 7 campos quedaron cerrados.
-          } @else if (cargando()) {
-            El asistente está escribiendo…
-          } @else {
-            Responde con tus propias palabras o usa una de las opciones rápidas.
-          }
-        </p>
+          </p>
+          <p class="text-xs text-slate-500">
+            @if (estadoConv() === 'RESUMEN') {
+              Los 7 campos quedaron cerrados.
+            } @else if (cargando()) {
+              El asistente está escribiendo…
+            } @else {
+              Responde con tus propias palabras o usa una de las opciones rápidas.
+            }
+          </p>
+        </div>
+        <button
+          type="button"
+          (click)="abrirAbandono()"
+          class="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300"
+        >
+          Abandonar
+        </button>
       </div>
 
       <div #scroll class="flex-1 space-y-3 overflow-y-auto bg-slate-50 p-5">
@@ -149,4 +158,16 @@
       }
     </div>
   }
+
+  <!-- Confirmación de abandono de captura (caso 7, T-056) -->
+  <app-confirm-dialog
+    [abierto]="abandonando()"
+    titulo="Abandonar captura"
+    mensaje="Si abandonas ahora, la conversación no se guarda: no hay borradores y la información capturada se perderá. ¿Deseas continuar?"
+    confirmarEtiqueta="Abandonar y perder lo capturado"
+    cancelarEtiqueta="Seguir con la captura"
+    [peligro]="true"
+    (confirmado)="confirmarAbandono()"
+    (cancelado)="abandonando.set(false)"
+  />
 </div>

@@ -1,6 +1,7 @@
 import { Component, inject, input, output, signal } from '@angular/core';
 import { ValidationService } from '../../services/validation.service';
-import { CAMPOS_DEF, formatearDetalle, origenLabel } from '../../../../shared/utils/idea-fields';
+import { IdeaCard } from '../../../../shared/components/idea-card/idea-card';
+import { origenLabel } from '../../../../shared/utils/idea-fields';
 import { errorMessage } from '../../../../shared/interceptors/error.interceptor';
 import { formatearFecha } from '../../../../shared/utils/format';
 import { IdeaCola } from '../../../../shared/types/models';
@@ -21,6 +22,7 @@ export type ResultadoValidacion = 'validada' | 'rechazada';
  */
 @Component({
   selector: 'app-validate-panel',
+  imports: [IdeaCard],
   templateUrl: './validate-panel.html',
 })
 export class ValidatePanel {
@@ -44,8 +46,12 @@ export class ValidatePanel {
   /** The last backend error message to surface (RNF-3). */
   protected readonly error = signal('');
 
-  protected readonly campos = CAMPOS_DEF;
-  protected readonly formatearDetalle = formatearDetalle;
+  /** The queue-entry meta line (request date + origin, pre-formatted). */
+  protected metaLinea(): string {
+    const e = this.entrada();
+    return `Solicitada el ${formatearFecha(e.requestDate)} · Origen ${origenLabel(e.origin)}`;
+  }
+
   protected readonly formatearFecha = formatearFecha;
   protected readonly origenLabel = origenLabel;
 

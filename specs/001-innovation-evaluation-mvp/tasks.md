@@ -222,7 +222,7 @@
 
 ### 2.7 Cierre de backend
 
-- [ ] **[T-036] Backend: verificación transversal — pytest completo, ruff y arranque**
+- [x] **[T-036] Backend: verificación transversal — pytest completo, ruff y arranque**
   - **Covers:** RF-1..RF-20 (verificación)
   - **Dependencias:** [T-031..T-035]
   - **Hecho cuando:** `pytest -q` pasa al completo sin errores ni saltos; `ruff check .` está limpio; `uvicorn app.main:app` arranca y `GET /health` responde 200; todos los endpoints del plan §3.1 existen y responden según sus contratos (verificado con un test de humo por endpoint en `tests/api/test_endpoints_present.py`).
@@ -340,7 +340,7 @@
   - **Dependencias:** [T-006], [T-033]
   - **Hecho cuando:** `shared/components/notification-bell` (en el layout) muestra contador de no leídas (polling `GET /notifications`), lista las notificaciones con mensaje en español y fecha, navega al objeto indicado por `ideaId` (detalle de idea) y marca leída al consultar el objeto (POST read); sin notificaciones fuera de la app; `ng build` pasa.
 
-- [ ] **[T-056] shared · diálogo de confirmación reutilizable + idea-card compartido**
+- [x] **[T-056] shared · diálogo de confirmación reutilizable + idea-card compartido**
   - **Covers:** RF-2, RF-19, RF-14 (reutilización)
   - **Dependencias:** [T-046], [T-051], [T-052]
   - **Hecho cuando:** `shared/components/confirm-dialog` (usado p. ej. en "Solicitar publicación" y en el abandono de captura con aviso de pérdida, caso 7) está en `shared/` y es operable con teclado (RNF-6); `idea-card` se promueve a `shared/components/` (Constitución §3.2) y se usa en `my-ideas`, `validation` y `catalog` sinimportaciones cruzadas entre features; `ng build` pasa.

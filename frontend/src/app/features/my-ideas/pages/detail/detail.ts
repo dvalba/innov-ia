@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { BadgeState } from '../../../../shared/components/badge-state/badge-state';
+import { ConfirmDialog } from '../../../../shared/components/confirm-dialog/confirm-dialog';
 import { MyIdeasService } from '../../services/my-ideas.service';
 import { FieldEditor } from '../../components/field-editor/field-editor';
 import { ImprovePanel } from '../../components/improve-panel/improve-panel';
@@ -33,7 +34,7 @@ import { Idea, IdeaFields, IdeaVersion } from '../../../../shared/types/models';
  */
 @Component({
   selector: 'app-idea-detail',
-  imports: [BadgeState, FieldEditor, ImprovePanel, RefineView, RejectNote],
+  imports: [BadgeState, ConfirmDialog, FieldEditor, ImprovePanel, RefineView, RejectNote],
   templateUrl: './detail.html',
 })
 export class IdeaDetail {
@@ -55,6 +56,8 @@ export class IdeaDetail {
   protected readonly info = signal('');
   /** `true` when the publication request is in flight. */
   protected readonly publicando = signal(false);
+  /** Whether the "Solicitar publicación" confirm dialog is open (T-056). */
+  protected readonly confirmarPublicar = signal(false);
 
   protected readonly campos = CAMPOS_DEF;
   protected readonly formatearDetalle = formatearDetalle;
@@ -117,7 +120,14 @@ export class IdeaDetail {
     void this.mutar(() => this.ideas.actualizar(this.ideaId, campos));
   }
 
+  /** Opens the confirm dialog before requesting publication (T-056). */
+  protected abrirPublicar(): void {
+    this.confirmarPublicar.set(true);
+  }
+
+  /** Confirmation accepted: `POST /ideas/{id}/request-publication` (RF-10). */
   protected onPublicar(): void {
+    this.confirmarPublicar.set(false);
     this.publicando.set(true);
     this.error.set('');
     this.ideas

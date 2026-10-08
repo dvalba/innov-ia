@@ -6,12 +6,12 @@ promovido a `shared`) que varias features van a reutilizar.
 
 ## Estado
 
-> ⬜ **Pendiente** — 0/2 tareas implementadas.
+> ✅ **Completado** — 2/2 tareas implementadas.
 
 ## Tareas (orden de ejecución)
 
-- [ ] **T-036** _(BE)_ — `pytest -q` al completo sin errores ni saltos; `ruff check .` limpio; `uvicorn app.main:app` arranca y `GET /health` 200; todos los endpoints del plan §3.1 presentes y respondiendo con humo en `tests/api/test_endpoints_present.py` _(T-031..T-035 G08/G10 + T-024 G06)_
-- [ ] **T-056** _(FE)_ — `shared/components/confirm-dialog` (usado p. ej. en "Solicitar publicación" y en el abandono de captura, caso 7; operable con teclado, RNF-6) + `idea-card` promovido a `shared/components` (Constitución §3.2) y usado en my-ideas (G11), validation (G12) y catalog (G12) sin imports cruzados entre features _(T-046 G11, T-051 G12, T-052 G12)_
+- [x] **T-036** _(BE)_ — `pytest -q` al completo sin errores ni saltos (462 passed); `ruff check .` limpio; `uvicorn app.main:app` arranca y `GET /health` 200 (humo en servidor real); todos los endpoints del plan §3.1 presentes y respondiendo con humo en `tests/api/test_endpoints_present.py` _(T-031..T-035 G08/G10 + T-024 G06)_
+- [x] **T-056** _(FE)_ — `shared/components/confirm-dialog` (usado en "Solicitar publicación" y en el abandono de captura asistida, caso 7; operable con teclado, RNF-6) + `shared/components/idea-card` (`compact`/`full`) usado en my-ideas (listado), validation (panel) y catalog (público) sin imports cruzados entre features _(T-046 G11, T-051 G12, T-052 G12)_
 
 ## Criterio de salida
 

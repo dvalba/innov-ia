@@ -29,40 +29,13 @@
     } @else {
       <div class="space-y-4">
         @for (idea of ideas; track idea.id) {
-          <article class="rounded-xl border border-slate-200 bg-white">
-            <header class="border-b border-slate-100 px-6 py-4">
-              <h2 class="text-base font-semibold text-slate-900">
-                {{ idea.fields.title || 'Sin título' }}
-              </h2>
-              <p class="mt-1 text-sm text-slate-500">
-                Publicada el {{ formatearFecha(idea.publishedAt) }}
-                <span class="mx-1 text-slate-300">·</span>
-                Registrada el {{ formatearDia(idea.createdAt) }}
-                <span class="mx-1 text-slate-300">·</span>
-                Origen {{ origenLabel(idea.origin) }}
-              </p>
-              <p class="mt-1 text-sm text-slate-500">
-                Proponente:
-                <span class="font-medium text-slate-700">{{ idea.fields.proponent.name }}</span>
-                <span class="text-slate-400">· {{ idea.fields.proponent.area }}</span>
-              </p>
-            </header>
-            <div class="px-6 py-4">
-              <dl class="grid gap-3 sm:grid-cols-2">
-                @for (campo of campos; track campo.clave) {
-                  @if (campo.clave !== 'proponent') {
-                    @let clave = campo.clave;
-                    <div class="rounded-md bg-slate-50 px-3 py-2">
-                      <dt class="text-xs font-medium text-slate-500">{{ campo.etiqueta }}</dt>
-                      <dd class="mt-0.5 break-words text-sm text-slate-800">
-                        {{ formatearDetalle(clave, idea.fields[clave]) }}
-                      </dd>
-                    </div>
-                  }
-                }
-              </dl>
-            </div>
-          </article>
+          <app-idea-card
+            variant="full"
+            [titulo]="idea.fields.title"
+            [meta]="meta(idea)"
+            [proponente]="idea.fields.proponent"
+            [campos]="idea.fields"
+          />
         }
       </div>
     }
