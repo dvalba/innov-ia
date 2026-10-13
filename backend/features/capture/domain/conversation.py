@@ -44,8 +44,9 @@ class ChatMessage:
     """One message of a capture conversation (plan §2.3 `ChatMessage`).
 
     An `assistant` turn carries `currentField` (the field in the course),
-    `quickOptions` (the field's fixed chip catalog, RF-5) and, when the turn
-    proposes a title (RF-4), a `titleSuggestion` with its actions.
+    `quickOptions` (the per-turn options the assistant generated for the field,
+    RF-5 / D7 replacement) and, when the turn proposes a title (RF-4), a
+    `titleSuggestion` with its actions.
     """
 
     id: str = ""
@@ -109,6 +110,8 @@ class Conversation:
     order: tuple[str, ...] = ()
     titleSuggestions: list = field(default_factory=list)
     createdAt: str = ""
+    offeredField: str | None = None
+    offeredOptions: list = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if not self.id or not str(self.id).strip():
@@ -138,6 +141,8 @@ class Conversation:
             "order": list(self.order),
             "titleSuggestions": list(self.titleSuggestions),
             "createdAt": self.createdAt,
+            "offeredField": self.offeredField,
+            "offeredOptions": list(self.offeredOptions),
         }
 
     @classmethod
@@ -153,6 +158,8 @@ class Conversation:
                 order=tuple(payload.get("order", ())),
                 titleSuggestions=list(payload.get("titleSuggestions", [])),
                 createdAt=payload.get("createdAt", ""),
+                offeredField=payload.get("offeredField"),
+                offeredOptions=list(payload.get("offeredOptions", [])),
             )
         except KeyError as missing:
             raise ValueError(
@@ -204,6 +211,20 @@ class Conversation:
             return json.loads(text)
         except json.JSONDecodeError:
             return None
+
+    # -- the per-turn offered options (RF-5, D7 replacement) -----------------
+
+    def offered_options(self, field_name: str | None) -> tuple[str, ...]:
+        """The options offered on the turn for `field_name`.
+
+        Only the options actually offered while the conversation pointed at the
+        given field are valid; once the turn moves on (a different field is
+        offered) the previous ones are no longer accepted (RF-5: a chip is an
+        answer to the question in the course).
+        """
+        if field_name is None or self.offeredField != field_name:
+            return ()
+        return tuple(option for option in self.offeredOptions if str(option).strip())
 
     def to_summary(self) -> dict:
         """The editable summary (RF-6): all captured fields, with the structured

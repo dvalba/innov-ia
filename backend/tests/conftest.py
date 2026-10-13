@@ -10,6 +10,7 @@
 """
 
 import copy
+import json
 import sys
 import time
 import uuid
@@ -122,6 +123,28 @@ class OllamaMock:
                 "El asistente de IA no está disponible (mock).",
             )
         return self.respond(prompt)
+
+
+def options_for_label(label: str) -> list[str]:
+    """Deterministic turn options a mock returns for a field label."""
+    return [f"Opción A de {label}", f"Opción B de {label}"]
+
+
+def turn_options_json(prompt: str, *, compact: dict | None = None) -> str:
+    """Mock reply for a turn-options prompt (plan §6.4).
+
+    Extracts the in-progress field from the prompt (`Campo en curso: X.`)
+    and answers with options labeled after it, so every field in a flow
+    gets distinct, predictable options.
+    """
+    label = "campo"
+    marker = "Campo en curso: "
+    if marker in prompt:
+        label = prompt.split(marker, 1)[1].split("\n", 1)[0].rstrip(".")
+    return json.dumps(
+        {"options": options_for_label(label), "compact": compact or {}},
+        ensure_ascii=False,
+    )
 
 
 @pytest.fixture()

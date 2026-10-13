@@ -2,7 +2,9 @@
 
 Covers the conversational contracts of the capture feature:
   - the exact RF-3 field order and the skip of already-captured fields;
-  - the fixed per-field chip catalog (RF-5, decision D7);
+  - the per-turn quick options: which fields may be offered chips, which may
+    be compacted, and the question builder that carries the offered options
+    (RF-5, D7 replacement: the assistant generates them, no fixed catalog);
   - the narrative assignment of one message to several fields (RF-3);
   - the clarification flag for an insufficient answer (no advance, RF-3);
   - the completeness check that triggers the summary (RF-6, G08);
@@ -69,19 +71,33 @@ def test_blank_field_is_not_captured() -> None:
     assert rules.next_pending_field(rules.FIELD_ORDER, {"description": "   "}) == "description"
 
 
-# -- the fixed chip catalog (RF-5, D7) ----------------------------------------
+# -- per-turn quick options (RF-5, D7 replacement) ----------------------------
 
 
-def test_chips_are_a_fixed_catalog_of_the_field() -> None:
+def test_eligible_and_compactable_fields_cover_the_right_sets() -> None:
+    # The free opening narrative and the title (RF-4 flow) never get chips.
+    assert "description" not in rules.CHIP_ELIGIBLE_FIELDS
+    assert "title" not in rules.CHIP_ELIGIBLE_FIELDS
+    # The structured fields and the title are never compacted.
+    for field_name in ("title", "estimatedResources", "proponent"):
+        assert field_name not in rules.COMPACTABLE_FIELDS
+    # Every chip-eligible field is free-text and compactable, except the
+    # structured proponent confirmation.
+    assert {"problem", "expectedBenefit", "strategicAlignment"} <= rules.COMPACTABLE_FIELDS
+    assert set(rules.FIELD_ORDER) >= rules.CHIP_ELIGIBLE_FIELDS
+
+
+def test_build_question_offers_no_options_by_default() -> None:
     question = rules.build_question(current_field="problem")
     assert question["currentField"] == "problem"
-    assert question["quickOptions"] == list(rules.CHIPS_BY_FIELD["problem"])
-    assert question["quickOptions"], "each asked field offers its fixed chips (RF-5)"
+    assert question["text"] == rules.QUESTION_BY_FIELD["problem"]
+    assert question["quickOptions"] == []
 
 
-def test_free_fields_have_no_chip_catalog() -> None:
-    for field_name in ("description", "title"):
-        assert rules.CHIPS_BY_FIELD[field_name] == ()
+def test_build_question_carries_the_options_offered_for_the_turn() -> None:
+    options = ["Opción A", "Opción B"]
+    question = rules.build_question(current_field="problem", quick_options=options)
+    assert question["quickOptions"] == options
 
 
 def test_every_asked_field_has_a_question() -> None:

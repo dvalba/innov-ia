@@ -15,7 +15,7 @@ notificaciones). Solo añade tests + smoke manual; no toca producción.
 
 ## Tareas (orden de ejecución)
 
-- [x] **T-063** _(E2E)_ — Captura asistida e2e: nueva idea → conversación (orden fijo, chips, título con Aceptar/Otra/Escribir) → resumen editable → confirmación → idea EN_DESARROLLO `asistida` visible en "Mis ideas"; tests API con `ollama_mock` determinista; smoke manual con capturas _(T-062 G13, T-043 G09)_
+- [x] **T-063** _(E2E)_ — Captura asistida e2e: nueva idea → conversación (orden fijo, opciones rápidas generadas por turno D7, título con Aceptar/Otra/Escribir) → resumen editable → confirmación → idea EN_DESARROLLO `asistida` visible en "Mis ideas"; tests API con `ollama_mock` determinista; smoke manual con capturas _(T-062 G13, T-043 G09)_
 - [x] **T-064** _(E2E)_ — Contingencia e2e: IA caída al inicio → UI muestra manual con aviso (caso 1); cayendo a mitad → chat ofrece manual preinada con `capturedFields` y el registro crea idea `manual` (caso 2); reintento único 60 s no expuesto (RNF-3); mock de caída + smoke _(T-063, T-045 G09)_
 - [x] **T-065** _(E2E)_ — Clarificación e2e: idea manual con IA caída → al recuperarse, login procesa la cola (más antigua→reciente) + `IDEA_REFINED` con acceso directo → `refine-view` → aceptar (versión vigente, sigue EN_DESARROLLO) o "Ajustar" abre el chat precontextualizado; sin caducidad, idea operativa (caso 5); mock + smoke _(T-064, T-049 G11)_
 - [x] **T-066** _(E2E)_ — Validación e2e: solicitud → `IDEA_REQUESTED` a especialistas → aprobar con rastro + `IDEA_PUBLISHED` + visible en catálogo, o rechazar con comentario + `IDEA_REJECTED` visible; autovalidación con rastro (caso 9); el contador de la campana refleja cada evento y solo esos; mock + smoke _(T-065, T-051 G12, T-055 G12)_
@@ -38,7 +38,7 @@ notificaciones). Solo añade tests + smoke manual; no toca producción.
 
 | Paso | Verificación | Resultado |
 |---|---|---|
-| T-063 | Captura asistida completa (orden fijo `description`→…→`proponent`, chips, título Aceptar/Otra/Escribir, resumen editable) → confirmación → idea `asistida`/`EN_DESARROLLO` en "Mis ideas"; el reintento único (RNF-3) queda interno | ✅ |
+| T-063 | Captura asistida completa (orden fijo `description`→…→`proponent`, opciones rápidas por turno D7, título Aceptar/Otra/Escribir, resumen editable) → confirmación → idea `asistida`/`EN_DESARROLLO` en "Mis ideas"; el reintento único (RNF-3) queda interno | ✅ |
 | T-064 | Contingencia: IA caída al inicio → `mode: manual` + aviso (caso 1); cayendo a mitad → 503 `ASSISTANT_UNAVAILABLE` + `capturedFields` de pre-lleno (RNF-10, caso 2); registro manual crea idea `manual` | ✅ |
 | T-065 | Idea manual + IA disponible → `POST /assistant/check` procesa la cola (más antigua→reciente) → versión refinada + `IDEA_REFINED`; aceptar → versión vigente, idea sigue `EN_DESARROLLO` (caso 5, sin caducidad) | ✅ |
 | T-066 | Solicitud de publicación → fanout `IDEA_REQUESTED` a especialistas → aprobar con rastro → `IDEA_PUBLISHED` + visible en catálogo (y rama de rechazo `IDEA_REJECTED`); la campana cuenta solo estos eventos (caso 9) | ✅ |
@@ -52,7 +52,7 @@ verde:
 
 | Paso | Verificación (modelo real) | Resultado |
 |---|---|---|
-| T-063 | `assistant-status: OK`; `POST /capture/start` → `mode: assistant`, turno `description`; 1 turno narrativo captura `description` (+`problem`) y pasa a `title`; título generado y aceptado; chips `expectedBenefit`/`strategicAlignment`/`estimatedResources`; `RESUMEN`; confirmación → `POST /capture/finish` 201 `{state: EN_DESARROLLO, origin: asistida}`; 1 idea en `/ideas/me` | ✅ |
+| T-063 | `assistant-status: OK`; `POST /capture/start` → `mode: assistant`, turno `description`; 1 turno narrativo captura `description` (+`problem`) y pasa a `title`; título generado y aceptado; opciones rápidas por turno para `problem`/`expectedBenefit`/`strategicAlignment`/`estimatedResources` (D7); `RESUMEN`; confirmación → `POST /capture/finish` 201 `{state: EN_DESARROLLO, origin: asistida}`; 1 idea en `/ideas/me` | ✅ |
 | T-065 | Idea manual creada → `POST /assistant/check` 200 `{status: OK, refined: 1, failed: 0, pending: 0}`; versión `requestedBy: refinement` + `IDEA_REFINED`; `decide accept` → versión vigente, idea sigue `EN_DESARROLLO` | ✅ |
 | T-066 | `request-publication` → `IDEA_REQUESTED` (fanout al especialista) → cola de validación → `approve` → `IDEA_PUBLISHED` + visible en `/catalog/public` | ✅ |
 

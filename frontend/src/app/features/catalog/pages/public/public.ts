@@ -29,6 +29,12 @@ export class PublicCatalog {
 
   protected readonly origenLabel = origenLabel;
 
+  constructor() {
+    // Refetch on every entry: the root-level resource keeps its cached list
+    // across sessions/users within the same SPA lifecycle.
+    this.catalogo.reload();
+  }
+
   /** The catalog card meta line (publication + registration dates, origin). */
   protected meta(idea: IdeaCatalogo): string[] {
     return [

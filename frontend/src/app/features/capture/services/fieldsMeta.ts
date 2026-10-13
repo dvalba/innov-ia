@@ -2,10 +2,10 @@
  * Capture field metadata (T-040, RF-3/RF-5, RNF-4).
  *
  * Client mirror of the backend's fixed capture contract (`capture_rules`,
- * decision D7): the exact order of the 7 questions, the Spanish question per
- * field and the fixed quick-reply catalog per field. The backend remains the
- * source of truth; this mirror feeds the UI (progress, chip labels,
- * placeholders) without drifting from D7.
+ * decision D7): the exact order of the 7 questions and the Spanish question
+ * per field. The quick replies are NOT a client catalog: the backend offers
+ * them per turn (IA-generated, D7 replacement) and the UI renders the turn's
+ * `quickOptions` as they arrive.
  */
 
 /** RF-3: the fixed order of the 7 capture questions (mirror of the backend). */
@@ -50,40 +50,6 @@ export const QUESTION_BY_FIELD: Record<FieldName, string> = {
   proponent:
     'Por último, estos son tus datos de proponente registrados en tu cuenta. ' +
     'Confírmame si están bien o escríbeme la corrección.',
-};
-
-/**
- * D7/RF-5: the FIXED quick-reply catalog per field. A chip is the field's
- * complete answer. The free description and the suggested title (RF-4) have no
- * catalog.
- */
-export const CHIPS_BY_FIELD: Record<FieldName, readonly string[]> = {
-  description: [],
-  title: [],
-  problem: [
-    'Retrasos en la operación actual',
-    'Tarea manual repetitiva',
-    'Costos elevados del proceso actual',
-    'Falta de visibilidad del área',
-  ],
-  expectedBenefit: [
-    'Ahorro de tiempo operativo',
-    'Reducción de costos',
-    'Mejor atención al cliente',
-    'Generación de ingresos nuevos',
-  ],
-  strategicAlignment: [
-    'Agilizar procesos internos',
-    'Reducir la carga administrativa manual',
-    'Mejorar la experiencia del cliente',
-    'Alinear con los objetivos estratégicos del año',
-  ],
-  estimatedResources: [
-    'Bajo: menos de un mes',
-    'Medio: de 1 a 3 meses',
-    'Alto: más de 3 meses',
-  ],
-  proponent: ['Confirmar mi información', 'Corregir mi información'],
 };
 
 /** The two structured fields (plan §2.2) carried as JSON strings. */

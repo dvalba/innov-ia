@@ -27,6 +27,12 @@ export class ReviewQueue {
   /** The Spanish confirmation shown after a decision (RNF-4). */
   protected readonly confirmacion = signal('');
 
+  constructor() {
+    // Refetch on every entry: the root-level resource keeps its cached queue
+    // across sessions/users within the same SPA lifecycle.
+    this.cola.reload();
+  }
+
   protected onComenzada(): void {
     this.confirmacion.set('');
     this.operando.set(true);

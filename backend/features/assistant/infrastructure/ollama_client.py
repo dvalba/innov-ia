@@ -40,13 +40,32 @@ class OllamaClient:
         self.model = model
 
     def ping(self) -> bool:
-        """Probes availability (`GET /api/tags`). `False` after the retry fails."""
+        """Probes assistant availability (`GET /api/tags`).
+
+        `True` only when the service answers *and* the configured model is
+        present among the loaded tags; `False` after the retry fails or when
+        the model is not loaded (a 27B cold load would exceed the per-attempt
+        limit, so the assistant is surfaced as unavailable by default).
+        """
         for _attempt in range(2):
             try:
-                self._request("GET", "/api/tags", body=None)
-                return True
+                data = self._request("GET", "/api/tags", body=None)
+                return self._model_loaded(data)
             except _TransientOllamaError:
                 continue
+        return False
+
+    def _model_loaded(self, tags_payload: dict) -> bool:
+        """`True` when `self._model` matches one of the loaded model names.
+
+        Matches the exact name or its base (the part before `:tag`) so a model
+        configured with or without `:latest` is found either way.
+        """
+        wanted = self._model.split(":")[0]
+        for entry in tags_payload.get("models") or []:
+            name = entry.get("name", "") if isinstance(entry, dict) else ""
+            if name == self._model or name.split(":")[0] == wanted:
+                return True
         return False
 
     def generate(self, prompt: str) -> str:

@@ -17,12 +17,15 @@ class AssistantClient(Protocol):
     """Availability probe + generation, consumed by the AI use cases.
 
     `ping` returns `False` after the transparent retry (RNF-3, case 3)
-    instead of raising; `generate` raises `AssistantUnavailable` when the
-    second attempt also fails ("fallo de IA", spec case 14).
+    instead of raising; available also means the configured model is loaded,
+    not only that the service answers. `generate` raises
+    `AssistantUnavailable` when the second attempt also fails ("fallo de IA",
+    spec case 14).
     """
 
     def ping(self) -> bool:
-        """Probes availability; `False` when the service is down."""
+        """Probes availability; `False` when the service is down or the model
+        is not loaded."""
         ...
 
     def generate(self, prompt: str) -> str:

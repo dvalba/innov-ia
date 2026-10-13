@@ -13,9 +13,9 @@ prefinada) y expone el router `/capture`; en frontend construye la base de captu
 
 - [x] **T-030** _(BE)_ — `finish_capture.py` (valida 7 completos RNF-5 desde el resumen confirmado → idea EN_DESARROLLO origen `asistida`, termina conversación; sin confirmar no queda nada, caso 7) + `activate_manual.py` (marca CONTINGENCIA y devuelve `capturedFields` para prellenar sin pérdida) _(T-029 G07, T-020 G06)_
 - [x] **T-031** _(BE)_ — `routers/capture.py`: `POST /capture/start`, `POST /capture/messages` (200; 503 `{code: ASSISTANT_UNAVAILABLE, fallback:{capturedFields}}` si la IA cae a mitad), `POST /capture/finish` (201), `POST /capture/activate-manual`, `GET /capture/assistant-status`; rol proponente _(T-030, T-013 ✓)_
-- [x] **T-040** _(FE)_ — `fieldsMeta.ts` (orden fijo de los 7, pregunta ES por campo, chips fijos en espejo de D7) + `CaptureService` (`/capture/start`, `/capture/messages`, `/assistant-status` con carga visible, RNF-3) _(T-009 G01, T-031)_
+- [x] **T-040** _(FE)_ — `fieldsMeta.ts` (orden fijo de los 7, pregunta ES por campo; las opciones rápidas ya no son un catálogo cliente: las ofrece el backend por turno, D7 sustituida) + `CaptureService` (`/capture/start`, `/capture/messages`, `/assistant-status` con carga visible, RNF-3) _(T-009 G01, T-031)_
 - [x] **T-041** _(FE)_ — `pages/new-idea`: consulta `assistant-status` → OK abre asistida; UNAVAILABLE desplega manual con aviso (caso 1); si hay ACTIVA ofrece "Retomar conversación" (caso 8) _(T-040)_
-- [x] **T-042** _(FE)_ — `chat-assist`: burbujas `chat-message` (usuario/asistente), chips del campo en curso (selección = respuesta completa, se mantienen hasta responder), `title-suggestion` (Aceptar/Otra/Escribir, texto sin modificar); carga visible por llamada IA (RNF-3) _(T-041)_
+- [x] **T-042** _(FE)_ — `chat-assist`: burbujas `chat-message` (usuario/asistente), opciones rápidas del turno (las `quickOptions` que llega en la respuesta del backend, D7 sustituida; selección = respuesta completa, se muestran solo en el turno), `title-suggestion` (Aceptar/Otra/Escribir, texto sin modificar); carga visible por llamada IA (RNF-3) _(T-041)_
 
 ## Criterio de salida
 

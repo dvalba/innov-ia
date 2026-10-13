@@ -183,6 +183,12 @@ export class UserManagement {
   protected readonly togglingId = signal<string | null>(null);
   protected readonly rolesSavingId = signal<string | null>(null);
 
+  constructor() {
+    // Refetch on every entry: the root-level resource keeps its cached list
+    // across sessions/users within the same SPA lifecycle.
+    this.list.reload();
+  }
+
   protected onCreated(payload: CreatedUser): void {
     this.created.set(payload);
     this.copied.set(false);

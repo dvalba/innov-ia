@@ -37,8 +37,9 @@ from features.ideas.infrastructure.idea_store import IdeaStore
 from features.ideas.use_cases.create_idea import create_idea
 from features.ideas.use_cases.improve_idea import CASE_10_NOTICE
 from features.notifications.infrastructure.notification_store import NotificationStore
+from features.org.infrastructure.org_store import OrgStore
 from shared.utils.password import hash_password
-from tests.conftest import InMemoryDirectory, InMemoryStore, OllamaMock
+from tests.conftest import InMemoryDirectory, InMemoryStore, OllamaMock, turn_options_json
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
@@ -68,6 +69,8 @@ def _smart_respond(prompt: str) -> str:
     """A deterministic, always-valid assistant reply (titles, extraction and
     full 7-field refinements all parse, so incidental background checks are
     harmless and the queue drains predictably)."""
+    if 'JSON esperado: {"options' in prompt:
+        return turn_options_json(prompt)
     if "JSON esperado: {\"title" in prompt:
         return json.dumps({"title": "Título propuesto por la IA"}, ensure_ascii=False)
     if "Campos pendientes" in prompt:
@@ -99,6 +102,7 @@ def env():
     ledger = IdeaStore(InMemoryStore(), InMemoryStore())
     conversations = ConversationStore(InMemoryStore())
     notifications = NotificationStore(InMemoryStore())
+    org_store = OrgStore(InMemoryStore())
     mock = OllamaMock()
     mock.respond = _smart_respond
     token_store = TokenStore(InMemoryStore(), ttl_minutes=480, now_factory=datetime.now)
@@ -109,6 +113,7 @@ def env():
     main_app.dependency_overrides[deps_module.get_assistant_client] = lambda: mock
     main_app.dependency_overrides[deps_module.get_notification_store] = lambda: notifications
     main_app.dependency_overrides[deps_module.get_conversation_store] = lambda: conversations
+    main_app.dependency_overrides[deps_module.get_org_store] = lambda: org_store
     main_app.dependency_overrides.pop(deps_module.get_assistant_check, None)
 
     def _client(user_id: str = PROPOSER, token: bool = True) -> TestClient:
@@ -151,7 +156,9 @@ def test_every_endpoint_of_plan_3_1_is_present() -> None:
         ("get", "/notifications"), ("post", "/notifications/{id}/read"),
         ("get", "/users"), ("post", "/users"),
         ("put", "/users/{id}/roles"), ("patch", "/users/{id}/active"),
-        ("post", "/assistant/check"), ("get", "/health"),
+        ("post", "/assistant/check"),
+        ("get", "/admin/organizacion"), ("put", "/admin/organizacion"),
+        ("get", "/health"),
     ]
 
     def _shape(path: str) -> str:

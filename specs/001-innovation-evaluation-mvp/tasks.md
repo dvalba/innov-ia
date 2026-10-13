@@ -161,10 +161,10 @@
 
 ### 2.4 Feature `capture` (RF-2..RF-7)
 
-- [x] **[T-025] capture · dominio: conversación y reglas de captura (orden fijo, chips fijos, aclaración)**
+- [x] **[T-025] capture · dominio: conversación y reglas de captura (orden fijo, opciones por turno, aclaración)**
   - **Covers:** RF-2, RF-3, RF-5
   - **Dependencias:** [T-007]
-  - **Hecho cuando:** `domain/conversation.py` define `Conversation` (esquema §2.4: estado ACTIVA/RESUMEN/TERMINADA/CONTINGENCIA, campos capturados, campo en curso, orden) y `capture_rules.py` fija el orden exacto de RF-3, el catálogo fijo de chips por campo (D7) y las reglas: una conversación ACTIVA por usuario, chip = respuesta completa, chips disponibles hasta que el campo se responda, y `needsClarification` cuando la respuesta es insuficiente (sin avanzar); test en `tests/unit/domain/test_capture_rules.py` cubre orden, salto de campos ya capturados, aclaración y límite de 1 conversación activa (`pytest -q` verde).
+  - **Hecho cuando:** `domain/conversation.py` define `Conversation` (esquema §2.4: estado ACTIVA/RESUMEN/TERMINADA/CONTINGENCIA, campos capturados, campo en curso, orden, opciones ofrecidas en el turno) y `capture_rules.py` fija el orden exacto de RF-3, los campos elegibles para opciones rápidas (D7 sustituida: son IA por turno, no un catálogo fijo) y las reglas: una conversación ACTIVA por usuario, chip = respuesta completa solo si fue ofrecido en el turno, `needsClarification` cuando la respuesta es insuficiente (sin avanzar); test en `tests/unit/domain/test_capture_rules.py` cubre orden, campos elegibles/compactables, salto de campos ya capturados, aclaración y límite de 1 conversación activa (`pytest -q` verde).
 
 - [x] **[T-026] capture · infraestructura: conversation_store**
   - **Covers:** RF-2, RF-7, RNF-10
@@ -174,12 +174,12 @@
 - [x] **[T-027] capture · casos de uso: iniciar/retomar conversación**
   - **Covers:** RF-2, RF-7 (caso 1)
   - **Dependencias:** [T-026], [T-008]
-  - **Hecho cuando:** `start_conversation.py`: si hay conversación ACTIVA la retoma (no crea segunda, RF-2/caso 8); si el asistente está disponible inicia con saludo + primera pregunta (campo 1: descripción) + chips; si NO está disponible devuelve señal de formulario manual vacío; tests en `tests/unit/use_cases/test_capture_flow.py` (bloque inicio) cubren retoma, inicio y contingencia al iniciar (`pytest -q` verde).
+  - **Hecho cuando:** `start_conversation.py`: si hay conversación ACTIVA la retoma (no crea segunda, RF-2/caso 8); si el asistente está disponible inicia con saludo + primera pregunta (campo 1: descripción) sin chips (las opciones rápidas las genera la IA por turno a partir del primer mensaje, D7 sustituida); si NO está disponible devuelve señal de formulario manual vacío; tests en `tests/unit/use_cases/test_capture_flow.py` (bloque inicio) cubren retoma, inicio y contingencia al iniciar (`pytest -q` verde).
 
 - [x] **[T-028] capture · casos de uso: procesamiento de mensaje (narrativa multi-campo, siguiente pregunta, aclaración)**
   - **Covers:** RF-3, RF-5
   - **Dependencias:** [T-027]
-  - **Hecho cuando:** `process_message.py` aplica el texto o el chip seleccionado al campo en curso, usa el extractor de la IA para asignar fragmentos narrativos a uno o varios campos (cada fragmento asignado marca su campo y no se vuelve a preguntar), pide aclaración si la respuesta es insuficiente y avanza al siguiente campo incompleto; al completar los 7 pasa la conversación a RESUMEN; tests cubren: narrativa que completa varios campos a la vez, chip como respuesta completa, aclaración por respuesta insuficiente, y salto sin repetir campos (`pytest -q` verde).
+  - **Hecho cuando:** `process_message.py` aplica el texto o la opción rápida (chip) seleccionada al campo en curso — un chip es válido solo si está entre las `quickOptions` ofrecidas en el turno (D7 sustituida); la misma llamada IA del turno genera las opciones del siguiente campo elegible y compacta campos libres; usa el extractor para asignar fragmentos narrativos a uno o varios campos (cada fragmento asignado marca su campo y no se vuelve a preguntar), pide aclaración si la respuesta es insuficiente y avanza al siguiente campo incompleto; al completar los 7 pasa la conversación a RESUMEN; tests cubren: narrativa que completa varios campos a la vez, opción rápida ofrecida como respuesta completa, chip no ofrecido → 400, aclaración por respuesta insuficiente, y salto sin repetir campos (`pytest -q` verde).
 
 - [x] **[T-029] capture · casos de uso: título sugerido (propuesta, alternativa, manual)**
   - **Covers:** RF-4
@@ -250,10 +250,10 @@
 
 ### 3.2 Feature `capture`
 
-- [x] **[T-040] capture · `fieldsMeta` (orden fijo + chips) y `CaptureService` base**
+- [x] **[T-040] capture · `fieldsMeta` (orden fijo + preguntas) y `CaptureService` base**
   - **Covers:** RF-3, RF-5, RNF-4
   - **Dependencias:** [T-009], [T-031]
-  - **Hecho cuando:** `features/capture/services/fieldsMeta.ts` define el orden fido de los 7 campos, la pregunta en español por campo y el catálogo fijo de chips por campo (en espejo del backend, D7); `capture.service.ts` envuelve `POST /capture/start`, `POST /capture/messages`, `GET /capture/assistant-status` con manejo de estado de carga (RNF-3); `ng build` pasa.
+  - **Hecho cuando:** `features/capture/services/fieldsMeta.ts` define el orden fijo de los 7 campos y la pregunta en español por campo (las opciones rápidas ya no son un catálogo cliente: las ofrece el backend por turno, D7 sustituida); `capture.service.ts` envuelve `POST /capture/start`, `POST /capture/messages`, `GET /capture/assistant-status` con manejo de estado de carga (RNF-3); `ng build` pasa.
 
 - [x] **[T-041] capture · página new-idea (decisión asistida vs manual)**
   - **Covers:** RF-2, RF-7 (caso 1)
@@ -263,7 +263,7 @@
 - [x] **[T-042] capture · componente chat (mensajes, chips y sugerencia de título)**
   - **Covers:** RF-5, RF-4
   - **Dependencias:** [T-041]
-  - **Hecho cuando:** `pages/chat-assist` renderiza la burbuja de mensajes (`components/chat-message`, papeles usuario/asistente), la lista de chips del campo en curso (selección = respuesta completa; se mantienen hasta que el campo se responde) y el bloque `components/title-suggestion` con acciones Aceptar / Pedir otra / Escribir (el texto escrito se envía sin modificación); acceso a `POST /capture/messages` con `quickOptionSelected` o texto libre; carga visible durante cada llamada a la IA (RNF-3); `ng build` pasa.
+  - **Hecho cuando:** `pages/chat-assist` renderiza la burbuja de mensajes (`components/chat-message`, papeles usuario/asistente), la lista de opciones rápidas que llega en la respuesta del turno (`quickOptions`, IA generadas por campo, D7 sustituida; selección = respuesta completa, se muestran solo en el turno vigente) y el bloque `components/title-suggestion` con acciones Aceptar / Pedir otra / Escribir (el texto escrito se envía sin modificación); acceso a `POST /capture/messages` con `quickOptionSelected` o texto libre; carga visible durante cada llamada a la IA (RNF-3); `ng build` pasa.
 
 - [x] **[T-043] capture · resumen editable y confirmación de la idea asistida**
   - **Covers:** RF-6, RNF-5
@@ -382,7 +382,7 @@
 - [x] **[T-063] Integración: captura asistida e2e con Ollama real (mock en tests, real en smoke)**
   - **Covers:** RF-2..RF-6, RF-4
   - **Dependencias:** [T-062], [T-043]
-  - **Hecho cuando:** Con Ollama corriendo (settings reales, no mock), el flujo completo desde la UI: nueva idea → conversación (orden fijo, chips, título sugerido con Aceptar/Otra/Escribir) → resumen editable → confirmación → idea EN_DESARROLLO origen `asistida` visible en "Mis ideas"; los tests de API que usan `ollama_mock` simulan las respuestas de generación de forma determinista (`pytest -q` verde); el smoke manual queda registrado con capturas/pasos en la tarea.
+  - **Hecho cuando:** Con Ollama corriendo (settings reales, no mock), el flujo completo desde la UI: nueva idea → conversación (orden fijo, opciones rápidas generadas por turno D7, título sugerido con Aceptar/Otra/Escribir) → resumen editable → confirmación → idea EN_DESARROLLO origen `asistida` visible en "Mis ideas"; los tests de API que usan `ollama_mock` simulan las respuestas de generación de forma determinista (`pytest -q` verde); el smoke manual queda registrado con capturas/pasos en la tarea.
 
 - [x] **[T-064] Integración: contingencia e2e (IA caída al inicio y a mitad de conversación)**
   - **Covers:** RF-7, RNF-1, RNF-3, RNF-10, casos 1, 2, 3

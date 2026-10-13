@@ -2,12 +2,14 @@
 
 Cover the use cases of the conversational engine:
   - `start_conversation` (T-027): resume the single ``ACTIVA`` (RF-2, case 8),
-    start with greeting + first question + fixed chips (RF-2/RF-5), and the
-    manual-form signal without the assistant (RF-7, case 1) — the proponent
-    field is prefilled from the account (spec §5.2);
+    start with greeting + first question (RF-2/RF-5), and the manual-form
+    signal without the assistant (RF-7, case 1) — the proponent field is
+    prefilled from the account (spec §5.2);
   - `process_message` (T-028): a free narrative may complete several fields at
-    once and the completed ones are never re-asked (RF-3); a chip is the field's
-    complete answer (RF-5); an insufficient answer triggers a clarification
+    once and the completed ones are never re-asked (RF-3); a chip is the
+    field's complete answer and is only valid when it was offered on the turn
+    (RF-5, D7: the assistant generates the per-turn options); an insufficient
+    answer triggers a clarification
     without advancing; skipping captures; completing the 7 -> ``RESUMEN`` (RF-6);
     an in-flight assistant failure surfaces the pre-filled manual fallback
     (RF-7, case 2, RNF-10);
@@ -22,6 +24,7 @@ import json
 
 import pytest
 
+from features.assistant.domain.prompts import FIELD_LABELS
 from features.capture.domain import capture_rules as rules
 from features.capture.infrastructure.conversation_store import ConversationStore
 from features.capture.use_cases import activate_manual as manual_uc
@@ -31,7 +34,13 @@ from features.capture.use_cases import start_conversation as start_uc
 from features.capture.use_cases import suggest_title as title_uc
 from features.ideas.infrastructure.idea_store import IdeaStore
 from shared.exceptions.handlers import AssistantUnavailable, DomainError, ValidationFailed
-from tests.conftest import InMemoryDirectory, InMemoryStore, OllamaMock
+from tests.conftest import (
+    InMemoryDirectory,
+    InMemoryStore,
+    OllamaMock,
+    options_for_label,
+    turn_options_json,
+)
 
 PROPOSER = "u_ana"
 
@@ -61,14 +70,24 @@ class _Extractor:
     """Programmable assistant for the extraction/titling turns.
 
     `extract` is the mapping returned by the extraction prompt; `title` the
-    suggestion returned by the title prompt. Both can be re-programmed per step
-    so one instance can drive a whole conversation in a test.
+    suggestion returned by the title prompt; `compact` the free-text
+    recompaction returned by the per-turn options prompt. All can be
+    re-programmed per step so one instance can drive a whole conversation in
+    a test. The turn-options prompt is answered with deterministic, label-keyed
+    options (see `tests.conftest.turn_options_json`) so chips stay predictable.
     """
 
-    def __init__(self, extract: dict | None = None, title: str = "Título sugerido", available: bool = True):
+    def __init__(
+        self,
+        extract: dict | None = None,
+        title: str = "Título sugerido",
+        available: bool = True,
+        compact: dict | None = None,
+    ):
         self.extract: dict = extract if extract is not None else {}
         self.title = title
         self.available = available
+        self.compact: dict = compact if compact is not None else {}
         self.prompts: list[str] = []
 
     def ping(self) -> bool:
@@ -76,6 +95,8 @@ class _Extractor:
 
     def generate(self, prompt: str) -> str:
         self.prompts.append(prompt)
+        if 'JSON esperado: {"options' in prompt:  # the per-turn options prompt
+            return turn_options_json(prompt, compact=self.compact)
         if "JSON esperado: {\"title" in prompt:  # the title-suggestion prompt
             return json.dumps({"title": self.title}, ensure_ascii=False)
         if "Campos pendientes" in prompt:  # the extraction prompt
@@ -121,11 +142,13 @@ def test_start_with_assistant_creates_and_greets_field_one() -> None:
     # The proponent field is prefilled from the account (spec §5.2): not asked
     # freely, confirmed/corrected in the summary (G08).
     assert "proponent" in payload["capturedFields"]
-    # The first question is `description` (RF-3 order) with its fixed chips (RF-5).
+    # The first question is `description` (RF-3 order); the opening turn offers
+    # no chips — the field is a free narrative (RF-5, D7: chips are generated
+    # per turn by the assistant, and only for chip-eligible fields on landing).
     turn = result["assistant"]
     assert turn["currentField"] == "description"
     assert rules.GREETING_TEXT in turn["text"]
-    assert turn["quickOptions"] == list(rules.CHIPS_BY_FIELD["description"])
+    assert turn["quickOptions"] == []
 
 
 def test_start_resumes_an_existing_active_conversation() -> None:
@@ -177,12 +200,18 @@ def _captured(captured: dict[str, str], current: str) -> tuple[ConversationStore
     """A persisted conversation whose given fields are captured, turn on `current`.
 
     `current` is always the next unfilled field for the given `captured` set, so
-    the test data stays consistent with the RF-3 order.
+    the test data stays consistent with the RF-3 order. The turn also records
+    the per-turn options offered while pointing at `current` (D7 replacement):
+    a chip is only valid against the options actually offered for the field in
+    the course, and chip-eligible fields get the mock's deterministic options.
     """
     store = _store()
     conv = rules.new_conversation(conversation_id="c_t", user_id=PROPOSER)
     conv.capturedFields = dict(captured)
     conv.currentField = current
+    if current in rules.CHIP_ELIGIBLE_FIELDS:
+        conv.offeredField = current
+        conv.offeredOptions = options_for_label(FIELD_LABELS[current])
     store.create(conv)
     return store, "c_t"
 
@@ -222,26 +251,30 @@ def test_narrative_assigns_few_fields_and_moves_to_the_title_turn() -> None:
 def test_a_chip_is_the_complete_answer_of_the_field() -> None:
     store, cid = _captured({"description": "d", "title": "t"}, "problem")
     assistant = _Extractor()
-    chip = list(rules.CHIPS_BY_FIELD["problem"])[0]
+    chip = options_for_label(FIELD_LABELS["problem"])[0]  # offered on the turn
     result = msg_uc.process_message(
         store, assistant, conversation_id=cid, user_id=PROPOSER, quick_option=chip
     )
     # The chip text IS the field's value, verbatim (RF-5).
     assert store.get(cid)["capturedFields"]["problem"] == chip
-    # The next question is `expectedBenefit` with its fixed chips; the IA was
-    # not needed for a chip turn.
+    # The next question is `expectedBenefit` with the options the assistant
+    # generated for it on landing (RF-5, D7 replacement).
     turn = result["assistant"]
     assert turn["currentField"] == "expectedBenefit"
-    assert turn["quickOptions"] == list(rules.CHIPS_BY_FIELD["expectedBenefit"])
-    assert assistant.prompts == []
+    assert turn["quickOptions"] == options_for_label(FIELD_LABELS["expectedBenefit"])
+    # The chip itself needs no IA call; the ONE call is the landing options.
+    assert len(assistant.prompts) == 1
+    assert 'JSON esperado: {"options' in assistant.prompts[0]
 
 
 def test_a_chip_that_does_not_match_the_field_is_not_accepted() -> None:
     store, cid = _captured({"description": "d", "title": "t"}, "problem")
     with pytest.raises(DomainError) as error:
+        # A well-formed option, but not one offered for the field in the course:
+        # only actually-offered options are valid (RF-5, D7 replacement).
         msg_uc.process_message(
             store, _Extractor(), conversation_id=cid, user_id=PROPOSER,
-            quick_option=list(rules.CHIPS_BY_FIELD["expectedBenefit"])[0],
+            quick_option=options_for_label(FIELD_LABELS["expectedBenefit"])[0],
         )
     assert error.value.status_code == 400
     assert store.get(cid)["capturedFields"].get("problem") is None
@@ -391,10 +424,11 @@ def test_accept_stores_the_last_suggestion_and_advances() -> None:
     result = title_uc.suggest_title(
         store, assistant, conversation_id=cid, user_id=PROPOSER, action="accept"
     )
-    # The suggested title is stored as-is and the turn moves on (RF-3 order).
+    # The suggested title is stored as-is and the turn moves on (RF-3 order),
+    # carrying the options the assistant generated for `problem` on landing.
     assert store.get(cid)["capturedFields"]["title"] == "Título A"
     assert result["assistant"]["currentField"] == "problem"
-    assert result["assistant"]["quickOptions"] == list(rules.CHIPS_BY_FIELD["problem"])
+    assert result["assistant"]["quickOptions"] == options_for_label(FIELD_LABELS["problem"])
 
 
 def test_manual_title_is_stored_unmodified_and_advances() -> None:

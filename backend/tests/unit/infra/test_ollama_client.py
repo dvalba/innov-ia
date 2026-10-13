@@ -54,10 +54,30 @@ def server():
     httpd.server_close()
 
 
-def test_ping_ok_and_tags_shape(server: str) -> None:
-    _Handler.behavior = staticmethod(lambda path, body: (200, {"models": []}))
+def test_ping_ok_when_the_configured_model_is_loaded(server: str) -> None:
+    _Handler.behavior = staticmethod(
+        lambda path, body: (200, {"models": [{"name": "test-model:latest"}]})
+    )
     client = OllamaClient(server, "test-model", timeout=2)
     assert client.ping() is True
+
+
+def test_ping_ok_matches_the_model_base_ignoring_the_tag(server: str) -> None:
+    # A model configured without `:latest` still matches the tagged name.
+    _Handler.behavior = staticmethod(
+        lambda path, body: (200, {"models": [{"name": "test-model:latest"}]})
+    )
+    client = OllamaClient(server, "test-model:latest", timeout=2)
+    assert client.ping() is True
+
+
+def test_ping_false_when_the_model_is_not_loaded(server: str) -> None:
+    # The service answers but the assistant model is absent: unavailable.
+    _Handler.behavior = staticmethod(
+        lambda path, body: (200, {"models": [{"name": "another-model:latest"}]})
+    )
+    client = OllamaClient(server, "test-model", timeout=2)
+    assert client.ping() is False
 
 
 def test_generate_returns_response_field(server: str) -> None:

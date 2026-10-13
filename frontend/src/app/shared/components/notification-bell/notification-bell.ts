@@ -34,6 +34,9 @@ export class NotificationBell {
   protected readonly formatearFecha = formatearFecha;
 
   constructor() {
+    // Refetch immediately on entry (no-op while the initial load runs): the
+    // root-level resource would otherwise keep the previous list cached.
+    this.notificaciones.reload();
     // Refresh the list + counter while the bell is mounted (the user is
     // signed in); the timer is cleared on destroy so it never runs afterwards.
     const timer = setInterval(() => this.notificaciones.reload(), POLL_MS);

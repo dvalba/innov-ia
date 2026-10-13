@@ -46,6 +46,7 @@ from app.deps import (
     AssistantClientDep,
     ConversationStoreDep,
     IdeaLedgerDep,
+    OrgStoreDep,
     UserDirectoryDep,
     role_dependency,
 )
@@ -57,6 +58,7 @@ from features.capture.use_cases.finish_capture import finish_capture
 from features.capture.use_cases.process_message import process_message
 from features.capture.use_cases.start_conversation import start_conversation
 from features.capture.use_cases.suggest_title import suggest_title
+from features.org.use_cases.get_org_profile import get_org_profile
 from shared.exceptions.handlers import DomainError
 
 capture_router = APIRouter(prefix="/capture", tags=["capture"])
@@ -131,10 +133,12 @@ def start_endpoint(session: ProponentDep, store: ConversationStoreDep,
 
 @capture_router.post("/messages")
 def messages_endpoint(payload: MessageRequest, session: ProponentDep,
-                      store: ConversationStoreDep, assistant: AssistantClientDep) -> dict:
+                      store: ConversationStoreDep, assistant: AssistantClientDep,
+                      org_store: OrgStoreDep) -> dict:
     """Processes one capture message (RF-3/RF-5) and returns the next turn;
     a mid-conversation assistant failure is the 503 with the captured fields
-    as pre-fill (RF-7 case 2, RNF-10)."""
+    as pre-fill (RF-7 case 2, RNF-10). The per-turn IA call is grounded on the
+    organization profile (D7 replacement)."""
     conversation_id = _resolve_id(store, session, payload.conversationId)
     return process_message(
         store,
@@ -143,14 +147,17 @@ def messages_endpoint(payload: MessageRequest, session: ProponentDep,
         user_id=session.user_id,
         message=payload.message,
         quick_option=payload.quickOptionSelected,
+        org_profile=get_org_profile(org_store),
     )
 
 
 @capture_router.post("/title")
 def title_endpoint(payload: TitleRequest, session: ProponentDep,
-                   store: ConversationStoreDep, assistant: AssistantClientDep) -> dict:
+                   store: ConversationStoreDep, assistant: AssistantClientDep,
+                   org_store: OrgStoreDep) -> dict:
     """Applies a title action (RF-4): `accept` the proposed title, `another`
-    distinct candidate, or `manual` text stored unmodified."""
+    distinct candidate, or `manual` text stored unmodified. The per-turn IA call
+    on the advance is grounded on the organization profile (D7 replacement)."""
     conversation_id = _resolve_id(store, session, payload.conversationId)
     return suggest_title(
         store,
@@ -159,6 +166,7 @@ def title_endpoint(payload: TitleRequest, session: ProponentDep,
         user_id=session.user_id,
         action=payload.action,
         manual_text=payload.manualText,
+        org_profile=get_org_profile(org_store),
     )
 
 

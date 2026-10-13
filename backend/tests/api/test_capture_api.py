@@ -2,14 +2,15 @@
 
 Covers the proponent surface of `/capture`:
   - `POST /capture/start` (200): new conversation with greeting + first
-    question + chips (RF-2/RF-5), resume of the single ``ACTIVA`` (case 8),
-    and the manual signal without the assistant (RF-7 case 1, no orphan
-    conversation);
+    question (RF-2; RF-5 chips are generated per turn by the assistant, D7
+    replacement), resume of the single ``ACTIVA`` (case 8), and the manual
+    signal without the assistant (RF-7 case 1, no orphan conversation);
   - `GET /capture/assistant-status` (200): the availability probe
     OK/UNAVAILABLE (RF-7 case 1);
   - `POST /capture/messages` (200): the complete assisted flow — narrative
     extraction (RF-3), title suggestion turn (RF-4), chip turns as complete
-    answers (RF-5), the 7 fields closing to the editable summary (RF-6);
+    answers using only the options offered on the turn (RF-5, D7), the 7
+    fields closing to the editable summary (RF-6);
     mid-conversation assistant failure: 503 with the captured fields as
     pre-fill (RF-7 case 2, RNF-10);
   - `POST /capture/title` (200): the RF-4 actions on the title turn;
@@ -32,12 +33,19 @@ from fastapi.testclient import TestClient
 
 from app import deps as deps_module
 from app.main import app as main_app
+from features.assistant.domain.prompts import FIELD_LABELS
 from features.auth.infrastructure.token_store import TokenStore
-from features.capture.domain import capture_rules as rules
 from features.capture.infrastructure.conversation_store import ConversationStore
 from features.ideas.infrastructure.idea_store import IdeaStore
+from features.org.infrastructure.org_store import OrgStore
 from shared.utils.password import hash_password
-from tests.conftest import InMemoryDirectory, InMemoryStore, OllamaMock
+from tests.conftest import (
+    InMemoryDirectory,
+    InMemoryStore,
+    OllamaMock,
+    options_for_label,
+    turn_options_json,
+)
 
 PROPOSER = "u_ana"
 
@@ -56,6 +64,8 @@ class ProgrammableMock:
 
     def generate(self, prompt: str) -> str:
         self.inner.prompts.append(prompt)
+        if 'JSON esperado: {"options' in prompt:  # the per-turn options prompt
+            return turn_options_json(prompt, compact={})
         if "JSON esperado: {\"title" in prompt:
             return json.dumps({"title": self.title}, ensure_ascii=False)
         if "Campos pendientes" in prompt:
@@ -126,7 +136,12 @@ def assistant() -> ProgrammableMock:
 
 
 @pytest.fixture()
-def auth(directory, idea_ledger, conversation_store, assistant):
+def org_store() -> OrgStore:
+    return OrgStore(InMemoryStore())
+
+
+@pytest.fixture()
+def auth(directory, idea_ledger, conversation_store, assistant, org_store):
     """Issues bearer-authenticated clients against the in-memory stores."""
     token_store = TokenStore(InMemoryStore(), ttl_minutes=480, now_factory=datetime.now)
     main_app.dependency_overrides[deps_module.get_user_directory] = lambda: directory
@@ -136,6 +151,7 @@ def auth(directory, idea_ledger, conversation_store, assistant):
         lambda: conversation_store
     )
     main_app.dependency_overrides[deps_module.get_assistant_client] = lambda: assistant
+    main_app.dependency_overrides[deps_module.get_org_store] = lambda: org_store
     # T-062: /capture/start's background check must not reach the real stores.
     main_app.dependency_overrides[deps_module.get_assistant_check] = (
         lambda: (lambda: {"status": "OK", "refined": 0, "failed": 0, "pending": 0})
@@ -165,10 +181,17 @@ def _structure(**overrides: dict) -> dict:
 
 def _full_flow(client: TestClient, assistant: ProgrammableMock) -> str:
     """Drives the assisted chat to the RESUMEN state and returns the
-    conversation id (start → narrative → title → chips x5)."""
+    conversation id (start → narrative → title → 4 chip turns)."""
     start = client.post("/capture/start")
     assert start.status_code == 200
     conv_id = start.json()["conversation"]["id"]
+    # The opening turn is `description`: free narrative, no chips (RF-5, D7 —
+    # chips are generated per turn, only for chip-eligible fields on landing).
+    turn = start.json()["assistant"]
+    assert turn["currentField"] == "description"
+    assert turn["quickOptions"] == []
+    # The proponent is prefilled from the account (spec §5.2): only the 5
+    # remaining fields are walked (RF-3 order), the last landing on RESUMEN.
 
     assistant.extract = {"description": "Reducir los tiempos de compra con un flujo digital."}
     reply = client.post("/capture/messages", json={"conversationId": conv_id,
@@ -180,14 +203,20 @@ def _full_flow(client: TestClient, assistant: ProgrammableMock) -> str:
 
     reply = client.post("/capture/title", json={"conversationId": conv_id, "action": "accept"})
     assert reply.status_code == 200
-    assert reply.json()["assistant"]["currentField"] == "problem"
+    turn = reply.json()["assistant"]
+    assert turn["currentField"] == "problem"
 
+    # Each of the 4 remaining fields is answered with the per-turn option the
+    # assistant offered (RF-5, D7: a chip is only valid when actually offered).
     for field in ("problem", "expectedBenefit", "strategicAlignment",
-                  "estimatedResources", "proponent"):
-        chip = list(rules.CHIPS_BY_FIELD[field])[0]
+                  "estimatedResources"):
+        assert turn["currentField"] == field
         reply = client.post("/capture/messages",
-                            json={"conversationId": conv_id, "quickOptionSelected": chip})
+                            json={"conversationId": conv_id,
+                                  "quickOptionSelected": turn["quickOptions"][0]})
         assert reply.status_code == 200
+        if reply.json()["state"] != "RESUMEN":
+            turn = reply.json()["assistant"]
     assert reply.json()["state"] == "RESUMEN"
     summary = reply.json()["summary"]
     assert len(summary) == 7
@@ -278,8 +307,8 @@ def test_finish_without_confirmation_is_a_422_with_no_partial_record(
     registered and the conversation keeps the summary for a corrected retry."""
     client = auth()
     conv_id = _full_flow(client, assistant)
-    # Confirming without correcting the structured field: the stored value is
-    # the verbatim chip ("Bajo: menos de un mes"), not a valid object.
+    # A chip is a free-text answer (RF-5): the stored `estimatedResources` is
+    # the verbatim option, not a valid structured object, so the finish fails.
     result = client.post("/capture/finish", json={"conversationId": conv_id, "captured": {}})
     assert result.status_code == 422
     assert result.json()["error"]["code"] == "IDEA_FIELDS_INVALID"
@@ -406,11 +435,13 @@ def test_an_empty_message_is_a_400(auth, assistant) -> None:
 
 
 def test_an_unknown_chip_is_a_400(auth, assistant) -> None:
-    """A chip that does not belong to the field in course is rejected (RF-5)."""
+    """A chip not offered on the turn is rejected (RF-5, D7 replacement)."""
     client = auth()
     start = client.post("/capture/start").json()
     conv_id = start["conversation"]["id"]
-    foreign_chip = list(rules.CHIPS_BY_FIELD["problem"])[0]
+    # The opening turn is `description`: no options are offered for it, so any
+    # well-formed option — here one for `problem` — is an unknown chip.
+    foreign_chip = options_for_label(FIELD_LABELS["problem"])[0]
     reply = client.post("/capture/messages",
                         json={"conversationId": conv_id, "quickOptionSelected": foreign_chip})
     assert reply.status_code == 400

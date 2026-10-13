@@ -8,7 +8,7 @@ expressed with `Annotated` typed dependencies, overridable in tests.
 Typed dependency aliases:
   - `TokenStoreDep` / `UserDirectoryDep` / `IdeaLedgerDep` /
     `ConversationStoreDep` / `AssistantClientDep` /
-    `NotificationStoreDep`: DI providers (override in tests).
+    `NotificationStoreDep` / `OrgStoreDep`: DI providers (override in tests).
   - `RefinedEmitterDep` / `PublishedEmitterDep` / `RejectedEmitterDep` /
     `RequestedEmitterDep` (G10/T-033): emitters for the four RF-18
     notification events. Each takes the updated `Idea` produced by the
@@ -38,6 +38,7 @@ from features.notifications.use_cases.create_notification import (
     create_notification,
     fanout_requested,
 )
+from features.org.infrastructure.org_store import OrgStore
 from shared.config.settings import settings
 from shared.contracts.assistant_client import AssistantClient
 from shared.contracts.user_directory import UserDirectory
@@ -108,12 +109,22 @@ def get_notification_store() -> NotificationStore:
     return _notification_store()
 
 
+def _org_store() -> OrgStore:
+    return OrgStore(JsonStore(settings.data_dir / "org.json"))
+
+
+def get_org_store() -> OrgStore:
+    """DI provider for the organization profile store (override in tests)."""
+    return _org_store()
+
+
 TokenStoreDep = Annotated[TokenStore, Depends(get_token_store)]
 UserDirectoryDep = Annotated[UserDirectory, Depends(get_user_directory)]
 IdeaLedgerDep = Annotated[IdeaStore, Depends(get_idea_ledger)]
 ConversationStoreDep = Annotated[ConversationStore, Depends(get_conversation_store)]
 AssistantClientDep = Annotated[AssistantClient, Depends(get_assistant_client)]
 NotificationStoreDep = Annotated[NotificationStore, Depends(get_notification_store)]
+OrgStoreDep = Annotated[OrgStore, Depends(get_org_store)]
 
 
 def _refined_emitter(store, directory):

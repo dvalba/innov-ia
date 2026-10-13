@@ -90,6 +90,64 @@ def refine_idea_prompt(idea: dict) -> str:
     )
 
 
+def turn_options_prompt(*, current_field: str, captured: dict, org: dict | None) -> str:
+    """Per-turn capture assistance (D7 replacement: IA-generated quick options).
+
+    Asks the model for BOTH at once, grounded on the organization profile:
+      - `options`: up to 5 short candidate replies (chips) for the field being
+        asked right now,
+      - `compact`: improved, concise versions of the free-text fields already
+        captured (only the non-empty string fields are shown; structured fields
+        never reach the model).
+    When the organization profile is missing or empty the model is told so and
+    must still answer strictly (the code degrades to no chips, never breaks).
+    The `JSON esperado: {"options` marker is the contract the test mock keys on.
+    """
+    label = FIELD_LABELS.get(current_field, current_field)
+    profile = org or {}
+    has_profile = any(str(profile.get(key, "")).strip()
+                      for key in ("name", "sector", "description", "mission")) \
+        or bool(profile.get("strategicObjectives"))
+    if has_profile:
+        objectives = profile.get("strategicObjectives") or []
+        objectives_text = "\n".join(f"- {item}" for item in objectives) if objectives else "- (sin definir)"
+        org_block = (
+            "Perfil de la organización:\n"
+            f"- Nombre: {profile.get('name') or '(sin definir)'}\n"
+            f"- Sector: {profile.get('sector') or '(sin definir)'}\n"
+            f"- Descripción: {profile.get('description') or '(sin definir)'}\n"
+            f"- Misión: {profile.get('mission') or '(sin definir)'}\n"
+            f"- Objetivos estratégicos:\n{objectives_text}"
+        )
+    else:
+        org_block = "Perfil de la organización: (sin perfil de organización definido)"
+    free_lines = [
+        f"- {FIELD_LABELS.get(key, key)}: {value}"
+        for key, value in captured.items()
+        if isinstance(value, str) and str(value).strip()
+    ]
+    free_block = "\n".join(free_lines) if free_lines else "(ninguno)"
+    return _json_only_prelude() + (
+        "Eres el asistente de Innov-IA en la captura asistida de una idea. En este "
+        "turno se está preguntando por el campo indicado. Propón opciones rápidas "
+        "que el proponente podría responder con un clic, basándote en el perfil de "
+        "la organización y en lo ya capturado: NO inventes datos no apoyados. "
+        "Además, mejora y acorta la redacción de los campos de texto libre ya "
+        "capturados, conservando su significado sin añadir datos nuevos.\n"
+        f"{org_block}\n"
+        f"Campo en curso: {label}.\n"
+        f"Campos de texto libre ya capturados:\n{free_block}\n\n"
+        "Reglas: las opciones son cadenas cortas (máximo 90 caracteres, sin punto "
+        "final, en español), únicas y no vacías; devuelve hasta 5, o un array vacío "
+        "si no puedes proponer ninguna con fundamento. `compact` contiene solo las "
+        "claves de los campos de texto libre capturados, con su nueva redacción "
+        "concisa (o la misma si no mejora); no incluyas campos que no hayan sido "
+        "capturados.\n"
+        "JSON esperado: {\"options\": [\"opción 1\", \"opción 2\"], "
+        "\"compact\": {\"<campo>\": \"<redacción concisa>\"}}"
+    )
+
+
 def improve_idea_prompt(idea: dict, instruction: str) -> str:
     """Improvement of an idea under the proponent's instruction (RF-8).
 

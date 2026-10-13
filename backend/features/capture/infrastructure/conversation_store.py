@@ -117,6 +117,20 @@ class ConversationStore:
 
         return self.update_record(conversation_id, apply)
 
+    def set_offered_options(self, conversation_id: str, field_name: str | None,
+                            options: Sequence[str]) -> dict:
+        """Records the options the assistant offered while pointing at
+        `field_name` (RF-5, D7 replacement). A later chip click is only valid
+        against the recorded options of the field in the course."""
+
+        def apply(payload: dict) -> dict:
+            conversation = Conversation.from_payload(payload)
+            conversation.offeredField = field_name
+            conversation.offeredOptions = list(options)
+            return conversation.to_payload()
+
+        return self.update_record(conversation_id, apply)
+
     # -- title suggestions (RF-4) ----------------------------------------------------
 
     def add_title_suggestion(self, conversation_id: str, text: str) -> dict:

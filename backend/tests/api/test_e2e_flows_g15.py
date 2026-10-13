@@ -6,9 +6,10 @@ Cierra los cuatro viajes completos sobre una única superficie API en vivo
 `get_assistant_check` (como hace `test_assistant_api.py`), sin tocar código de
 producción:
 
-  - T-063 captura asistida: nueva idea → conversación (orden fijo, chips,
-    título con Aceptar/Otra/Escribir) → resumen editable → confirmación →
-    idea EN_DESARROLLO `asistida` visible en "Mis ideas";
+  - T-063 captura asistida: nueva idea → conversación (orden fijo, opciones
+    rápidas generadas por turno, título con Aceptar/Otra/Escribir) → resumen
+    editable → confirmación → idea EN_DESARROLLO `asistida` visible en
+    "Mis ideas";
   - T-064 contingencia: IA caída al inicio → manual con aviso (caso 1);
     cayendo a mitad → 503 con `capturedFields` + manual preinada (caso 2);
     el reintento único de 60 s es transparente (RNF-3) y no se expone aquí;
@@ -45,13 +46,13 @@ from fastapi.testclient import TestClient
 from app import deps as deps_module
 from app.main import app as main_app
 from features.auth.infrastructure.token_store import TokenStore
-from features.capture.domain import capture_rules as rules
 from features.capture.infrastructure.conversation_store import ConversationStore
 from features.ideas.domain.idea import Idea
 from features.ideas.infrastructure.idea_store import IdeaStore
 from features.notifications.infrastructure.notification_store import NotificationStore
+from features.org.infrastructure.org_store import OrgStore
 from shared.utils.password import hash_password
-from tests.conftest import InMemoryDirectory, InMemoryStore, OllamaMock
+from tests.conftest import InMemoryDirectory, InMemoryStore, OllamaMock, turn_options_json
 
 PROPOSER = "u_ana"
 SPECIALIST = "u_esp"
@@ -99,6 +100,7 @@ def env():
     mock = OllamaMock()
     token_store = TokenStore(InMemoryStore(), ttl_minutes=480, now_factory=datetime.now)
     conversations = ConversationStore(InMemoryStore())
+    org_store = OrgStore(InMemoryStore())
     main_app.dependency_overrides[deps_module.get_user_directory] = lambda: directory
     main_app.dependency_overrides[deps_module.get_token_store] = lambda: token_store
     main_app.dependency_overrides[deps_module.get_idea_ledger] = lambda: ledger
@@ -107,12 +109,14 @@ def env():
     )
     main_app.dependency_overrides[deps_module.get_assistant_client] = lambda: mock
     main_app.dependency_overrides[deps_module.get_notification_store] = lambda: notifications
+    main_app.dependency_overrides[deps_module.get_org_store] = lambda: org_store
     # The real check (no no-op shield): the triggers run the genuine pass over
     # the in-memory ledger + notification store.
     main_app.dependency_overrides.pop(deps_module.get_assistant_check, None)
     return SimpleNamespace(
         directory=directory, ledger=ledger, notifications=notifications,
         mock=mock, token_store=token_store, conversations=conversations,
+        org_store=org_store,
     )
 
 
@@ -150,20 +154,29 @@ def _idea_payload(owner_id: str, *, title: str, created_at: str) -> dict:
 
 
 def test_t063_assisted_capture_end_to_end(env, api_client: TestClient) -> None:
-    """New idea → conversation (fixed order, chips, Aceptar/Otra/Escribir)
-    → editable summary → confirm → EN_DESARROLLO `asistida` in "Mis ideas"."""
+    """New idea → conversation (fixed order, per-turn quick options,
+    Aceptar/Otra/Escribir) → editable summary → confirm → EN_DESARROLLO
+    `asistida` in "Mis ideas"."""
     headers = _headers(env, PROPOSER)
     # "another" requires a candidate distinct from the earlier ones (RF-4), so
     # the mock offers one distinct title per title prompt.
     _titles = iter(("Otro flujo de compras", "Flujo automatizado de compras"))
-    env.mock.respond = lambda prompt: (
-        json.dumps({"title": next(_titles, None)}, ensure_ascii=False)
-        if "JSON esperado: {\"title" in prompt
-        else json.dumps(
+
+    def respond(prompt: str) -> str:
+        # The per-turn quick options (and any captured compaction) are driven
+        # by the field in course named in the prompt itself (D7 replacement).
+        if 'JSON esperado: {"options' in prompt:
+            return turn_options_json(prompt)
+        if "JSON esperado: {\"title" in prompt:
+            return json.dumps(
+                {"title": next(_titles, None)}, ensure_ascii=False
+            )
+        return json.dumps(
             {"description": "Digitalizar el flujo de compras de proveedores."},
             ensure_ascii=False,
         )
-    )
+
+    env.mock.respond = respond
 
     status = api_client.get("/capture/assistant-status", headers=headers)
     assert status.status_code == 200
@@ -175,8 +188,11 @@ def test_t063_assisted_capture_end_to_end(env, api_client: TestClient) -> None:
     assert start_body["mode"] == "assistant" and start_body["resumed"] is False
     conv_id = start_body["conversation"]["id"]
     # The fixed order starts at `description` (RF-3) and the proponent data
-    # comes already prefilled from the account (spec §5.2).
+    # comes already prefilled from the account (spec §5.2). `description` is
+    # never chip-eligible, so the opening turn offers no quick options and
+    # performs no model call.
     assert start_body["assistant"]["currentField"] == "description"
+    assert start_body["assistant"]["quickOptions"] == []
     assert list(env.mock.prompts) == [], "the probe never generates"
 
     reply = api_client.post(
@@ -212,15 +228,21 @@ def test_t063_assisted_capture_end_to_end(env, api_client: TestClient) -> None:
     assert written.status_code == 200
     assert written.json()["assistant"]["currentField"] == "problem"
 
-    for field in ("problem", "expectedBenefit", "strategicAlignment",
-                  "estimatedResources", "proponent"):
-        chip = list(rules.CHIPS_BY_FIELD[field])[0]
+    # Each remaining field in course gets its own per-turn quick options
+    # (D7 replacement); `proponent` was prefilled, so four chip turns remain,
+    # each one answering with the first option OFFERED by that same turn.
+    for current in ("problem", "expectedBenefit", "strategicAlignment",
+                    "estimatedResources"):
+        turn = written.json() if current == "problem" else reply.json()
+        chip = turn["assistant"]["quickOptions"][0]
         reply = api_client.post(
             "/capture/messages",
             json={"conversationId": conv_id, "quickOptionSelected": chip},
             headers=headers,
         )
         assert reply.status_code == 200
+        if current != "estimatedResources":
+            assert reply.json()["assistant"]["currentField"] is not None
     summary = reply.json()
     assert summary["state"] == "RESUMEN"
     assert len(summary["summary"]) == 7

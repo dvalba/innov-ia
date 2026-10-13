@@ -27,4 +27,10 @@ export class IdeaList {
   protected readonly miLista = this.ideas.miLista;
   protected readonly origenLabel = origenLabel;
   protected readonly formatearDia = formatearDia;
+
+  constructor() {
+    // Refetch on every entry: the root-level resource keeps its cached list
+    // across sessions/users within the same SPA lifecycle.
+    this.miLista.reload();
+  }
 }

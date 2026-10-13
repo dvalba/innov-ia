@@ -49,7 +49,7 @@
         </button>
       </div>
 
-      <div #scroll class="flex-1 space-y-3 overflow-y-auto bg-slate-50 p-5">
+      <div #scroll class="flex-1 space-y-2 overflow-y-auto bg-slate-50 p-4">
         @for (m of transcript(); track m.id) {
           <app-chat-message [mensaje]="m"></app-chat-message>
         }

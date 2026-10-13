@@ -83,6 +83,11 @@ class Settings:
         session_ttl_minutes: int | None = None,
         admin_username: str | None = None,
         admin_password: str | None = None,
+        org_name: str | None = None,
+        org_sector: str | None = None,
+        org_description: str | None = None,
+        org_mission: str | None = None,
+        org_objectives: str | None = None,
     ) -> None:
         self.ollama_base_url = ollama_base_url if ollama_base_url is not None else _read_str(
             "OLLAMA_BASE_URL", "http://localhost:11434"
@@ -108,6 +113,20 @@ class Settings:
         # Optional: only used at first initialization (plan T-011). Unlike the
         # others it has no default — when unset the seed is a no-op.
         self.admin_password = admin_password if admin_password is not None else _lookup("INNOV_ADMIN_PASSWORD")
+        # Organization profile (knowledge source for the per-turn quick
+        # options, decision D7 replacement). Seed values: only read at first
+        # initialization — when none is set the profile starts empty and the
+        # administrator fills it in through the panel.
+        self.org_name = org_name if org_name is not None else _read_str("INNOV_ORG_NAME", "")
+        self.org_sector = org_sector if org_sector is not None else _read_str("INNOV_ORG_SECTOR", "")
+        self.org_description = org_description if org_description is not None else _read_str(
+            "INNOV_ORG_DESCRIPTION", ""
+        )
+        self.org_mission = org_mission if org_mission is not None else _read_str("INNOV_ORG_MISSION", "")
+        raw_objectives = org_objectives if org_objectives is not None else _lookup("INNOV_ORG_OBJECTIVES")
+        self.org_objectives = [
+            objective.strip() for objective in (raw_objectives or "").split(",") if objective.strip()
+        ]
 
 
 settings = Settings()

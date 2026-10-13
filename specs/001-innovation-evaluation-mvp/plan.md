@@ -47,17 +47,18 @@ frontend/src/
 │       ├── capture/                  # Asistente conversacional + contingencia manual + desarrollo
 │       │   ├── pages/
 │       │   │   ├── new-idea/         # Punto de entrada a una captura
-│       │   │   ├── chat-assist/      # Conversación asistida (chips, título sugerido)
+│       │   │   ├── chat-assist/      # Conversación asistida (opciones rápidas del turno, título sugerido)
 │       │   │   └── manual-form/      # Formulario manual (independiente de la IA)
 │       │   ├── components/
-│       │   │   ├── chat-message/     # Burbuja de mensajero (usuario/IA)
-│       │   │   ├── chips/            # Respuestas rápidas por campo (RF-5)
+│       │   │   ├── chat-message/     # Burbuja de mensajero (usuario/IA); las opciones rápidas
+│       │   │   │                     # del turno (D7) se renderizan inline en chat-assist a
+│       │   │   │                     # partir de quickOptions (no hay componente chips/)
 │       │   │   ├── title-suggestion/ # Aceptar/Otro/Escribir (RF-4)
 │       │   │   ├── field-summary/    # Resumen editable de los 7 campos (RF-6)
 │       │   │   └── manual-fields/    # 7 campos obligatorios
 │       │   └── services/
 │       │       ├── capture.service.ts  # Orquestación client-side de la conversación
-│       │       └── fields-meta.ts      # Orden fijo + catálogo fijo de chips por campo
+│       │       └── fields-meta.ts      # Orden fijo + pregunta por campo (chips por turno, D7)
 │       │
 │       ├── my-ideas/
 │       │   ├── pages/
@@ -139,7 +140,7 @@ backend/
     ├── capture/                     # Estado de conversaciones de captura + registro de ideas
     │   ├── domain/
     │   │   ├── conversation.py       # Modelo de conversación + campos capturados
-    │   │   └── capture_rules.py      # Orden fijo, reglas de campo obligatorio, chips fijos
+    │   │   └── capture_rules.py      # Orden fijo, preguntas por campo, campos con opciones (D7)
     │   ├── use_cases/
     │   │   ├── start_conversation.py # Inicia/retoma conversación (límite 1 activa, RF-2)
     │   │   ├── process_message.py    # Aplica respuesta → campos, decide siguiente pregunta
@@ -254,7 +255,7 @@ Si `idea-card` (usado en `my-ideas`, `validation` y `catalog`) se reutiliza en m
 | Entidad | Propósito | Campos esenciales |
 |---|---|---|
 | `Idea` | Unidad de negocio (los 7 campos + estado) | id, campos, owner_id, origen, estado, timestamps, rastro |
-| `ChatMessage` | Mensaje de la conversación de captura | id, conversation_id, role, contenido, chips, sugerencia de título |
+| `ChatMessage` | Mensaje de la conversación de captura | id, conversation_id, role, contenido, quickOptions (opciones del turno, D7), sugerencia de título |
 | `Conversation` | Sesión de captura activa | id, user_id, estado, campos capturados, turno de campo |
 | `IdeaVersion` | Versión vigente/refinada de una idea (aceptada/descartada) | id, idea_id, versión, campos, origen (manual/IA), estado |
 | `User` | Cuenta y roles | id, username, nombre, área, datos contacto, roles, habilitado |
@@ -353,7 +354,7 @@ Si `idea-card` (usado en `my-ideas`, `validation` y `catalog`) se reutiliza en m
     "role":            { "enum": ["user", "assistant", "system"] },
     "text":            { "type": "string" },
     "currentField":    { "type": ["string", "null"], "description": "Campo en curso: description|title|problem|expectedBenefit|strategicAlignment|estimatedResources|proponent" },
-    "quickOptions":    { "type": "array", "items": { "type": "string" }, "description": "Catálogo fijo de chips del campo (RF-5)" },
+    "quickOptions":    { "type": "array", "items": { "type": "string" }, "description": "Opciones rápidas generadas por la IA para el turno en curso (RF-5, D7)" },
     "titleSuggestion": {
       "type": ["object", "null"],
       "properties": {
@@ -538,6 +539,7 @@ Base: `/api/v1`. Autenticación por **portador de sesión** (RF-1). Todos los pa
   }
 }
 ```
+> `quickOptions` son las opciones que la IA generó para el turno en curso (RF-5, D7); el array puede ser vacío cuando el campo no las admite.
 
 **POST `/capture/finish`**
 ```json
@@ -559,7 +561,7 @@ Base: `/api/v1`. Autenticación por **portador de sesión** (RF-1). Todos los pa
 
 1. Cliente → `POST /capture/start` → 200 `conversationId` + saludo/primera pregunta (RF-2).
 2. Cliente → `POST /capture/messages` con la respuesta.
-3. Backend aplica el texto al campo en curso (asignación narrativa, RF-3) y devuelve la siguiente pregunta + chips fijos (RF-5) + sugerencia de título si corresponde (RF-4).
+3. Backend aplica el texto al campo en curso (asignación narrativa, RF-3) y devuelve la siguiente pregunta + opciones rápidas del turno generadas por la IA (RF-5, D7) + sugerencia de título si corresponde (RF-4).
 4. Al completar los 7 campos, el último `messages` devuelve `state: RESUMEN` con el resumen editable (RF-6).
 5. Cliente → `POST /capture/finish` → 201 idea (EN_DESARROLLO, RF-6).
 6. Si en cualquier paso la IA falló → ver §3.4.
@@ -627,7 +629,7 @@ func INICIAR_CONVERSACION(usuario):
         devolver conversación existente
     si ASISTENTE_DISPONIBLE():
         conv = nuevo conversation(campos={}, currentField=ORDER[0])
-        devolver conv + saludo + pregunta(ORDER[0]) + chips(ORDER[0])
+        devolver conv + saludo + pregunta(ORDER[0])  # sin chips: la 1ª llamada IA va en PROCESAR_MENSAJE (D7)
     si no:
         devolver FORMULARIO_MANUAL(campos={})       # RF-7, caso 1
 
@@ -645,7 +647,7 @@ func PROCESAR_MENSAJE(conv, texto):
         conv.state = RESUMEN
         devolver RESUMEN_EDITABLE(conv)            # RF-6
     si no:
-        devolver PREGUNTA(conv.currentField) + chips(conv.currentField) + (title_suggestion si aplica)
+        devolver PREGUNTA(conv.currentField) + opciones_turno(conv, IA) + (title_suggestion si aplica)  # D7
 
 func EXTRAER_CAMPOS(texto):
     # La IA asigna fragmentos a campos (RF-3); si un campo es insuficiente,
@@ -668,23 +670,28 @@ func FINALIZAR_CONV(conv, resumen_confirmado):
 ### 4.2 Mecanismo de sugerencias rápidas (chips)
 
 ```
-CATALOGO_CHIPS = {
-   description:          [ … ],
-   problem:              [ "Retraso en compras urgentes", "Costos altos …", … ],
-   expectedBenefit:      [ "Ahorro de costos", "Eficiencia", "Nuevos ingresos", … ],
-   strategicAlignment:   [ "Agilizar cadena de suministro", "Reducir carga manual", … ],
-   estimatedResources:   [ "…" ]
-}
+func OPCIONES_TURNO(conv, IA):                          # D7: generación por turno
+    campo = conv.currentField
+    si campo NO es elegible para opciones O conv.capturedFields está vacío:
+        devolver { quickOptions: [] }
+    respuesta = IA(turn_options_prompt(campo, conv.capturedFields_texto, perfil_organización))
+    devolver { quickOptions: limpiar_opciones(respuesta.options) }   # máx. 5, ≤90 chars, únicas
 
-func PREGUNTA_CAMPO(campo):
+# Además, la misma llamada compacta en texto los campos libres ya capturados
+# (description, problem, expectedBenefit, strategicAlignment; nunca los
+# estructurados ni el título) y se aplican a conv.capturedFields.
+
+func PREGUNTA_CAMPO(campo, quickOptions=[]):
     devolver {
         text:      PREGUNTA_POR_CAMPO[campo],
         currentField: campo,
-        quickOptions: CATALOGO_CHIPS[campo]          # catálogo FIJO (RF-5)
+        quickOptions: quickOptions                     # del turno (IA, RF-5/D7)
     }
 
 func APLICAR_CHIP(campo, chip):
-    conv.capturedFields[campo] = chip                # el chip es la respuesta COMPLETA (RF-5)
+    si chip NO está entre las ofrecidas en el turno:   # RF-5: solo chips del turno
+        devolver ERROR (400)
+    conv.capturedFields[campo] = chip                  # el chip es la respuesta COMPLETA
     ADVANZAR_CAMPO(conv)
 ```
 
@@ -801,7 +808,7 @@ func TRANSICIONAR(idea, accion, usuario):
 | D4 | **No hay borradores** | Borrador persistente de conversación/idea | Decisión explícita de la spec (RF-6/RF-7, §8.5, caso 7): la idea existe solo al registrar. Simplifica el modelo: `IdeaVersion` solo para versiones IA ya registradas. |
 | D5 | **Refinamiento bajo demanda (régimen perezoso)** | Tarea/worker de fondo que vigila la IA | Decisión #4 de la spec: verifica al iniciar sesión, al iniciar captura, al pedir mejora, al abrir idea pendiente. Elimina un componente de orquestación persistente; no añade dependencias de programación (cero nuevas). |
 | D6 | **Cola de refinamiento y validación en el backend** | Cola en el frontend | La operación debe ser atómica y consistente (RNF-9); el cliente no puede garantizar la consistencia de transiciones. |
-| D7 | **Chips como catálogo fijo por campo (backend)** | Chips generados por la IA en tiempo real | Decisión de simplificación: la spec exige "catálogo fijo de respuestas rápidas (chips) propio del campo" (RF-5). El backend es la fuente del catálogo; evita costo de IA por interacción y hace el flujo determinístico/testeable. |
+| D7 | **Opciones rápidas (chips) generadas por la IA por turno**, enraizadas en el perfil de organización + campos capturados | Chips como catálogo fijo por campo (D7 original, superada) | Sustitución aprobada: las opciones son contextuales y no requieren catálogo curado; el chip solo vale si se ofreció en el turno (400 en caso contrario) y la IA que degrada a `quickOptions: []` nunca rompe el flujo. La misma llamada IA compacta los campos libres ya capturados. Determinístico en tests con el helper `turn_options_json`. |
 | D8 | **Validación Pydantic solo en la capa `routers/`** | Esquemas en toda la capa | Constitución §4.2: `domain/` es puro, sin FastAPI/Pydantic. La validación de entrada/salida (Guía Backend §1) vive en `routers/`, y las reglas de negocio en `domain/`. |
 | D9 | **Notificaciones en-app** (feature propia) | Notificaciones por correo / websocket | Out-scope de la spec (§8.6). In-app es suficiente y evita canal externo; un websocket añadiría complejidad y (posiblemente) dependencias. |
 | D10 | **Derivación de contraseña con stdlib** (p. ej. hashing del módulo `hashlib`) | `bcrypt`, `argon2` | Constitución §6.1. `hashlib` (stdlib) + salt cubre el hash de contraseña sin paquetes. Documentado como riesgo a reforzar en producción. |

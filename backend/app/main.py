@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager, suppress
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.deps import get_user_directory
+from app.deps import get_org_store, get_user_directory
 from features.assistant.routers.assistant import assistant_router
 from features.auth.infrastructure.token_store import seed_first_admin
 from features.auth.routers.auth import auth_router
@@ -19,17 +19,40 @@ from features.capture.routers.capture import capture_router
 from features.ideas.routers.catalog import catalog_router
 from features.ideas.routers.ideas import ideas_router
 from features.notifications.routers.notifications import notifications_router
+from features.org.routers.org import org_router
 from features.users.routers.users import users_router
 from features.validation.routers.validation import validation_router
 from shared.config.settings import settings
 from shared.exceptions.handlers import register_exception_handlers
 
 
+def _seed_org_profile() -> None:
+    """Seeds the organization profile once, idempotently (D7 replacement).
+
+    When the administrator did not provide `INNOV_ORG_*` values the profile
+    starts empty and is completed through the panel.
+    """
+    store = get_org_store()
+    if store.has():
+        return
+    if not settings.org_name:
+        return
+    store.put({
+        "name": settings.org_name,
+        "sector": settings.org_sector,
+        "description": settings.org_description,
+        "mission": settings.org_mission,
+        "strategicObjectives": list(settings.org_objectives),
+    })
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    """Seeds the first administrator once, idempotently (RF-17, decision #6)."""
+    """Seeds the first administrator and the organization profile once,
+    idempotently (RF-17 decision #6 / D7 replacement)."""
     with suppress(Exception):  # pragma: no cover - defensive: the app must still boot
         seed_first_admin(get_user_directory(), settings.admin_username, settings.admin_password)
+        _seed_org_profile()
     yield
 
 
@@ -50,6 +73,7 @@ app.include_router(capture_router)
 app.include_router(notifications_router)
 app.include_router(validation_router)
 app.include_router(catalog_router)
+app.include_router(org_router)
 
 if settings.cors_origins:
     app.add_middleware(

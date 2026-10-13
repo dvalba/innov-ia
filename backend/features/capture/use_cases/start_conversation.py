@@ -8,13 +8,15 @@ Orchestration of `POST /capture/start` (plan §3.3 step 1 and §4.1
     is created;
   - when the assistant is available, a new conversation is created prefilled with
     the proponent data from the account (spec §5.2 common regimen) and the opening
-    turn (greeting + first question + the field's fixed chips) is returned (RF-2);
+    turn (greeting + first question) is returned (RF-2). The opening field never
+    accepts quick options: the per-turn IA call that generates them happens on
+    the first message (`process_message`), not on the opening (D7 replacement);
   - when the assistant is unavailable, no orphan conversation is created and a
     manual-form signal is returned so the client deploys the contingency form
     (RF-7, case 1), already prefilled so nothing is lost (RNF-10).
 
-The use case only orchestrates: the rules live in `capture_rules` (order, chips,
-prefill turn) and the persistence (no-loss, active lookup) in
+The use case only orchestrates: the rules live in `capture_rules` (order,
+per-turn options, prefill turn) and the persistence (no-loss, active lookup) in
 `ConversationStore`.
 """
 
@@ -24,6 +26,7 @@ import uuid
 from features.capture.domain import capture_rules as rules
 from features.capture.domain.conversation import Conversation
 from features.capture.infrastructure.conversation_store import ConversationStore
+from features.capture.use_cases.turn_assist import build_turn
 from shared.contracts.assistant_client import AssistantClient
 from shared.contracts.user_directory import UserDirectory
 
@@ -53,11 +56,17 @@ def _assistant_turn(conversation: Conversation, *, greet: bool) -> dict:
 
     `currentField` is `None` once the 7 fields are complete (the summary turn is
     built by the finish flow, G08); a blank turn is returned for safety.
+
+    The quick options travel back exactly as they were OFFERED and persisted for
+    the field in the course (RF-5 / D7 replacement): a resumed conversation re-
+    shows the options its turn already had, and a new conversation (opening on
+    `description`) offers none — the first per-turn IA call happens on the first
+    message (`process_message`), not on the opening.
     """
     current = conversation.currentField
     if current is None:
-        return {"text": "", "currentField": None, "quickOptions": []}
-    turn = rules.build_question(current_field=current)
+        return {"text": "", "currentField": None, "quickOptions": [], "titleSuggestion": None}
+    turn = build_turn(conversation)
     if greet:
         turn["text"] = f"{rules.GREETING_TEXT}\n\n{turn['text']}"
     return turn

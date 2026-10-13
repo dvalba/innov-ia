@@ -3,7 +3,7 @@
 import pathlib
 import sys
 
-FEATURES = ["auth", "capture", "ideas", "assistant", "validation", "users", "notifications"]
+FEATURES = ["auth", "capture", "ideas", "assistant", "validation", "users", "notifications", "org"]
 LAYERS = ["domain", "use_cases", "infrastructure", "routers"]
 
 BACKEND_ROOT = pathlib.Path(__file__).resolve().parents[2]

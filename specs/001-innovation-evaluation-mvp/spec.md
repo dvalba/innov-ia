@@ -109,7 +109,7 @@ El asistente recorre un orden fijo de campos, aceptando también narrativa libre
 
 **RF-5 — Respuestas rápidas (chips)**
 
-* Criterio de aceptación: Para cada pregunta, el sistema debe ofrecer un **catálogo fijo de respuestas rápidas** (chips) propio del campo, además de la respuesta libre por texto.
+* Criterio de aceptación: Para cada pregunta, el sistema debe ofrecer **respuestas rápidas (chips) generadas por la IA** para el campo en curso, enraizadas en el perfil de organización y los campos ya capturados, además de la respuesta libre por texto (sustitución aprobada del catálogo fijo, D7).
 * Criterio de aceptación: Al seleccionar un chip, el sistema debe tomarlo como la respuesta completa del campo.
 * Criterio de aceptación: Los chips permanecen disponibles hasta que el campo quede respondido.
 

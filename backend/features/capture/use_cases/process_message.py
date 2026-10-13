@@ -4,15 +4,20 @@ Orchestration of `POST /capture/messages` (plan §3.3 step 2/3, §4.1
 `PROCESAR_MENSAJE`):
 
   - a selected **chip** is the field's COMPLETE answer (RF-5): the chip's text
-    is stored verbatim for the field in the course;
+    is stored verbatim for the field in the course; a chip is only valid when
+    it was ACTUALLY OFFERED on the turn in the course (the per-turn options the
+    assistant generated, D7 replacement);
   - a **free narrative** goes through the assistant's extraction (RF-3): the
     model assigns the fragments to the PENDING fields only, each assigned field
     is marked captured and never re-asked, and an insufficient fragment
     (``__CLARIFICAR__``) triggers a clarification turn WITHOUT advancing
-    (RF-3);
+    (RF-3); on a clarification nothing is persisted — the user re-answers;
   - the turn then advances to the first still-pending field, skipping the
-    captured ones (RF-3); when the 7 fields complete, the conversation moves to
-    ``RESUMEN`` (RF-6) and the editable summary is returned;
+    captured ones (RF-3); on the landing the assistant generates the field's
+    quick options AND improves the free-text fields already captured (the
+    single per-turn IA call, `turn_assist.land_turn`); when the 7 fields
+    complete, the conversation moves to ``RESUMEN`` (RF-6) and the editable
+    summary is returned;
   - a turn that lands on ``title`` is the suggestion turn (RF-4);
   - if the assistant is required and unavailable — the ping fails, `generate`
     raises, or the reply cannot be interpreted (case 14) — the conversation is
@@ -26,7 +31,7 @@ from features.assistant.domain.refinement import extract_json_object
 from features.capture.domain import capture_rules as rules
 from features.capture.domain.conversation import Conversation
 from features.capture.infrastructure.conversation_store import ConversationStore
-from features.capture.use_cases.suggest_title import propose_title
+from features.capture.use_cases.turn_assist import build_turn, land_turn
 from shared.contracts.assistant_client import AssistantClient
 from shared.exceptions.handlers import AssistantUnavailable, DomainError
 
@@ -80,30 +85,6 @@ def _extract_fields(assistant: AssistantClient, conversation: Conversation, narr
     return {"fields": fields, "clarify": clarify}
 
 
-def _assistant_turn(store: ConversationStore, conversation: Conversation, assistant: AssistantClient) -> dict:
-    """The reply turn for the conversation's current field (chips per field).
-
-    The turn landing on `title` carries the title suggestion (RF-4); a model
-    failure there degrades to the manual fallback as in any other step (RF-7).
-    """
-    current = conversation.currentField
-    if current is None:  # the 7 fields are complete (summary is built by finish)
-        return {}
-    turn = rules.build_question(current_field=current)
-    if current == "title":
-        try:
-            turn.update(propose_title(store, assistant, conversation_id=conversation.id))
-        except AssistantUnavailable:
-            _mark_contingency(store, conversation.id)
-            raise
-    return {
-        "text": turn["text"],
-        "currentField": current,
-        "quickOptions": turn["quickOptions"],
-        "titleSuggestion": turn.get("titleSuggestion"),
-    }
-
-
 def _mark_contingency(store: ConversationStore, conversation_id: str) -> Conversation:
     """Marks the conversation ``CONTINGENCIA`` (from ``ACTIVA`` only) and returns it."""
     payload = store.get(conversation_id)
@@ -114,6 +95,16 @@ def _mark_contingency(store: ConversationStore, conversation_id: str) -> Convers
     return conversation
 
 
+def _clarify_turn(conversation: Conversation) -> dict:
+    """The clarification turn (RF-3): it REPEATS the question in the course
+    WITHOUT advancing, reusing the options the assistant had already offered
+    for it (a re-asked field is not re-offered new chips)."""
+    turn = build_turn(conversation)
+    if turn:
+        turn["needsClarification"] = True
+    return turn
+
+
 def process_message(
     store: ConversationStore,
     assistant: AssistantClient,
@@ -122,15 +113,20 @@ def process_message(
     user_id: str,
     message: str | None = None,
     quick_option: str | None = None,
+    org_profile: dict | None = None,
 ) -> dict:
     """Processes one user message of the capture conversation and returns the next turn.
 
     Exactly one of `message` (free narrative) or `quick_option` (a chip) must be
-    given. Returns:
+    given. `org_profile` is the organization profile grounding the per-turn
+    assistant call (D7 replacement); when absent the assistant still answers
+    (the prompt is told the profile is missing).
+
+    Returns:
       - a clarification turn (`needsClarification: True`) when the answer is
         insufficient, without advancing (RF-3);
-      - the next question + its fixed chips (RF-5), or the title-suggestion
-        turn (RF-4), after advancing over the captured fields;
+      - the next question + its per-turn options (RF-5, D7 replacement), or the
+        title-suggestion turn (RF-4), after advancing over the captured fields;
       - the editable summary (``state == "RESUMEN"``) when the 7 fields close
         (RF-6).
 
@@ -165,67 +161,88 @@ def process_message(
         )
 
     if quick_option and str(quick_option).strip():
-        # A chip is the field's COMPLETE answer, taken verbatim (RF-5).
+        # A chip is the field's COMPLETE answer, taken verbatim (RF-5): it is
+        # only valid when it was offered on the turn in the course.
         chip = str(quick_option).strip()
         current = conversation.currentField
-        if current is None or chip not in list(rules.CHIPS_BY_FIELD.get(current, ())):
+        if current is None or chip not in conversation.offered_options(current):
             raise DomainError(
                 "UNKNOWN_QUICK_OPTION",
                 "Esa opción rápida no corresponde al campo en curso.",
                 status_code=400,
             )
         rules.apply_capture(conversation.capturedFields, {current: chip}, current)
-        _advance(store, conversation)
-    else:
-        narrative = str(message).strip()
-        if not assistant.ping():
-            _mark_contingency(store, conversation_id)
-            raise _unavailable(conversation)
-        extracted = _extract_fields(assistant, conversation, narrative)
-        if extracted is None:  # uninterpretable reply (case 14): manual fallback
-            _mark_contingency(store, conversation_id)
-            raise _unavailable(conversation)
-        fields, clarify = extracted["fields"], extracted["clarify"]
-        if fields:
-            rules.apply_capture(conversation.capturedFields, fields, conversation.currentField)
-        if not clarify and fields:
-            _advance(store, conversation)
-        payload = store.get(conversation_id)
-        stored = Conversation.from_payload(payload)
-        if clarify:
-            current = conversation.currentField
-            turn = rules.build_question(current_field=current)
-            return {
-                "conversationId": conversation_id,
-                "state": "ACTIVA",
-                "assistant": {
-                    "text": turn["text"],
-                    "currentField": current,
-                    "quickOptions": list(turn["quickOptions"]),
-                    "titleSuggestion": None,
-                    "needsClarification": True,
-                },
-            }
-        conversation = stored
+        turn = _advance(store, assistant, conversation, org_profile=org_profile)
+        return _result(store, conversation_id, turn)
 
-    if conversation.state == "RESUMEN":
+    narrative = str(message).strip()
+    if not assistant.ping():
+        _mark_contingency(store, conversation_id)
+        raise _unavailable(conversation)
+    extracted = _extract_fields(assistant, conversation, narrative)
+    if extracted is None:  # uninterpretable reply (case 14): manual fallback
+        _mark_contingency(store, conversation_id)
+        raise _unavailable(conversation)
+    fields, clarify = extracted["fields"], extracted["clarify"]
+
+    if clarify:
+        # An insufficient answer: the question repeats WITHOUT advancing and
+        # nothing is persisted — the user re-answers (RF-3). The options offered
+        # for the field in the course are reused.
+        return {
+            "conversationId": conversation_id,
+            "state": "ACTIVA",
+            "assistant": _clarify_turn(conversation),
+        }
+
+    if not fields:
+        # The narrative captured nothing usable: re-ask the field in the course
+        # unchanged (no advance, no extra IA call).
+        stored = Conversation.from_payload(store.get(conversation_id))
+        return {
+            "conversationId": conversation_id,
+            "state": "ACTIVA",
+            "assistant": build_turn(stored),
+        }
+
+    rules.apply_capture(conversation.capturedFields, fields, conversation.currentField)
+    turn = _advance(store, assistant, conversation, org_profile=org_profile)
+    return _result(store, conversation_id, turn)
+
+
+def _advance(
+    store: ConversationStore,
+    assistant: AssistantClient,
+    conversation: Conversation,
+    *,
+    org_profile: dict | None = None,
+) -> dict:
+    """Advances the turn to the next pending field (or closes the conversation)
+    via `land_turn` and returns the reply turn.
+
+    A mid-advance assistant failure — the only one that can raise, on the
+    ``title`` turn its proactive proposal is required (RF-4) — is the
+    contingency fallback (RF-7 case 2, RNF-10).
+    """
+    try:
+        return land_turn(store, assistant, conversation, org_profile=org_profile) or {}
+    except AssistantUnavailable:
+        _mark_contingency(store, conversation.id)
+        raise
+
+
+def _result(store: ConversationStore, conversation_id: str, turn: dict) -> dict:
+    """Wraps an advanced turn: when the 7 fields closed the conversation, the
+    editable summary is returned (RF-6); otherwise the assistant turn (RF-3/5)."""
+    stored = Conversation.from_payload(store.get(conversation_id))
+    if stored.state == "RESUMEN":
         return {
             "conversationId": conversation_id,
             "state": "RESUMEN",
-            "summary": conversation.to_summary(),
+            "summary": stored.to_summary(),
         }
-    turn = _assistant_turn(store, conversation, assistant)
     return {
         "conversationId": conversation_id,
         "state": "ACTIVA",
         "assistant": turn,
     }
-
-
-def _advance(store: ConversationStore, conversation: Conversation) -> None:
-    """Moves the turn to the next pending field, or closes the conversation as
-    ``RESUMEN`` when the 7 fields complete (RF-3, RF-6); persists atomically."""
-    conversation.currentField = rules.next_pending_field(conversation.order, conversation.capturedFields)
-    if conversation.currentField is None:
-        conversation.state = "RESUMEN"
-    store.save_conversation(conversation)

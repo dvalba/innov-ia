@@ -115,6 +115,7 @@ def suggest_title(
     user_id: str,
     action: str,
     manual_text: str | None = None,
+    org_profile: dict | None = None,
 ) -> dict:
     """Applies a title action (RF-4) and returns the resulting turn.
 
@@ -122,6 +123,9 @@ def suggest_title(
     one; ``manual`` stores `manual_text` unmodified. ``accept``/``manual``
     advance to the next field (or to ``RESUMEN`` when the title was the last);
     ``another`` keeps the conversation on ``title`` with the new suggestion.
+
+    `org_profile` grounds the per-turn IA call on the advance (D7 replacement);
+    when absent the assistant still answers.
     """
     payload = _own(store, conversation_id, user_id)
     if action not in TITLE_ACTIONS:
@@ -172,6 +176,12 @@ def suggest_title(
     store.set_field(conversation_id, "title", chosen)
     conversation.capturedFields["title"] = chosen
 
+    # `accept`/`manual` close the title: the turn advances to the next pending
+    # field (or to the editable summary, RF-6). `land_turn` generates the IA
+    # options for the landing field (D7 replacement). Imported lazily so the
+    # `turn_assist` <-> `suggest_title` reference stays acyclic at import time.
+    from features.capture.use_cases.turn_assist import land_turn
+
     next_field = rules.next_pending_field(conversation.order, conversation.capturedFields)
     if next_field is None:
         # The title closed the 7 fields: straight to the editable summary (RF-6).
@@ -184,16 +194,9 @@ def suggest_title(
             "summary": conversation.to_summary(),
         }
 
-    store.set_current_field(conversation_id, next_field)
-    turn = rules.build_question(current_field=next_field)
-    assistant_turn = {
-        "text": turn["text"],
-        "currentField": next_field,
-        "quickOptions": turn["quickOptions"],
-        "titleSuggestion": None,
-    }
+    turn = land_turn(store, assistant, conversation, org_profile=org_profile)
     return {
         "conversationId": conversation_id,
         "state": "ACTIVA",
-        "assistant": assistant_turn,
+        "assistant": turn,
     }

@@ -250,13 +250,26 @@ export class ChatAssist {
     secuencia += 1;
     const msg: MensajeChat = { id: `m-${secuencia}`, role, text };
     this.transcript.update((prev) => [...prev, msg]);
+    // Scroll at once the message is appended (user or assistant) so the newest
+    // entry is always the one in view without waiting for the round-trip.
+    this.ajustarScroll(true);
   }
 
   private despues(): void {
-    // Scroll to the end once the rendered turn is in place.
-    setTimeout(() => {
+    this.ajustarScroll(false);
+  }
+
+  private ajustarScroll(inmediato: boolean): void {
+    const desplazar = () => {
       const el = this.scrollEl();
       if (el) el.scrollTop = el.scrollHeight;
-    });
+    };
+    if (inmediato) {
+      // Two frames: the first after the current turn, the second once Angular
+      // has committed the new bubble to the DOM, so the scroll lands immediately.
+      requestAnimationFrame(() => requestAnimationFrame(desplazar));
+    } else {
+      setTimeout(desplazar);
+    }
   }
 }
