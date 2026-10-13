@@ -72,6 +72,27 @@ def test_generate_returns_response_field(server: str) -> None:
     assert client.generate("hola") == "Hola, título propuesto"
 
 
+def test_generate_disables_thinking_in_request_body(server: str) -> None:
+    """The assistant always parses JSON, so the client asks thinking models to
+    skip their reasoning preamble (`think: false`). Without this flag the raw
+    reply is a prose/reasoning preamble and the JSON contract breaks on
+    thinking models (G15 real-model smoke)."""
+
+    captured: dict = {}
+
+    def behavior(path: str, body: bytes | None):
+        if path != "/api/generate":
+            return 200, {"models": []}
+        captured.update(json.loads(body))
+        return 200, {"response": '{"title": "T"}'}
+
+    _Handler.behavior = staticmethod(behavior)
+    client = OllamaClient(server, "test-model", timeout=2)
+    client.generate("hola")
+    assert captured["think"] is False
+    assert captured["stream"] is False
+
+
 def test_ping_down_returns_false_after_single_retry(server: str) -> None:
     calls = {"n": 0}
 

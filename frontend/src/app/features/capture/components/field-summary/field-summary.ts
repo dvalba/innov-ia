@@ -1,4 +1,3 @@
-import { NgClass } from '@angular/common';
 import { Component, OnInit, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
@@ -19,7 +18,7 @@ import {
  */
 @Component({
   selector: 'app-field-summary',
-  imports: [FormsModule, NgClass],
+  imports: [FormsModule],
   templateUrl: './field-summary.html',
   styleUrl: './field-summary.css',
 })

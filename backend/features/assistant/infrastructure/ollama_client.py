@@ -62,7 +62,16 @@ class OllamaClient:
                 data = self._request(
                     "POST",
                     "/api/generate",
-                    body={"model": self._model, "prompt": prompt, "stream": False},
+                    body={
+                        "model": self._model,
+                        "prompt": prompt,
+                        "stream": False,
+                        # The assistant always parses JSON from the reply, so
+                        # thinking models are asked to skip their reasoning
+                        # preamble (Ollama `think` flag; ignored by models that
+                        # do not think) keeping the response deterministic JSON.
+                        "think": False,
+                    },
                 )
                 text = data.get("response")
                 if isinstance(text, str) and text.strip():

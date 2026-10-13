@@ -21,9 +21,8 @@ Orchestration of `POST /capture/messages` (plan §3.3 step 2/3, §4.1
     anything (RF-7 case 2, RNF-10).
 """
 
-import json
-
 from features.assistant.domain.prompts import extract_fields_prompt
+from features.assistant.domain.refinement import extract_json_object
 from features.capture.domain import capture_rules as rules
 from features.capture.domain.conversation import Conversation
 from features.capture.infrastructure.conversation_store import ConversationStore
@@ -65,10 +64,7 @@ def _extract_fields(assistant: AssistantClient, conversation: Conversation, narr
         raw = assistant.generate(extract_fields_prompt(narrative, pending))
     except AssistantUnavailable:
         raise
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        return None
+    data = extract_json_object(raw)
     if not isinstance(data, dict):
         return None
     clarify = any(

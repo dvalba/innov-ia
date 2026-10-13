@@ -14,10 +14,10 @@ assistant proposes a title and the proponent picks one of the fixed actions:
 cases never need to call each other's public entry points.
 """
 
-import json
 import re
 
 from features.assistant.domain.prompts import title_suggestion_prompt
+from features.assistant.domain.refinement import extract_json_object
 from features.capture.domain import capture_rules as rules
 from features.capture.domain.conversation import Conversation
 from features.capture.infrastructure.conversation_store import ConversationStore
@@ -60,10 +60,7 @@ def _context(captured: dict) -> str:
 
 def _parse_title(raw: str) -> str | None:
     """Extracts the `title` field from the model's JSON reply, or `None`."""
-    try:
-        data = json.loads(raw)
-    except json.JSONDecodeError:
-        return None
+    data = extract_json_object(raw)
     if isinstance(data, dict):
         title = data.get("title")
         if isinstance(title, str) and _WHITESPACE.sub(" ", title).strip():

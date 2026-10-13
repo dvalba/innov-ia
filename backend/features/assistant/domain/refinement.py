@@ -59,19 +59,49 @@ def build_refinement_queue(
     return candidates
 
 
-def _extract_json_object(raw: str) -> Any:
-    """Locates and parses the first JSON object in `raw`.
+def extract_json_object(raw: str) -> dict | None:
+    """Recovers the JSON object the assistant meant to return, or `None`.
 
-    Assistant replies are often wrapped in code fences or surrounded by prose;
-    the first `{` and the matching last `}` delimit the payload. Raises
-    `ValueError` when no valid object can be extracted.
+    The model is asked for pure JSON (`think: false` in the client), but the
+    reply may still arrive wrapped in code fences or preceded by prose — even
+    a reasoning preamble that embeds sample objects. The text is parsed as a
+    whole first; otherwise any thinking fence is dropped and the scan keeps the
+    LAST well-formed top-level object, so an embedded example never shadows the
+    real payload. `None` when no object can be recovered.
     """
+    if not isinstance(raw, str):
+        return None
     text = raw.strip()
-    start = text.find("{")
-    end = text.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        raise ValueError("sin objeto JSON")
-    return json.loads(text[start : end + 1])
+    if not text:
+        return None
+    try:
+        data = json.loads(text)
+        return data if isinstance(data, dict) else None
+    except (json.JSONDecodeError, ValueError):
+        pass
+    cut = 0
+    for marker in ("</thinking>", "</think>"):
+        idx = text.rfind(marker)
+        if idx != -1:
+            cut = max(cut, idx + len(marker))
+    if cut:
+        text = text[cut:].strip()
+    decoder = json.JSONDecoder()
+    result: dict | None = None
+    i = 0
+    while i < len(text):
+        if text[i] != "{":
+            i += 1
+            continue
+        try:
+            obj, end = decoder.raw_decode(text, i)
+        except (json.JSONDecodeError, ValueError):
+            i += 1
+            continue
+        if isinstance(obj, dict):
+            result = obj
+        i = end
+    return result
 
 
 def _non_empty_str(value: Any) -> bool:
@@ -91,10 +121,7 @@ def interpret_fields(raw: str) -> dict | None:
     scalar strings plus `title`, with `proponent` and `estimatedResources` as
     structured objects whose sub-fields are present and non-empty.
     """
-    try:
-        data = _extract_json_object(raw)
-    except ValueError:
-        return None
+    data = extract_json_object(raw)
     if not isinstance(data, dict):
         return None
     for field in IDEA_FIELDS:

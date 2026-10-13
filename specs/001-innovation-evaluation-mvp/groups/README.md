@@ -25,13 +25,13 @@ conectando el backend con su respectiva vista de frontend de extremo a extremo.
 | 12 | [`12-validacion-catalogo-campana.md`](12-validacion-catalogo-campana.md) | Cola+panel validar/rechazar + catálogo público + campana | T-051, T-052, T-055 | 3 | 3/3 | ✅ |
 | 13 | [`13-asistente-check.md`](13-asistente-check.md) | UC asistente (refinamiento, cola) + `/assistant/check` + disparadores | T-061, T-062 | 2 | 2/2 | ✅ |
 | 14 | [`14-cierre-backend-components.md`](14-cierre-backend-components.md) | Verificación transversal BE + `confirm-dialog` + `idea-card` en shared | T-036, T-056 | 2 | 2/2 | ✅ |
-| 15 | [`15-e2e-ollama-real.md`](15-e2e-ollama-real.md) | E2E con Ollama real: captura, contingencia, clarificación, validación | T-063, T-064, T-065, T-066 | 4 | 0/4 | ⬜ |
-| 16 | [`16-accesibilidad-build-cierre.md`](16-accesibilidad-build-cierre.md) | Accesibilidad + build/guías + verificación spec §9 | T-057, T-058, T-068 | 3 | 0/3 | ⬜ |
+| 15 | [`15-e2e-ollama-real.md`](15-e2e-ollama-real.md) | E2E con Ollama real: captura, contingencia, clarificación, validación | T-063, T-064, T-065, T-066 | 4 | 4/4 | ✅ |
+| 16 | [`16-accesibilidad-build-cierre.md`](16-accesibilidad-build-cierre.md) | Accesibilidad + build/guías + verificación spec §9 | T-057, T-058, T-068 | 3 | 3/3 | ✅ |
 
 **Total: 4+4+3+2+3+5+5+5+3+4+5+3+2+2+4+3 = 57 tareas.** ✓ (una por grupo, sin huecos ni
-duplicados). **Progreso (2026-10-08): 52/57 tareas implementadas** (G01 ✅, G02 ✅, G03 ✅,
-G04 ✅, G05 ✅, G06 ✅, G07 ✅, G08 ✅, G09 ✅, G10 ✅, G11 ✅, G12 ✅, G13 ✅, G14 ✅;
-G15–G16 sin empezar).
+duplicados). **Progreso (2026-10-13): 57/57 tareas implementadas** (G01 ✅, G02 ✅, G03 ✅,
+G04 ✅, G05 ✅, G06 ✅, G07 ✅, G08 ✅, G09 ✅, G10 ✅, G11 ✅, G12 ✅, G13 ✅, G14 ✅,
+G15 ✅, G16 ✅). **MVP cerrado**: `pytest -q` 468 verdes, `ruff check .` limpio, `ng build` verde.
 
 ## Criterio de la secuencia
 

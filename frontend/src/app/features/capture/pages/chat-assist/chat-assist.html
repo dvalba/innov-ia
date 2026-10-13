@@ -142,6 +142,7 @@
               name="mensaje"
               [ngModel]="texto()"
               (ngModelChange)="texto.set($event)"
+              aria-label="Escribe tu respuesta al asistente"
               placeholder="Escribe tu respuesta…"
               [disabled]="cargando()"
               class="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:bg-slate-50"

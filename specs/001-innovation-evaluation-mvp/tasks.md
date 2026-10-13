@@ -345,12 +345,12 @@
   - **Dependencias:** [T-046], [T-051], [T-052]
   - **Hecho cuando:** `shared/components/confirm-dialog` (usado p. ej. en "Solicitar publicación" y en el abandono de captura con aviso de pérdida, caso 7) está en `shared/` y es operable con teclado (RNF-6); `idea-card` se promueve a `shared/components/` (Constitución §3.2) y se usa en `my-ideas`, `validation` y `catalog` sinimportaciones cruzadas entre features; `ng build` pasa.
 
-- [ ] **[T-057] Frontend: accesibilidad transversal (teclado y lectores de pantalla)**
+- [x] **[T-057] Frontend: accesibilidad transversal (teclado y lectores de pantalla)**
   - **Covers:** RNF-6, RNF-4
   - **Dependencias:** [T-042], [T-044], [T-055]
   - **Hecho cuando:** Chat, chips, formularios, notificaciones y catálogos son operables con solo teclado (orden de foco lógico, `aria-expanded`/`aria-live` donde corresponde, etiquetas para inputs, roles ARIA en el diálogo); toda la UI está en español (RNF-4); verificado recorriendo cada feature con navegación por teclado sin herramienta de automatización (criterio manual documentado en la tarea); `ng build` pasa.
 
-- [ ] **[T-058] Frontend: build final y verificación de cumplimiento de guías**
+- [x] **[T-058] Frontend: build final y verificación de cumplimiento de guías**
   - **Covers:** RF-1..RF-20 (verificación)
   - **Dependencias:** [T-037..T-057]
   - **Hecho cuando:** `ng build` pasa sin errores; la estructura de carpetas coincide con el plan §1.1 (6 features + shared); no hay `*ngIf`/`*ngFor`/`@Input`/`@Output` (busqueda de patrones vacía), se usa `inject()`, `httpResource` en lecturas y `input()/output()/signal()`; nomenclatura sin sufijo `Component`; ningún componente de feature importa de otra feature; las rutas lazy están activas.
@@ -379,22 +379,22 @@
   - **Dependencias:** [T-061], [T-013]
   - **Hecho cuando:** `POST /assistant/check` requiere rol proponente y: verifica disponibilidad; si está disponible procesa la cola (más antigua → más reciente) y devuelve el resultado (nº de ideas refinadas, fallos); se invoca internamente también al iniciar sesión (login — T-013), al iniciar captura (`/capture/start` — T-031) y al solicitar mejora (T-024), según decisión #4; los disparadores internos no bloquean la respuesta principal (resultado disponible en la cola/notificaciones); tests en `tests/api/test_assistant_api.py` cubren la invocación directa, la integración con login/capture e idempotencia (`pytest -q` verde).
 
-- [ ] **[T-063] Integración: captura asistida e2e con Ollama real (mock en tests, real en smoke)**
+- [x] **[T-063] Integración: captura asistida e2e con Ollama real (mock en tests, real en smoke)**
   - **Covers:** RF-2..RF-6, RF-4
   - **Dependencias:** [T-062], [T-043]
   - **Hecho cuando:** Con Ollama corriendo (settings reales, no mock), el flujo completo desde la UI: nueva idea → conversación (orden fijo, chips, título sugerido con Aceptar/Otra/Escribir) → resumen editable → confirmación → idea EN_DESARROLLO origen `asistida` visible en "Mis ideas"; los tests de API que usan `ollama_mock` simulan las respuestas de generación de forma determinista (`pytest -q` verde); el smoke manual queda registrado con capturas/pasos en la tarea.
 
-- [ ] **[T-064] Integración: contingencia e2e (IA caída al inicio y a mitad de conversación)**
+- [x] **[T-064] Integración: contingencia e2e (IA caída al inicio y a mitad de conversación)**
   - **Covers:** RF-7, RNF-1, RNF-3, RNF-10, casos 1, 2, 3
   - **Dependencias:** [T-063], [T-045]
   - **Hecho cuando:** Con Ollama detenido: al iniciar captura, la UI muestra directamente el formulario manual con aviso (caso 1); comenzando una conversación y cayendo la IA a mitad, el chat ofrece el formulario prellenado con los campos ya capturados y el registro final crea la idea `manual` (caso 2); el reinicio único (60 s) no expone al usuario (RNF-3); `pytest -q` verde con el mock de caída; smoke manual documentado.
 
-- [ ] **[T-065] Integración: clarificación e2e (refinamiento manual, notificación, aceptación/ajuste)**
+- [x] **[T-065] Integración: clarificación e2e (refinamiento manual, notificación, aceptación/ajuste)**
   - **Covers:** RF-11, RF-12, RF-13, RNF-1, caso 5
   - **Dependencias:** [T-064], [T-049]
   - **Hecho cuando:** Con Ollama detenido, se crea una idea manual; con Ollama recuperado, al iniciar sesión la cola se procesa (de más antigua a más reciente) y se genera notificación de idea refinada con acceso directo; la UI muestra la versión refinada vs original; al aceptar, la versión vigente cambia y la idea sigue EN_DESARROLLO (solo se publica por RF-10+RF-15); "Ajustar detalles" reabre la conversación precontextualizada; el refinamiento no tiene caducidad y la idea siguió operativa durante la indisponibilidad (caso 5); `pytest -q` verde; smoke manual documentado.
 
-- [ ] **[T-066] Integración: validación e2e (publicación y rechazo) + notificaciones**
+- [x] **[T-066] Integración: validación e2e (publicación y rechazo) + notificaciones**
   - **Covers:** RF-10, RF-14, RF-15, RF-16, RF-18, RNF-8, caso 9
   - **Dependencias:** [T-065], [T-051], [T-055]
   - **Hecho cuando:** Proponente solicita publicación (notificación IDEA_REQUESTED a todos los especialistas); especialista valida → VALIDADA_PUBLICA con rastro (quién/cuándo) y notificación al proponente, idea visible en el catálogo; especialista rechaza con comentario → vuelve a EN_DESARROLLO con el comentario visible y notificación al proponente; la autovalidación (proponente que también es especialista) funciona con rastro (caso 9); el contador de la campana refleja cada evento y solo esos; `pytest -q` verde; smoke manual documentado.
@@ -404,7 +404,7 @@
   - **Dependencias:** [T-054], [T-016]
   - **Hecho cuando:** El admin crea un usuario (recibe contraseña temporal), el usuario inicia sesión y está obligado a cambiarse la contraseña; el admin revoca roles/desactiva el usuario: pierde el acceso pero sus ideas e historial se conservan; las ideas en SOLICITANDO_PUBLICACION de un usuario desactivado siguen validables por otros especialistas; desactivar/revocar el último administrador está bloqueado en UI y backend (409); `pytest -q` verde; smoke manual documentado.
 
-- [ ] **[T-068] Cierre: verificación de criterios de finalización (spec §9) y casos límite**
+- [x] **[T-068] Cierre: verificación de criterios de finalización (spec §9) y casos límite**
   - **Covers:** RF-1..RF-20, RNF-1..RNF-10, casos 1,2,5,6,7,13,16,17
   - **Dependencias:** [T-058], [T-063..T-067]
   - **Hecho cuando:** Cada uno de los 13 criterios de finalización del spec §9 se verifica y marca con evidencia: (1) login/logout; (2) captura asistida e2e; (3) captura manual e2e; (4) contingencia prellenada; (5) clarificación completa; (6) mejora aceptada/descartada + edición manual; (7) validación e2e con notificación; (8) usuarios/roles completos; (9) notificaciones (solo 4 eventos, contador, navegación, leyendo); (10) catálogo solo VALIDADA_PUBLICA sin contacto; (11) casos límite 1, 2, 5, 6, 7, 13, 16, 17; (12) `pytest -q` al completo; (13) estructura por features + guías Angular/Tailwind; `ruff check .` limpio.

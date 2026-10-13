@@ -8,6 +8,7 @@ spec case 6/14).
 
 from features.assistant.domain.refinement import (
     build_refinement_queue,
+    extract_json_object,
     interpret_fields,
     needs_refinement,
 )
@@ -116,6 +117,27 @@ def test_interprets_plain_json_without_fences() -> None:
     fields = interpret_fields(plain)
     assert fields is not None
     assert fields["problem"] == "Pregunta directa"
+
+
+def test_extracts_object_after_reasoning_preamble_with_embedded_example() -> None:
+    """A thinking model may emit a reasoning preamble that embeds its own sample
+    objects and a `</thinking>` fence before the real payload. The extractor
+    must discard everything up to the fence and keep the LAST well-formed
+    top-level object, so the embedded example never shadows the real reply
+    (G15 real-model smoke, T-063/T-065)."""
+    raw = (
+        '[Thinking]\n'
+        'Voy a devolver JSON como {"title": "Borrador de ejemplo", "descripcion": "x"}… '
+        '"descripcion" no está bien, mejor uso title. '
+        '</thinking>\n'
+        '{"title": "T", "proponent": {"name": "A", "area": "C", "contact": "a@x"}, '
+        '"description": "d", "problem": "p", "expectedBenefit": "b", '
+        '"strategicAlignment": "s", '
+        '"estimatedResources": {"time": "t", "people": "p", "budget": "b"}}'
+    )
+    obj = extract_json_object(raw)
+    assert obj is not None
+    assert obj["title"] == "T"  # the real payload, not the embedded example
 
 
 def test_uninterpretable_reply_is_a_failure() -> None:
