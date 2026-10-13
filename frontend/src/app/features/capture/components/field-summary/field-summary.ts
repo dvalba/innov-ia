@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import {
   FormResumen,
   construirResumen,
+  faltantes,
   resumenCompleto,
 } from '../../services/fieldsMeta';
 
@@ -52,6 +53,12 @@ export class FieldSummary implements OnInit {
 
   protected esCompleto(): boolean {
     return resumenCompleto(this.formulario());
+  }
+
+  /** Required parts still missing (preemptive: shown even before the backend
+   *  rejects; the 422 per-field errors remain as the authoritative feedback). */
+  protected listaFaltantes(): string {
+    return faltantes(this.formulario()).join(', ');
   }
 
   protected confirmarIdea(): void {

@@ -1,12 +1,60 @@
-"""Application settings: reads environment variables via the standard library (Constitution §6.1)."""
+"""Application settings: reads environment variables via the standard library (Constitution §6.1).
+
+Precedence per variable (highest wins):
+  1. the real process environment (`os.environ`),
+  2. `backend/.env` when present (a minimal `KEY=VALUE` file: `#` comments, blank
+     lines, optional quotes — no dependency),
+  3. the built-in default.
+
+The `.env` file keeps local deployment configuration (the Ollama address/model,
+the admin seed, CORS) so the application runs on any machine without exporting
+variables; the real environment (and the test `monkeypatch`/subprocess envs)
+always wins over it.
+"""
 
 import os
 import pathlib
 
+# `backend/.env` resolved from this file (…/shared/config/settings.py → backend/).
+_ENV_FILE = pathlib.Path(__file__).resolve().parents[2] / ".env"
+
+
+def _read_env_file(path: pathlib.Path) -> dict[str, str]:
+    """Parses a minimal `KEY=VALUE` `.env` file into a dict (stdlib only)."""
+    values: dict[str, str] = {}
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        return values
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+        key, _, value = stripped.partition("=")
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key:
+            values[key] = value
+    return values
+
+
+_ENV_FILE_VALUES = _read_env_file(_ENV_FILE)
+
+
+def _lookup(name: str) -> str | None:
+    """The non-empty value of `name`: real environment first, then `.env`."""
+    raw = os.environ.get(name)
+    if raw is not None and raw.strip() != "":
+        return raw
+    file_raw = _ENV_FILE_VALUES.get(name)
+    if file_raw is not None and file_raw.strip() != "":
+        return file_raw
+    return None
+
 
 def _read_int(name: str, default: int) -> int:
-    raw = os.environ.get(name)
-    if raw is None or raw.strip() == "":
+    raw = _lookup(name)
+    if raw is None:
         return default
     try:
         return int(raw)
@@ -15,10 +63,7 @@ def _read_int(name: str, default: int) -> int:
 
 
 def _read_str(name: str, default: str) -> str:
-    raw = os.environ.get(name)
-    if raw is None or raw.strip() == "":
-        return default
-    return raw
+    return _lookup(name) if _lookup(name) is not None else default
 
 
 class Settings:
@@ -54,7 +99,7 @@ class Settings:
         if cors_origins is not None:
             self.cors_origins = cors_origins
         else:
-            raw = os.environ.get("CORS_ORIGINS", "")
+            raw = _read_str("CORS_ORIGINS", "")
             self.cors_origins = [o.strip() for o in raw.split(",") if o.strip()]
         self.session_ttl_minutes = session_ttl_minutes if session_ttl_minutes is not None else _read_int(
             "INNOV_SESSION_TTL_MINUTES", 480
@@ -62,7 +107,7 @@ class Settings:
         self.admin_username = admin_username if admin_username is not None else _read_str("INNOV_ADMIN_USERNAME", "admin")
         # Optional: only used at first initialization (plan T-011). Unlike the
         # others it has no default — when unset the seed is a no-op.
-        self.admin_password = admin_password if admin_password is not None else os.environ.get("INNOV_ADMIN_PASSWORD")
+        self.admin_password = admin_password if admin_password is not None else _lookup("INNOV_ADMIN_PASSWORD")
 
 
 settings = Settings()

@@ -2,12 +2,13 @@
   <p class="mb-1 font-medium text-slate-800">Revisa y confirma los 7 campos</p>
   <p class="mb-4 text-xs text-slate-500">
     Puedes corregir cualquier campo antes de confirmar. La idea se registrará con origen asistida.
+    <span class="text-slate-400">(Los campos marcados con * son obligatorios)</span>
   </p>
 
   <form (ngSubmit)="confirmarIdea()" class="space-y-4" novalidate>
     <div>
       <label class="mb-1 block text-xs font-medium text-slate-600" for="fs-title">
-        Título
+        Título <abbr class="text-red-500" title="obligatorio">*</abbr>
       </label>
       <input
         id="fs-title"
@@ -26,7 +27,7 @@
 
     <div>
       <label class="mb-1 block text-xs font-medium text-slate-600" for="fs-description">
-        Descripción
+        Descripción <abbr class="text-red-500" title="obligatorio">*</abbr>
       </label>
       <textarea
         id="fs-description"
@@ -45,7 +46,7 @@
 
     <div>
       <label class="mb-1 block text-xs font-medium text-slate-600" for="fs-problem">
-        Problema u oportunidad
+        Problema u oportunidad <abbr class="text-red-500" title="obligatorio">*</abbr>
       </label>
       <textarea
         id="fs-problem"
@@ -64,7 +65,7 @@
 
     <div>
       <label class="mb-1 block text-xs font-medium text-slate-600" for="fs-benefit">
-        Beneficio esperado
+        Beneficio esperado <abbr class="text-red-500" title="obligatorio">*</abbr>
       </label>
       <input
         id="fs-benefit"
@@ -83,7 +84,7 @@
 
     <div>
       <label class="mb-1 block text-xs font-medium text-slate-600" for="fs-alignment">
-        Alineación estratégica
+        Alineación estratégica <abbr class="text-red-500" title="obligatorio">*</abbr>
       </label>
       <input
         id="fs-alignment"
@@ -104,12 +105,12 @@
       [class]="tieneError('proponent') ? 'rounded-lg border border-red-300 bg-red-50 p-3' : 'rounded-lg border border-slate-200 p-3'"
     >
       <legend class="px-1 text-xs font-medium text-slate-600">
-        Proponente
+        Proponente <abbr class="text-red-500" title="obligatorio">*</abbr>
       </legend>
       <div class="grid gap-3 sm:grid-cols-3">
         <div>
           <label class="mb-1 block text-xs font-medium text-slate-500" for="fs-p-name">
-            Nombre
+            Nombre <abbr class="text-red-500" title="obligatorio">*</abbr>
           </label>
           <input
             id="fs-p-name"
@@ -122,7 +123,7 @@
         </div>
         <div>
           <label class="mb-1 block text-xs font-medium text-slate-500" for="fs-p-area">
-            Área
+            Área <abbr class="text-red-500" title="obligatorio">*</abbr>
           </label>
           <input
             id="fs-p-area"
@@ -135,7 +136,8 @@
         </div>
         <div>
           <label class="mb-1 block text-xs font-medium text-slate-500" for="fs-p-contact">
-            Contacto
+            Contacto <abbr class="text-red-500" title="obligatorio">*</abbr>
+            <span class="text-slate-400">(correo o teléfono)</span>
           </label>
           <input
             id="fs-p-contact"
@@ -158,12 +160,12 @@
       [class]="tieneError('estimatedResources') ? 'rounded-lg border border-red-300 bg-red-50 p-3' : 'rounded-lg border border-slate-200 p-3'"
     >
       <legend class="px-1 text-xs font-medium text-slate-600">
-        Recursos estimados
+        Recursos estimados <abbr class="text-red-500" title="obligatorio">*</abbr>
       </legend>
       <div class="grid gap-3 sm:grid-cols-3">
         <div>
           <label class="mb-1 block text-xs font-medium text-slate-500" for="fs-r-time">
-            Tiempo
+            Tiempo <abbr class="text-red-500" title="obligatorio">*</abbr>
           </label>
           <input
             id="fs-r-time"
@@ -176,7 +178,7 @@
         </div>
         <div>
           <label class="mb-1 block text-xs font-medium text-slate-500" for="fs-r-people">
-            Personal
+            Personal <abbr class="text-red-500" title="obligatorio">*</abbr>
           </label>
           <input
             id="fs-r-people"
@@ -189,7 +191,7 @@
         </div>
         <div>
           <label class="mb-1 block text-xs font-medium text-slate-500" for="fs-r-budget">
-            Presupuesto
+            Presupuesto <abbr class="text-red-500" title="obligatorio">*</abbr>
           </label>
           <input
             id="fs-r-budget"
@@ -207,6 +209,12 @@
         </p>
       }
     </fieldset>
+
+    @if (!esCompleto()) {
+      <p class="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700" aria-live="polite">
+        Faltan por completar: <span class="font-medium">{{ listaFaltantes() }}</span>.
+      </p>
+    }
 
     <div class="flex items-center justify-end gap-3 pt-1">
       <button

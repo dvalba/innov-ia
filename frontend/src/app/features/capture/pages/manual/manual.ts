@@ -2,7 +2,7 @@ import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CaptureService } from '../../services/capture.service';
-import { FormResumen, construirResumen, resumenCompleto } from '../../services/fieldsMeta';
+import { FormResumen, construirResumen, faltantes, resumenCompleto } from '../../services/fieldsMeta';
 import { SessionService } from '../../../../shared/services/session.service';
 import { errorMessage } from '../../../../shared/interceptors/error.interceptor';
 
@@ -54,6 +54,12 @@ export class ManualIdea implements OnInit {
   /** Whether all 7 fields are present with a valid contact (RNF-5, case 12). */
   protected completo(): boolean {
     return resumenCompleto(this.formulario());
+  }
+
+  /** Required parts still missing (the `*` marks tell WHAT is required, this
+   *  tells the proponent which field is blocking the send). */
+  protected listaFaltantes(): string {
+    return faltantes(this.formulario()).join(', ');
   }
 
   /** Submits `POST /ideas` (origin manual); on failure the data stays (caso 17). */

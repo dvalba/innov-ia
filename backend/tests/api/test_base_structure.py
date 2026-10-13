@@ -56,10 +56,13 @@ def test_settings_reads_environment_variables(monkeypatch) -> None:
     assert settings.ollama_timeout == 45
 
 
-def test_settings_default_values() -> None:
+def test_settings_default_values(monkeypatch) -> None:
     _ensure_backend_on_path()
+    import shared.config.settings as settings_module
     from shared.config.settings import Settings
 
+    # The code defaults under test are independent of the local backend/.env.
+    monkeypatch.setattr(settings_module, "_ENV_FILE_VALUES", {})
     settings = Settings()
     assert settings.ollama_timeout == 60
     assert settings.ollama_base_url.endswith(":11434")

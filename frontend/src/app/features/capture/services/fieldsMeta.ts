@@ -194,3 +194,29 @@ export function resumenCompleto(f: FormResumen): boolean {
   ].every((t) => t.trim() !== '');
   return textosLlenos && contactoValido(f.proponent.contact);
 }
+
+/**
+ * Spanish labels of the required parts still missing on the form (empty text,
+ * or a contact that is not a valid e-mail/phone) so the UI can tell the
+ * proponent exactly what to complete (UX: required `*` markers never explain
+ * which field is the one blocking the send).
+ */
+export function faltantes(f: FormResumen): string[] {
+  const faltan: string[] = [];
+  const vacio = (valor: string) => valor.trim() === '';
+  if (vacio(f.title)) faltan.push('título');
+  if (vacio(f.description)) faltan.push('descripción');
+  if (vacio(f.problem)) faltan.push('problema u oportunidad');
+  if (vacio(f.expectedBenefit)) faltan.push('beneficio esperado');
+  if (vacio(f.strategicAlignment)) faltan.push('alineación estratégica');
+  if (vacio(f.proponent.name)) faltan.push('proponente: nombre');
+  if (vacio(f.proponent.area)) faltan.push('proponente: área');
+  if (vacio(f.proponent.contact)) faltan.push('proponente: contacto');
+  else if (!contactoValido(f.proponent.contact)) {
+    faltan.push('proponente: contacto inválido (usa un correo o un teléfono)');
+  }
+  if (vacio(f.estimatedResources.time)) faltan.push('recursos: tiempo');
+  if (vacio(f.estimatedResources.people)) faltan.push('recursos: personal');
+  if (vacio(f.estimatedResources.budget)) faltan.push('recursos: presupuesto');
+  return faltan;
+}
