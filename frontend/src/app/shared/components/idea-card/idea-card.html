@@ -1,43 +1,43 @@
 @if (variant() === 'compact') {
-  <div class="group flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 transition hover:border-indigo-300 hover:shadow-sm focus-within:ring-2 focus-within:ring-indigo-300 sm:flex-row sm:items-center sm:justify-between">
+  <div class="group flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-5 transition hover:border-indigo-300 hover:shadow-sm focus-within:ring-2 focus-within:ring-indigo-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-indigo-500/50 sm:flex-row sm:items-center sm:justify-between">
     <div class="min-w-0 flex-1">
-      <p class="truncate text-base font-semibold text-slate-900 group-hover:text-indigo-700">{{ titulo() || 'Sin título' }}</p>
+      <p class="truncate text-base font-semibold text-slate-900 group-hover:text-indigo-700 dark:text-slate-100 dark:group-hover:text-indigo-300">{{ titulo() || 'Sin título' }}</p>
       @if (metaCompacta()) {
-        <p class="mt-1 text-sm text-slate-500">{{ metaCompacta() }}</p>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ metaCompacta() }}</p>
       }
     </div>
     <div class="flex shrink-0 items-center gap-3">
       @if (estado()) {
         <app-badge-state [estado]="estado()!" />
       }
-      <span aria-hidden="true" class="text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-indigo-500">→</span>
+      <span aria-hidden="true" class="text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-indigo-500 dark:text-slate-500 dark:group-hover:text-indigo-400">→</span>
     </div>
     <ng-content />
   </div>
 } @else {
-  <article class="rounded-xl border border-slate-200 bg-white">
-    <header class="border-b border-slate-100 px-6 py-4">
-      <h2 class="text-base font-semibold text-slate-900">{{ titulo() || 'Sin título' }}</h2>
+  <article class="rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+    <header class="border-b border-slate-100 px-4 py-4 dark:border-slate-800 sm:px-6">
+      <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100">{{ titulo() || 'Sin título' }}</h2>
       @for (linea of meta(); track linea) {
-        <p class="mt-1 text-sm text-slate-500">{{ linea }}</p>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ linea }}</p>
       }
       @if (proponente()) {
-        <p class="mt-1 text-sm text-slate-500">
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Proponente:
-          <span class="font-medium text-slate-700">{{ proponente()!.name }}</span>
-          <span class="text-slate-400">· {{ proponente()!.area }}</span>
+          <span class="font-medium text-slate-700 dark:text-slate-200">{{ proponente()!.name }}</span>
+          <span class="text-slate-400 dark:text-slate-500">· {{ proponente()!.area }}</span>
         </p>
       }
     </header>
-    <div class="px-6 py-4">
+    <div class="px-4 py-4 sm:px-6">
       @if (campos()) {
         <dl class="grid gap-3 sm:grid-cols-2">
           @for (campo of CAMPOS_DEF; track campo.clave) {
             @if (campo.clave !== 'proponent') {
               @let clave = campo.clave;
-              <div class="rounded-md bg-slate-50 px-3 py-2">
-                <dt class="text-xs font-medium text-slate-500">{{ campo.etiqueta }}</dt>
-                <dd class="mt-0.5 break-words text-sm text-slate-800">{{ formatearDetalle(clave, campos()![clave]) }}</dd>
+              <div class="rounded-md bg-slate-50 px-3 py-2 dark:bg-slate-800/60">
+                <dt class="text-xs font-medium text-slate-500 dark:text-slate-400">{{ campo.etiqueta }}</dt>
+                <dd class="mt-0.5 break-words text-sm text-slate-800 dark:text-slate-200">{{ formatearDetalle(clave, campos()![clave]) }}</dd>
               </div>
             }
           }

@@ -1,19 +1,19 @@
 @switch (mensaje().role) {
   @case ('user') {
     <div class="flex justify-end">
-      <div class="max-w-[75%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-indigo-600 px-4 py-2 text-sm text-white shadow">
+      <div class="max-w-[75%] whitespace-pre-wrap break-words rounded-2xl rounded-br-sm bg-indigo-600 px-4 py-2 text-sm text-white shadow dark:bg-indigo-500">
         {{ mensaje().text }}
       </div>
     </div>
   }
   @case ('assistant') {
     <div class="flex justify-start">
-      <div class="max-w-[75%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-sm border border-slate-200 bg-white px-4 py-2 text-sm text-slate-800 shadow-sm">
+      <div class="max-w-[75%] whitespace-pre-wrap break-words rounded-2xl rounded-bl-sm border border-slate-200 bg-white px-4 py-2 text-sm text-slate-800 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
         {{ mensaje().text }}
       </div>
     </div>
   }
   @case ('system') {
-    <p class="text-center text-xs italic text-slate-400">{{ mensaje().text }}</p>
+    <p class="text-center text-xs italic text-slate-400 dark:text-slate-500">{{ mensaje().text }}</p>
   }
 }

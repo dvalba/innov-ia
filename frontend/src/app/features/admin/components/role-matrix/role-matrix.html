@@ -1,18 +1,18 @@
 <fieldset
   [disabled]="saving()"
-  class="flex min-w-56 flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 disabled:cursor-not-allowed disabled:opacity-60"
+  class="flex min-w-56 flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900"
   aria-label="Roles del usuario"
 >
-  <legend class="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Roles</legend>
+  <legend class="px-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Roles</legend>
   <div class="flex flex-col gap-1.5">
     @for (option of ROLE_OPCIONES; track option.code) {
-      <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+      <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
         <input
           type="checkbox"
           [ngModel]="hasRole(option.code)"
           (ngModelChange)="toggle(option.code)"
           [disabled]="saving()"
-          class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+          class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-800"
         />
         <span>{{ option.label }}</span>
       </label>

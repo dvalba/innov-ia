@@ -4,9 +4,12 @@ import { estadoLabel } from '../../utils/state';
 
 /** Tailwind classes per state (shared palette: slate/indigo, RNF-4/consistency). */
 const BADGE_CLASSES: Record<IdeaState, string> = {
-  EN_DESARROLLO: 'bg-amber-50 text-amber-700 ring-amber-200',
-  SOLICITANDO_PUBLICACION: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
-  VALIDADA_PUBLICA: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  EN_DESARROLLO:
+    'bg-amber-50 text-amber-700 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-500/30',
+  SOLICITANDO_PUBLICACION:
+    'bg-indigo-50 text-indigo-700 ring-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:ring-indigo-500/30',
+  VALIDADA_PUBLICA:
+    'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/30',
 };
 
 /**

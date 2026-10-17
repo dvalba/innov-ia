@@ -1,11 +1,11 @@
 <div class="flex justify-start">
   <div
-    class="w-full max-w-[85%] rounded-2xl rounded-bl-sm border border-amber-200 bg-amber-50 px-4 py-3 text-sm shadow-sm"
+    class="w-full max-w-[85%] rounded-2xl rounded-bl-sm border border-amber-200 bg-amber-50 px-4 py-3 text-sm shadow-sm dark:border-amber-500/30 dark:bg-amber-500/10"
     role="group"
     aria-label="Sugerencia de título"
   >
-    <p class="mb-1 font-medium text-amber-800">Sugerencia de título</p>
-    <p class="mb-3 whitespace-pre-wrap break-words text-slate-800">
+    <p class="mb-1 font-medium text-amber-800 dark:text-amber-300">Sugerencia de título</p>
+    <p class="mb-3 whitespace-pre-wrap break-words text-slate-800 dark:text-slate-200">
       {{ sugerencia().text }}
     </p>
 
@@ -25,7 +25,7 @@
           type="button"
           (click)="emitir('another')"
           [disabled]="cargando()"
-          class="rounded-lg border border-amber-300 px-3 py-1.5 font-medium text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+          class="rounded-lg border border-amber-300 px-3 py-1.5 font-medium text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-500/40 dark:text-amber-300 dark:hover:bg-amber-500/20"
         >
           Pedir otra
         </button>
@@ -39,13 +39,13 @@
             (ngModelChange)="textoManual.set($event)"
             aria-label="Título propio para la iniciativa"
             placeholder="O escribe el título que prefieras"
-            class="min-w-0 flex-1 rounded-lg border border-amber-300 px-3 py-1.5 text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"
+            class="min-w-0 flex-1 rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200 dark:border-amber-500/40 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-500"
           />
           <button
             type="button"
             (click)="onManual()"
             [disabled]="cargando() || textoManual().trim() === ''"
-            class="rounded-lg border border-amber-300 px-3 py-1.5 font-medium text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+            class="rounded-lg border border-amber-300 px-3 py-1.5 font-medium text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-amber-500/40 dark:text-amber-300 dark:hover:bg-amber-500/20"
           >
             Usar mi título
           </button>

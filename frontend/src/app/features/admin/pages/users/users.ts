@@ -21,9 +21,9 @@ import { roleLabel } from '../../../../shared/utils/roles';
   imports: [UserForm, RoleMatrix],
   template: `
     <div class="space-y-6">
-      <header class="rounded-xl border border-slate-200 bg-white p-6">
-        <h1 class="text-xl font-semibold text-slate-900">Administración de usuarios</h1>
-        <p class="mt-1 text-sm text-slate-500">
+      <header class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:p-6">
+        <h1 class="text-xl font-semibold text-slate-900 dark:text-slate-100">Administración de usuarios</h1>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Crea cuentas y habilita o desactiva usuarios. Una cuenta desactivada
           pierde el acceso; sus ideas e historial se conservan.
         </p>
@@ -35,17 +35,17 @@ import { roleLabel } from '../../../../shared/utils/roles';
         <div
           role="status"
           aria-live="polite"
-          class="flex flex-col gap-3 rounded-xl border border-indigo-200 bg-indigo-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+          class="flex flex-col gap-3 rounded-xl border border-indigo-200 bg-indigo-50 p-4 dark:border-indigo-500/30 dark:bg-indigo-500/10 sm:flex-row sm:items-center sm:justify-between"
         >
           <div class="min-w-0">
-            <p class="text-sm font-medium text-indigo-900">
+            <p class="text-sm font-medium text-indigo-900 dark:text-indigo-200">
               Usuario <span class="font-semibold">{{ created()!.user.username }}</span> creado.
             </p>
-            <p class="mt-1 text-sm text-indigo-900">
+            <p class="mt-1 text-sm text-indigo-900 dark:text-indigo-200">
               Contraseña temporal — entrégala de inmediato, solo se muestra una vez:
             </p>
             <code
-              class="mt-1 inline-block rounded-md bg-white px-3 py-1 font-mono text-base tracking-wider text-indigo-700 ring-1 ring-indigo-200"
+              class="mt-1 inline-block rounded-md bg-white px-3 py-1 font-mono text-base tracking-wider text-indigo-700 ring-1 ring-indigo-200 dark:bg-slate-900 dark:text-indigo-300 dark:ring-indigo-500/30"
               aria-label="Contraseña temporal"
               >{{ created()!.temporaryPassword }}</code
             >
@@ -61,7 +61,7 @@ import { roleLabel } from '../../../../shared/utils/roles';
             <button
               type="button"
               (click)="dismissCreated()"
-              class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300"
+              class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:focus:ring-slate-500/40"
             >
               Entendida
             </button>
@@ -72,14 +72,14 @@ import { roleLabel } from '../../../../shared/utils/roles';
       @if (error()) {
         <div
           role="alert"
-          class="flex items-start justify-between gap-4 rounded-xl border border-red-200 bg-red-50 p-4"
+          class="flex items-start justify-between gap-4 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-500/30 dark:bg-red-500/10"
         >
-          <p class="text-sm text-red-700">{{ error() }}</p>
+          <p class="text-sm text-red-700 dark:text-red-300">{{ error() }}</p>
           <button
             type="button"
             (click)="clearError()"
             aria-label="Descartar mensaje"
-            class="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+            class="shrink-0 rounded-lg px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100 dark:text-red-300 dark:hover:bg-red-500/20"
           >
             Cerrar
           </button>
@@ -87,57 +87,57 @@ import { roleLabel } from '../../../../shared/utils/roles';
       }
 
       @if (list.isLoading()) {
-        <p role="status" class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+        <p role="status" class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
           Cargando usuarios…
         </p>
       } @else {
         @if ((list.value() ?? []).length === 0) {
-          <p class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
+          <p class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
             Aún no hay usuarios. Crea el primero con el formulario anterior.
           </p>
         } @else {
           <ul class="space-y-3">
             @for (user of list.value(); track user.id) {
               <li
-                class="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-5 lg:flex-row lg:items-center lg:justify-between"
+                class="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:p-5 lg:flex-row lg:items-center lg:justify-between"
                 [class.opacity-75]="!user.active"
               >
                 <div class="min-w-0 flex-1 space-y-2">
                   <div class="flex flex-wrap items-center gap-2">
-                    <span class="text-base font-semibold text-slate-900">{{ user.username }}</span>
+                    <span class="text-base font-semibold text-slate-900 dark:text-slate-100">{{ user.username }}</span>
                     <span
                       class="rounded-full px-2.5 py-0.5 text-xs font-medium ring-1"
                       [class]="user.active
-                        ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-                        : 'bg-slate-100 text-slate-600 ring-slate-200'"
+                        ? 'bg-emerald-50 text-emerald-700 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:ring-emerald-500/30'
+                        : 'bg-slate-100 text-slate-600 ring-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700'"
                       >{{ user.active ? 'Habilitado' : 'Desactivado' }}</span
                     >
                   </div>
-                  <p class="text-sm text-slate-600">
+                  <p class="text-sm text-slate-600 dark:text-slate-300">
                     {{ user.name || '—' }}
-                    <span class="mx-1.5 text-slate-300">·</span>
+                    <span class="mx-1.5 text-slate-300 dark:text-slate-600">·</span>
                     {{ user.area || '—' }}
-                    <span class="mx-1.5 text-slate-300">·</span>
+                    <span class="mx-1.5 text-slate-300 dark:text-slate-600">·</span>
                     {{ user.contact || '—' }}
                   </p>
                   <div class="flex flex-wrap items-center gap-1.5" aria-label="Roles de {{ user.username }}">
                     @if (user.roles.length === 0) {
                       <span
-                        class="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-200"
+                        class="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:ring-amber-500/30"
                       >
                         Sin acceso a funciones
                       </span>
                     } @else {
                       @for (role of user.roles; track role) {
                         <span
-                          class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700 ring-1 ring-slate-200"
+                          class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700"
                           >{{ roleLabel(role) }}</span
                         >
                       }
                     }
                   </div>
                   @if (!user.active) {
-                    <p class="text-xs text-slate-500">
+                    <p class="text-xs text-slate-500 dark:text-slate-400">
                       Sin acceso a la plataforma; cuenta, ideas e historial conservados.
                     </p>
                   }
@@ -149,7 +149,7 @@ import { roleLabel } from '../../../../shared/utils/roles';
                     (click)="onToggle(user)"
                     [disabled]="togglingId() === user.id"
                     [attr.aria-label]="(user.active ? 'Desactivar' : 'Habilitar') + ' a ' + user.username"
-                    class="self-start rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60 sm:self-auto"
+                    class="self-start rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60 sm:self-auto dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:focus:ring-slate-500/40"
                   >
                     {{ togglingId() === user.id
                       ? 'Guardando…'

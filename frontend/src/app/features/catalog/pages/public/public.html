@@ -1,19 +1,19 @@
 <div class="space-y-5">
   <header>
-    <h1 class="text-xl font-semibold text-slate-900">Catálogo público</h1>
-    <p class="mt-1 text-sm text-slate-600">
+    <h1 class="text-xl font-semibold text-slate-900 dark:text-slate-100">Catálogo público</h1>
+    <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
       Iniciativas validadas y publicadas por la comunidad. Solo lectura.
     </p>
   </header>
 
   @if (catalogo.error()) {
-    <p role="alert" class="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
+    <p role="alert" class="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
       No se pudo cargar el catálogo público.
     </p>
   } @else if (catalogo.isLoading()) {
     <p
       role="status"
-      class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500"
+      class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
     >
       Cargando catálogo…
     </p>
@@ -22,7 +22,7 @@
     @if (ideas.length === 0) {
       <p
         role="status"
-        class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500"
+        class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
       >
         Aún no hay iniciativas publicadas.
       </p>

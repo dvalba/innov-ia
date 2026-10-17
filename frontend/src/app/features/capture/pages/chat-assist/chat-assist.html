@@ -1,11 +1,11 @@
-<div class="flex h-[75vh] w-full max-w-2xl flex-col mx-auto">
+<div class="mx-auto flex min-h-[60vh] w-full max-w-2xl flex-col sm:min-h-[70vh]">
   @if (sinConversacion()) {
-    <div class="flex flex-1 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 shadow-lg text-center">
-      <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-2xl font-bold text-slate-400">
+    <div class="flex flex-1 flex-col items-center justify-center rounded-2xl border border-slate-200 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
+      <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-2xl font-bold text-slate-400 dark:bg-slate-800 dark:text-slate-500">
         ?
       </div>
-      <h1 class="text-xl font-semibold text-slate-900">No hay captura en curso</h1>
-      <p class="mt-1 mb-5 max-w-sm text-sm text-slate-500">
+      <h1 class="text-xl font-semibold text-slate-900 dark:text-slate-100">No hay captura en curso</h1>
+      <p class="mt-1 mb-5 max-w-sm text-sm text-slate-500 dark:text-slate-400">
         Comienza una nueva idea para abrir la conversación con el asistente.
       </p>
       <button
@@ -17,10 +17,10 @@
       </button>
     </div>
   } @else {
-    <div class="flex flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
-      <div class="flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-5 py-3">
+    <div class="flex flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-800/60 sm:px-5">
         <div>
-          <p class="text-sm font-semibold text-slate-900">
+          <p class="text-sm font-semibold text-slate-900 dark:text-slate-100">
             @if (estadoConv() === 'RESUMEN') {
               Resumen de la idea
             } @else {
@@ -30,7 +30,7 @@
               }
             }
           </p>
-          <p class="text-xs text-slate-500">
+          <p class="text-xs text-slate-500 dark:text-slate-400">
             @if (estadoConv() === 'RESUMEN') {
               Los 7 campos quedaron cerrados.
             } @else if (cargando()) {
@@ -43,13 +43,13 @@
         <button
           type="button"
           (click)="abrirAbandono()"
-          class="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300"
+          class="shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium text-red-600 transition hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-300 dark:text-red-400 dark:hover:bg-red-500/15"
         >
           Abandonar
         </button>
       </div>
 
-      <div #scroll class="flex-1 space-y-2 overflow-y-auto bg-slate-50 p-4">
+      <div #scroll class="flex-1 space-y-2 overflow-y-auto bg-slate-50 p-3 dark:bg-slate-950/40 sm:p-4">
         @for (m of transcript(); track m.id) {
           <app-chat-message [mensaje]="m"></app-chat-message>
         }
@@ -62,17 +62,17 @@
         }
         @if (contingencia()) {
           <div
-            class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm"
+            class="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm dark:border-amber-500/30 dark:bg-amber-500/10"
             role="alert"
           >
-            <p class="mb-2 font-medium text-amber-800">
+            <p class="mb-2 font-medium text-amber-800 dark:text-amber-300">
               El asistente no está disponible.
             </p>
-            <p class="mb-3 text-amber-700">{{ contingencia()?.notice }}</p>
+            <p class="mb-3 text-amber-700 dark:text-amber-400/90">{{ contingencia()?.notice }}</p>
             @if (camposPreservados().length > 0) {
               <ul class="mb-3 space-y-1">
                 @for (c of camposPreservados(); track c.campo) {
-                  <li class="text-amber-800">
+                  <li class="text-amber-800 dark:text-amber-300">
                     <span class="font-medium">{{ c.campo }}:</span>
                     <span class="break-words">{{ c.valor }}</span>
                   </li>
@@ -90,7 +90,7 @@
         }
         @if (estadoConv() === 'RESUMEN' && !contingencia()) {
           @if (confirmando()) {
-            <p class="flex items-center gap-2 text-xs text-slate-400" aria-live="polite">
+            <p class="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500" aria-live="polite">
               <span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"></span>
               Registrando la idea…
             </p>
@@ -103,25 +103,25 @@
           }
         }
         @if (cargando()) {
-          <p class="flex items-center gap-2 text-xs text-slate-400" aria-live="polite">
+          <p class="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500" aria-live="polite">
             <span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-slate-400 border-t-transparent"></span>
             El asistente está escribiendo…
           </p>
         }
         @if (errorEnvio()) {
-          <p role="alert" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+          <p role="alert" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/15 dark:text-red-300">
             {{ errorEnvio() }}
           </p>
         }
         @if (errorConfirmar()) {
-          <p role="alert" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+          <p role="alert" class="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 dark:bg-red-500/15 dark:text-red-300">
             {{ errorConfirmar() }}
           </p>
         }
       </div>
 
       @if (estadoConv() === 'ACTIVA' && !contingencia()) {
-        <div class="border-t border-slate-200 bg-white p-4">
+        <div class="border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-900 sm:p-4">
           @if (estadoConv() === 'ACTIVA' && turno()?.quickOptions && turno()!.quickOptions!.length > 0 && !cargando()) {
             <div class="mb-3 flex flex-wrap gap-2">
               @for (chip of turno()!.quickOptions!; track chip) {
@@ -129,7 +129,7 @@
                   type="button"
                   (click)="elegirChip(chip)"
                   [disabled]="cargando()"
-                  class="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  class="rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-300 dark:hover:bg-indigo-500/25"
                 >
                   {{ chip }}
                 </button>
@@ -145,7 +145,7 @@
               aria-label="Escribe tu respuesta al asistente"
               placeholder="Escribe tu respuesta…"
               [disabled]="cargando()"
-              class="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:bg-slate-50"
+              class="min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:bg-slate-50 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:disabled:bg-slate-800/60"
             />
             <button
               type="submit"

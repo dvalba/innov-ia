@@ -1,23 +1,23 @@
-<div role="alert" class="rounded-xl border border-red-200 bg-red-50 p-5">
+<div role="alert" class="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-500/30 dark:bg-red-500/10 sm:p-5">
   <div class="flex items-start gap-3">
     <span
       aria-hidden="true"
-      class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-100 text-base font-semibold text-red-700 ring-1 ring-red-200"
+      class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-red-100 text-base font-semibold text-red-700 ring-1 ring-red-200 dark:bg-red-500/20 dark:text-red-300 dark:ring-red-500/30"
     >
       ✕
     </span>
     <div class="min-w-0 flex-1">
-      <h3 class="text-sm font-semibold text-red-900">Tu iniciativa fue rechazada</h3>
-      <p class="mt-1 text-xs text-red-700">
+      <h3 class="text-sm font-semibold text-red-900 dark:text-red-200">Tu iniciativa fue rechazada</h3>
+      <p class="mt-1 text-xs text-red-700 dark:text-red-300">
         Rechazado por <span class="font-medium">{{ nota().byName }}</span>
         el {{ formatearFecha(nota().at) }}.
       </p>
       <blockquote
-        class="mt-3 rounded-lg border-l-4 border-red-300 bg-white px-4 py-3 text-sm text-red-900"
+        class="mt-3 rounded-lg border-l-4 border-red-300 bg-white px-4 py-3 text-sm text-red-900 dark:border-red-500/40 dark:bg-slate-900 dark:text-red-200"
       >
         «{{ nota().comment }}»
       </blockquote>
-      <p class="mt-3 text-xs text-red-700">
+      <p class="mt-3 text-xs text-red-700 dark:text-red-300">
         Puedes editar la iniciativa y solicitar de nuevo su publicación.
       </p>
     </div>

@@ -120,6 +120,11 @@ export const routes: Routes = [
             (m) => m.UserManagement,
           ),
       },
+      {
+        path: 'ajustes',
+        loadComponent: () =>
+          import('./shared/pages/settings/settings').then((m) => m.Settings),
+      },
       { path: '**', redirectTo: '' },
     ],
   },

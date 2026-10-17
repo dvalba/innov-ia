@@ -1,10 +1,30 @@
-<div class="flex min-h-screen bg-slate-100">
-  <aside class="flex w-64 flex-col border-r border-slate-200 bg-white">
-    <div class="flex items-center gap-2 border-b border-slate-200 px-5 py-4">
+@if (menuAbierto()) {
+  <div
+    class="fixed inset-0 z-40 bg-slate-900/50 backdrop-blur-sm md:hidden"
+    (click)="cerrarMenu()"
+  ></div>
+}
+
+<div class="flex min-h-screen bg-slate-100 dark:bg-slate-950">
+  <aside
+    class="fixed inset-y-0 left-0 z-50 flex w-64 -translate-x-full flex-col border-r border-slate-200 bg-white transition-transform duration-200 dark:border-slate-800 dark:bg-slate-900 md:sticky md:top-0 md:h-screen md:translate-x-0"
+    [class.translate-x-0]="menuAbierto()"
+  >
+    <div class="flex items-center gap-2 border-b border-slate-200 px-5 py-4 dark:border-slate-800">
       <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-lg font-bold text-white">
         I
       </div>
-      <span class="text-base font-semibold text-slate-900">Innov-IA</span>
+      <span class="text-base font-semibold text-slate-900 dark:text-slate-100">Innov-IA</span>
+      <button
+        type="button"
+        (click)="cerrarMenu()"
+        class="ml-auto rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:text-slate-400 dark:hover:bg-slate-800 md:hidden"
+        aria-label="Cerrar menú"
+      >
+        <svg viewBox="0 0 20 20" fill="none" class="h-5 w-5" stroke="currentColor" stroke-width="1.8">
+          <path stroke-linecap="round" d="M5 5l10 10M15 5L5 15" />
+        </svg>
+      </button>
     </div>
 
     <nav class="flex-1 px-3 py-4">
@@ -13,16 +33,18 @@
           <li>
             <a
               routerLink="/captura"
-              routerLinkActive="bg-indigo-50 text-indigo-700"
-              class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+              routerLinkActive="bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
+              class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              (click)="cerrarMenu()"
               >Nueva idea</a
             >
           </li>
           <li>
             <a
               routerLink="/mis-ideas"
-              routerLinkActive="bg-indigo-50 text-indigo-700"
-              class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+              routerLinkActive="bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
+              class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              (click)="cerrarMenu()"
               >Mis ideas</a
             >
           </li>
@@ -30,8 +52,9 @@
         <li>
           <a
             routerLink="/catalogo"
-            routerLinkActive="bg-indigo-50 text-indigo-700"
-            class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+            routerLinkActive="bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
+            class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            (click)="cerrarMenu()"
             >Catálogo</a
           >
         </li>
@@ -39,8 +62,9 @@
           <li>
             <a
               routerLink="/validacion"
-              routerLinkActive="bg-indigo-50 text-indigo-700"
-              class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+              routerLinkActive="bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
+              class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              (click)="cerrarMenu()"
               >Validación</a
             >
           </li>
@@ -49,8 +73,9 @@
           <li>
             <a
               routerLink="/admin"
-              routerLinkActive="bg-indigo-50 text-indigo-700"
-              class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+              routerLinkActive="bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300"
+              class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              (click)="cerrarMenu()"
               >Administración</a
             >
           </li>
@@ -58,17 +83,21 @@
       </ul>
     </nav>
 
-    <div class="border-t border-slate-200 px-4 py-4">
+    <div class="border-t border-slate-200 px-4 py-4 dark:border-slate-800">
       <div class="mb-3 flex items-center gap-3">
-        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-100 font-semibold text-indigo-700">
+        <div
+          class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-100 font-semibold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300"
+        >
           {{ initial }}
         </div>
         <div class="min-w-0">
-          <p class="truncate text-sm font-semibold text-slate-800">{{ displayName }}</p>
+          <p class="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">
+            {{ displayName }}
+          </p>
           <div class="mt-0.5 flex flex-wrap gap-1">
             @for (role of session.roles(); track role) {
               <span
-                class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
+                class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300"
                 >{{ roleLabel(role) }}</span
               >
             }
@@ -78,7 +107,7 @@
       <button
         type="button"
         (click)="onLogout()"
-        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
       >
         Cerrar sesión
       </button>
@@ -86,10 +115,41 @@
   </aside>
 
   <main class="flex min-w-0 flex-1 flex-col">
-    <header class="flex items-center justify-end border-b border-slate-200 bg-white px-6 py-2">
-      <app-notification-bell />
+    <header
+      class="sticky top-0 z-30 flex items-center gap-2 border-b border-slate-200 bg-white/90 px-4 py-2 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90 sm:px-6"
+    >
+      <button
+        type="button"
+        (click)="toggleMenu()"
+        class="rounded-lg p-2 text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:text-slate-300 dark:hover:bg-slate-800 md:hidden"
+        aria-label="Abrir menú"
+      >
+        <svg viewBox="0 0 20 20" fill="none" class="h-5 w-5" stroke="currentColor" stroke-width="1.8">
+          <path stroke-linecap="round" d="M3 5h14M3 10h14M3 15h14" />
+        </svg>
+      </button>
+
+      <div class="ml-auto flex items-center gap-1">
+        <a
+          routerLink="/ajustes"
+          routerLinkActive="text-indigo-600 dark:text-indigo-300"
+          class="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:text-slate-400 dark:hover:bg-slate-800"
+          aria-label="Ajustes"
+          title="Ajustes"
+        >
+          <svg viewBox="0 0 24 24" fill="none" class="h-5 w-5" stroke="currentColor" stroke-width="1.7">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M9.6 3.4a1 1 0 0 1 .8-.4h3.2a1 1 0 0 1 .8.4l1.2 1.9c.5.1 1 .3 1.4.7l1-.4c.5-.2 1 .1 1.2.5l1 1.8c.2.4 0 .9-.4 1.1l-1.6.9c.1.5.1 1 0 1.5l1.6.9c.4.2.6.7.4 1.1l-1 1.8c-.2.5-.8.7-1.2.5l-1-.4c-.4.4-.9.6-1.4.7l-1.2 1.9a1 1 0 0 1-.8.4H10.4a1 1 0 0 1-.8-.4L8.4 16.8c-.5-.1-1-.3-1.4-.7l-1 .4c-.5.2-1-.1-1.2-.5l-1-1.8c-.2-.4 0-.9.4-1.1l1.6-.9c-.1-.5-.1-1 0-1.5l-1.6-.9c-.4-.2-.6-.7-.4-1.1l1-1.8c.2-.5.8-.7 1.2-.5l1 .4c.4-.4.9-.6 1.4-.7l1.2-1.9Z"
+            />
+            <circle cx="12" cy="10.4" r="2.6" />
+          </svg>
+        </a>
+        <app-notification-bell />
+      </div>
     </header>
-    <div class="flex-1 overflow-y-auto p-8">
+    <div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
       <router-outlet />
     </div>
   </main>

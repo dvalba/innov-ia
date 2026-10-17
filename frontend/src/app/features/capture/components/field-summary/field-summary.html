@@ -1,14 +1,14 @@
-<div class="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm">
-  <p class="mb-1 font-medium text-slate-800">Revisa y confirma los 7 campos</p>
-  <p class="mb-4 text-xs text-slate-500">
+<div class="rounded-2xl border border-slate-200 bg-white p-4 text-sm shadow-sm dark:border-slate-700 dark:bg-slate-900">
+  <p class="mb-1 font-medium text-slate-800 dark:text-slate-200">Revisa y confirma los 7 campos</p>
+  <p class="mb-4 text-xs text-slate-500 dark:text-slate-400">
     Puedes corregir cualquier campo antes de confirmar. La idea se registrará con origen asistida.
-    <span class="text-slate-400">(Los campos marcados con * son obligatorios)</span>
+    <span class="text-slate-400 dark:text-slate-500">(Los campos marcados con * son obligatorios)</span>
   </p>
 
   <form (ngSubmit)="confirmarIdea()" class="space-y-4" novalidate>
     <div>
-      <label class="mb-1 block text-xs font-medium text-slate-600" for="fs-title">
-        Título <abbr class="text-red-500" title="obligatorio">*</abbr>
+      <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300" for="fs-title">
+        Título <abbr class="text-red-500 dark:text-red-400" title="obligatorio">*</abbr>
       </label>
       <input
         id="fs-title"
@@ -17,17 +17,17 @@
         [(ngModel)]="formulario().title"
         placeholder="Título de la iniciativa"
         [class]="tieneError('title')
-          ? 'w-full rounded-lg border border-red-400 px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-200'
-          : 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'"
+          ? 'w-full rounded-lg border border-red-400 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-200 dark:bg-slate-950 dark:text-slate-100'
+          : 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100'"
       />
       @if (tieneError('title')) {
-        <p class="mt-1 text-xs text-red-600">Completa el título.</p>
+        <p class="mt-1 text-xs text-red-600 dark:text-red-400">Completa el título.</p>
       }
     </div>
 
     <div>
-      <label class="mb-1 block text-xs font-medium text-slate-600" for="fs-description">
-        Descripción <abbr class="text-red-500" title="obligatorio">*</abbr>
+      <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300" for="fs-description">
+        Descripción <abbr class="text-red-500 dark:text-red-400" title="obligatorio">*</abbr>
       </label>
       <textarea
         id="fs-description"
@@ -36,17 +36,17 @@
         [(ngModel)]="formulario().description"
         placeholder="De qué trata la iniciativa"
         [class]="tieneError('description')
-          ? 'w-full resize-y rounded-lg border border-red-400 px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-200'
-          : 'w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'"
+          ? 'w-full resize-y rounded-lg border border-red-400 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-200 dark:bg-slate-950 dark:text-slate-100'
+          : 'w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100'"
       ></textarea>
       @if (tieneError('description')) {
-        <p class="mt-1 text-xs text-red-600">Completa la descripción.</p>
+        <p class="mt-1 text-xs text-red-600 dark:text-red-400">Completa la descripción.</p>
       }
     </div>
 
     <div>
-      <label class="mb-1 block text-xs font-medium text-slate-600" for="fs-problem">
-        Problema u oportunidad <abbr class="text-red-500" title="obligatorio">*</abbr>
+      <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300" for="fs-problem">
+        Problema u oportunidad <abbr class="text-red-500 dark:text-red-400" title="obligatorio">*</abbr>
       </label>
       <textarea
         id="fs-problem"
@@ -55,17 +55,17 @@
         [(ngModel)]="formulario().problem"
         placeholder="Problema u oportunidad que aborda"
         [class]="tieneError('problem')
-          ? 'w-full resize-y rounded-lg border border-red-400 px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-200'
-          : 'w-full resize-y rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'"
+          ? 'w-full resize-y rounded-lg border border-red-400 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-200 dark:bg-slate-950 dark:text-slate-100'
+          : 'w-full resize-y rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100'"
       ></textarea>
       @if (tieneError('problem')) {
-        <p class="mt-1 text-xs text-red-600">Completa el problema u oportunidad.</p>
+        <p class="mt-1 text-xs text-red-600 dark:text-red-400">Completa el problema u oportunidad.</p>
       }
     </div>
 
     <div>
-      <label class="mb-1 block text-xs font-medium text-slate-600" for="fs-benefit">
-        Beneficio esperado <abbr class="text-red-500" title="obligatorio">*</abbr>
+      <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300" for="fs-benefit">
+        Beneficio esperado <abbr class="text-red-500 dark:text-red-400" title="obligatorio">*</abbr>
       </label>
       <input
         id="fs-benefit"
@@ -74,17 +74,17 @@
         [(ngModel)]="formulario().expectedBenefit"
         placeholder="Beneficio esperado"
         [class]="tieneError('expectedBenefit')
-          ? 'w-full rounded-lg border border-red-400 px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-200'
-          : 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'"
+          ? 'w-full rounded-lg border border-red-400 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-200 dark:bg-slate-950 dark:text-slate-100'
+          : 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100'"
       />
       @if (tieneError('expectedBenefit')) {
-        <p class="mt-1 text-xs text-red-600">Completa el beneficio esperado.</p>
+        <p class="mt-1 text-xs text-red-600 dark:text-red-400">Completa el beneficio esperado.</p>
       }
     </div>
 
     <div>
-      <label class="mb-1 block text-xs font-medium text-slate-600" for="fs-alignment">
-        Alineación estratégica <abbr class="text-red-500" title="obligatorio">*</abbr>
+      <label class="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-300" for="fs-alignment">
+        Alineación estratégica <abbr class="text-red-500 dark:text-red-400" title="obligatorio">*</abbr>
       </label>
       <input
         id="fs-alignment"
@@ -93,24 +93,24 @@
         [(ngModel)]="formulario().strategicAlignment"
         placeholder="Alineación con la estrategia"
         [class]="tieneError('strategicAlignment')
-          ? 'w-full rounded-lg border border-red-400 px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-200'
-          : 'w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200'"
+          ? 'w-full rounded-lg border border-red-400 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-red-400 focus:ring-2 focus:ring-red-200 dark:bg-slate-950 dark:text-slate-100'
+          : 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100'"
       />
       @if (tieneError('strategicAlignment')) {
-        <p class="mt-1 text-xs text-red-600">Completa la alineación estratégica.</p>
+        <p class="mt-1 text-xs text-red-600 dark:text-red-400">Completa la alineación estratégica.</p>
       }
     </div>
 
     <fieldset
-      [class]="tieneError('proponent') ? 'rounded-lg border border-red-300 bg-red-50 p-3' : 'rounded-lg border border-slate-200 p-3'"
+      [class]="tieneError('proponent') ? 'rounded-lg border border-red-300 bg-red-50 p-3 dark:border-red-500/40 dark:bg-red-500/10' : 'rounded-lg border border-slate-200 p-3 dark:border-slate-700'"
     >
-      <legend class="px-1 text-xs font-medium text-slate-600">
-        Proponente <abbr class="text-red-500" title="obligatorio">*</abbr>
+      <legend class="px-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+        Proponente <abbr class="text-red-500 dark:text-red-400" title="obligatorio">*</abbr>
       </legend>
       <div class="grid gap-3 sm:grid-cols-3">
         <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500" for="fs-p-name">
-            Nombre <abbr class="text-red-500" title="obligatorio">*</abbr>
+          <label class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400" for="fs-p-name">
+            Nombre <abbr class="text-red-500 dark:text-red-400" title="obligatorio">*</abbr>
           </label>
           <input
             id="fs-p-name"
@@ -118,12 +118,12 @@
             name="proponentName"
             [(ngModel)]="formulario().proponent.name"
             placeholder="Nombre"
-            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-500"
           />
         </div>
         <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500" for="fs-p-area">
-            Área <abbr class="text-red-500" title="obligatorio">*</abbr>
+          <label class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400" for="fs-p-area">
+            Área <abbr class="text-red-500 dark:text-red-400" title="obligatorio">*</abbr>
           </label>
           <input
             id="fs-p-area"
@@ -131,13 +131,13 @@
             name="proponentArea"
             [(ngModel)]="formulario().proponent.area"
             placeholder="Área"
-            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-500"
           />
         </div>
         <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500" for="fs-p-contact">
-            Contacto <abbr class="text-red-500" title="obligatorio">*</abbr>
-            <span class="text-slate-400">(correo o teléfono)</span>
+          <label class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400" for="fs-p-contact">
+            Contacto <abbr class="text-red-500 dark:text-red-400" title="obligatorio">*</abbr>
+            <span class="text-slate-400 dark:text-slate-500">(correo o teléfono)</span>
           </label>
           <input
             id="fs-p-contact"
@@ -145,27 +145,27 @@
             name="proponentContact"
             [(ngModel)]="formulario().proponent.contact"
             placeholder="Correo o teléfono"
-            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-500"
           />
         </div>
       </div>
       @if (tieneError('proponent')) {
-        <p class="mt-2 text-xs text-red-600">
+        <p class="mt-2 text-xs text-red-600 dark:text-red-400">
           Completa los datos del proponente y usa un contacto válido (correo o teléfono).
         </p>
       }
     </fieldset>
 
     <fieldset
-      [class]="tieneError('estimatedResources') ? 'rounded-lg border border-red-300 bg-red-50 p-3' : 'rounded-lg border border-slate-200 p-3'"
+      [class]="tieneError('estimatedResources') ? 'rounded-lg border border-red-300 bg-red-50 p-3 dark:border-red-500/40 dark:bg-red-500/10' : 'rounded-lg border border-slate-200 p-3 dark:border-slate-700'"
     >
-      <legend class="px-1 text-xs font-medium text-slate-600">
-        Recursos estimados <abbr class="text-red-500" title="obligatorio">*</abbr>
+      <legend class="px-1 text-xs font-medium text-slate-600 dark:text-slate-300">
+        Recursos estimados <abbr class="text-red-500 dark:text-red-400" title="obligatorio">*</abbr>
       </legend>
       <div class="grid gap-3 sm:grid-cols-3">
         <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500" for="fs-r-time">
-            Tiempo <abbr class="text-red-500" title="obligatorio">*</abbr>
+          <label class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400" for="fs-r-time">
+            Tiempo <abbr class="text-red-500 dark:text-red-400" title="obligatorio">*</abbr>
           </label>
           <input
             id="fs-r-time"
@@ -173,12 +173,12 @@
             name="resTime"
             [(ngModel)]="formulario().estimatedResources.time"
             placeholder="Ej. 1 a 3 meses"
-            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-500"
           />
         </div>
         <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500" for="fs-r-people">
-            Personal <abbr class="text-red-500" title="obligatorio">*</abbr>
+          <label class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400" for="fs-r-people">
+            Personal <abbr class="text-red-500 dark:text-red-400" title="obligatorio">*</abbr>
           </label>
           <input
             id="fs-r-people"
@@ -186,12 +186,12 @@
             name="resPeople"
             [(ngModel)]="formulario().estimatedResources.people"
             placeholder="Ej. 2 personas"
-            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-500"
           />
         </div>
         <div>
-          <label class="mb-1 block text-xs font-medium text-slate-500" for="fs-r-budget">
-            Presupuesto <abbr class="text-red-500" title="obligatorio">*</abbr>
+          <label class="mb-1 block text-xs font-medium text-slate-500 dark:text-slate-400" for="fs-r-budget">
+            Presupuesto <abbr class="text-red-500 dark:text-red-400" title="obligatorio">*</abbr>
           </label>
           <input
             id="fs-r-budget"
@@ -199,19 +199,19 @@
             name="resBudget"
             [(ngModel)]="formulario().estimatedResources.budget"
             placeholder="Ej. Bajo"
-            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+            class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder-slate-500"
           />
         </div>
       </div>
       @if (tieneError('estimatedResources')) {
-        <p class="mt-2 text-xs text-red-600">
+        <p class="mt-2 text-xs text-red-600 dark:text-red-400">
           Completa tiempo, personal y presupuesto estimado.
         </p>
       }
     </fieldset>
 
     @if (!esCompleto()) {
-      <p class="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700" aria-live="polite">
+      <p class="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-500/15 dark:text-amber-300" aria-live="polite">
         Faltan por completar: <span class="font-medium">{{ listaFaltantes() }}</span>.
       </p>
     }

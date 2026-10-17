@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { errorMessage } from '../../../../shared/interceptors/error.interceptor';
+import { ThemePicker } from '../../../../shared/components/theme-picker/theme-picker';
 
 /**
  * Login screen (T-037, RF-1).
@@ -12,7 +13,7 @@ import { errorMessage } from '../../../../shared/interceptors/error.interceptor'
  */
 @Component({
   selector: 'app-login',
-  imports: [FormsModule],
+  imports: [FormsModule, ThemePicker],
   templateUrl: './login.html',
   styleUrl: './login.css',
 })

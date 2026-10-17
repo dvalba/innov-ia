@@ -6,6 +6,22 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <script>
+    // Pre-paint theme bootstrap: applies the persisted preference
+    // ('light' | 'dark' under the innov-ia.theme key) or falls back to the
+    // system color scheme, before the first frame is rendered.
+    (function () {
+      try {
+        var saved = localStorage.getItem('innov-ia.theme');
+        var dark = saved
+          ? saved === 'dark'
+          : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (dark) document.documentElement.classList.add('dark');
+      } catch (e) {
+        /* localStorage unavailable: keep the light theme */
+      }
+    })();
+  </script>
 </head>
 <body>
   <app-root></app-root>

@@ -1,28 +1,31 @@
-<div class="rounded-xl border border-emerald-200 bg-emerald-50/40 p-6">
-  <h2 class="text-base font-semibold text-slate-900">Versión refinada por la IA</h2>
-  <p class="mt-1 text-sm text-slate-500">
+<div class="rounded-xl border border-emerald-200 bg-emerald-50/40 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10 sm:p-6">
+  <h2 class="text-base font-semibold text-slate-900 dark:text-slate-100">Versión refinada por la IA</h2>
+  <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
     Compara la versión {{ version().version }} (propuesta el
     {{ formatearDia(version().createdAt) }}) con tu iniciativa actual. Solo se
     resalta lo que cambió.
   </p>
 
-  <dl class="mt-4 divide-y divide-slate-200 rounded-lg bg-white">
+  <dl class="mt-4 divide-y divide-slate-200 rounded-lg bg-white dark:divide-slate-700 dark:bg-slate-900">
     @for (campo of campos; track campo.clave) {
       @let clave = campo.clave;
       @let dif = difiere(clave, idea()[clave], version().fields[clave]);
       <div
         class="grid gap-1 px-4 py-3 sm:grid-cols-3"
         [class.bg-indigo-50]="dif"
+        [class.dark:bg-indigo-500/10]="dif"
       >
-        <dt class="text-sm font-medium text-slate-700">{{ campo.etiqueta }}</dt>
-        <dd class="min-w-0 break-words text-sm text-slate-600" [title]="formatearDetalle(clave, idea()[clave])">
+        <dt class="text-sm font-medium text-slate-700 dark:text-slate-300">{{ campo.etiqueta }}</dt>
+        <dd class="min-w-0 break-words text-sm text-slate-600 dark:text-slate-400" [title]="formatearDetalle(clave, idea()[clave])">
           {{ formatearDetalle(clave, idea()[clave]) }}
         </dd>
         <dd
           class="min-w-0 break-words text-sm sm:col-span-1"
           [class.font-medium]="dif"
           [class.text-indigo-800]="dif"
+          [class.dark:text-indigo-300]="dif"
           [class.text-slate-600]="!dif"
+          [class.dark:text-slate-400]="!dif"
           [title]="formatearDetalle(clave, version().fields[clave])"
         >
           {{ formatearDetalle(clave, version().fields[clave]) }}
@@ -43,13 +46,13 @@
     <button
       type="button"
       (click)="ajustar.emit(version())"
-      class="rounded-lg border border-emerald-300 bg-white px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-300"
+      class="rounded-lg border border-emerald-300 bg-white px-4 py-2 text-sm font-medium text-emerald-700 transition hover:bg-emerald-50 focus:outline-none focus:ring-2 focus:ring-emerald-300 dark:border-emerald-500/40 dark:bg-slate-900 dark:text-emerald-300 dark:hover:bg-emerald-500/10 dark:focus:ring-emerald-500/40"
     >
       Ajustar detalles en el chat
     </button>
   </div>
 
-  <p class="mt-3 text-xs text-slate-500">
+  <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
     Aceptar la versión la vuelve vigente: tu iniciativa sigue en desarrollo.
     "Ajustar en el chat" abre la conversación de la iniciativa para afinar
     detalles (o te permite editarla cuando el asistente no está disponible).

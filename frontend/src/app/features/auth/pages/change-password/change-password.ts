@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { errorMessage } from '../../../../shared/interceptors/error.interceptor';
+import { ThemePicker } from '../../../../shared/components/theme-picker/theme-picker';
 
 /**
  * Forced password change on first access (T-038, RF-17).
@@ -14,7 +15,7 @@ import { errorMessage } from '../../../../shared/interceptors/error.interceptor'
  */
 @Component({
   selector: 'app-change-password',
-  imports: [FormsModule],
+  imports: [FormsModule, ThemePicker],
   templateUrl: './change-password.html',
   styleUrl: './change-password.css',
 })
