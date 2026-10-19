@@ -29,8 +29,6 @@ def _fields(**overrides: object) -> dict:
         "problem": "Revisión manual duplicada.",
         "expectedBenefit": "120 horas ahorradas al mes.",
         "strategicAlignment": "Agilizar la cadena de suministro.",
-        "estimatedResources": {"time": "6 semanas", "people": "2 personas",
-                               "budget": "50000 PLN"},
     }
     base.update(overrides)
     return base

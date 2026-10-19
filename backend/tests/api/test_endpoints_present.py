@@ -58,8 +58,6 @@ def _fields(**overrides: object) -> dict:
         "problem": "Revisión manual duplicada del proveedor.",
         "expectedBenefit": "Ahorro de 120 horas mensuales.",
         "strategicAlignment": "Agilizar la cadena de suministro.",
-        "estimatedResources": {"time": "3 meses", "people": "2 personas",
-                               "budget": "100000 PLN"},
     }
     base.update(overrides)
     return base
@@ -345,8 +343,6 @@ def test_capture_finish_registers_the_idea_from_the_resumen(env) -> None:
         "strategicAlignment": "Agilizar la cadena de suministro.",
         "proponent": json.dumps({"name": "Ana Torres", "area": "Compras",
                                  "contact": "ana.torres@innov-ia.local"}),
-        "estimatedResources": json.dumps({"time": "3 meses", "people": "2 personas",
-                                          "budget": "100000 PLN"}),
     }
     _seed_resumen_conversation(env, seed, "c_seed_finish")
     result = env.client().post("/capture/finish", json={"conversationId": "c_seed_finish"})

@@ -4,7 +4,7 @@
                          without a session)
 
 Read-only, public catalog: only `VALIDADA_PUBLICA` ideas (decision #2), with
-the 7 fields, the proponent's name and area, and the registration/publication
+the 6 fields, the proponent's name and area, and the registration/publication
 dates — never the `contact` (RNF-7). Implemented in the `ideas` feature so it
 reuses `list_public` without any cross-feature import.
 """

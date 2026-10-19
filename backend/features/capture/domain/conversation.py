@@ -1,14 +1,13 @@
 """Capture domain: the `Conversation` entity (T-025, RF-2, plan §2.4).
 
 Pure domain (Constitution §4.2): no FastAPI/Pydantic. The entity mirrors the
-JSON schema `Conversation` of plan §2.4: a capture conversation collects the 7
+JSON schema `Conversation` of plan §2.4: a capture conversation collects the 6
 idea fields progressively (RF-3) and owns the current turn (`currentField`).
 
-`capturedFields` maps field name -> text. The two structured fields
-(`proponent`, `estimatedResources`, plan §2.2 objects) are stored as JSON
-strings: the capture flow only ever carries text, and the final summary
-(G08/T-030) parses them back into objects before registering the idea
-(RNF-5).
+`capturedFields` maps field name -> text. The structured field (`proponent`,
+plan §2.2 object) is stored as a JSON string: the capture flow only ever
+carries text, and the final summary (G08/T-030) parses it back into its
+object before registering the idea (RNF-5).
 """
 
 import json
@@ -28,13 +27,12 @@ FIELD_ORDER: tuple[str, ...] = (
     "problem",
     "expectedBenefit",
     "strategicAlignment",
-    "estimatedResources",
     "proponent",
 )
 
-# The two idea fields whose value is a structured object (plan §2.2); in
+# The idea fields whose value is a structured object (plan §2.2); in
 # `capturedFields` they are JSON strings.
-STRUCTURED_FIELDS: tuple[str, ...] = ("proponent", "estimatedResources")
+STRUCTURED_FIELDS: tuple[str, ...] = ("proponent",)
 
 CHAT_ROLES: tuple[str, ...] = ("user", "assistant", "system")
 
@@ -199,9 +197,9 @@ class Conversation:
         return str(text)
 
     def field_object(self, key: str) -> Any:
-        """Parses a structured field (`proponent`, `estimatedResources`) back
-        into its object (plan §2.2); the summary/finish (G08) uses it to build
-        the idea's 7 fields (RNF-5)."""
+        """Parses a structured field (`proponent`) back into its object
+        (plan §2.2); the summary/finish (G08) uses it to build the idea's
+        6 fields (RNF-5)."""
         if key not in STRUCTURED_FIELDS:
             raise ValueError(f"«{key}» no es un campo estructurado.")
         text = self.field_text(key)
@@ -228,8 +226,8 @@ class Conversation:
 
     def to_summary(self) -> dict:
         """The editable summary (RF-6): all captured fields, with the structured
-        ones (`proponent`, `estimatedResources`) parsed back into their objects
-        (plan §2.2) and the rest kept as text."""
+        one (`proponent`) parsed back into its object (plan §2.2) and the rest
+        kept as text."""
         summary: dict[str, Any] = dict(self.capturedFields)
         for key in STRUCTURED_FIELDS:
             if key in summary:

@@ -6,7 +6,7 @@ conversational loop itself lives in the `capture` feature (G08) via its
 shared contract; this use case only resolves the entry: with the assistant
 available it returns the pre-contextualized payload the conversation starts
 from (`newCapture=False`), and without it (the ping fails) it offers the
-manual editing fallback with the idea's 7 fields (RF-9).
+manual editing fallback with the idea's 6 fields (RF-9).
 
 The resulting changes are applied later as `IdeaVersion`s with
 `requestedBy=adjustment` (status PENDIENTE), exactly like the improvement —
@@ -33,7 +33,7 @@ def adjust_in_chat(
 
     Returns:
       - without the IA: `{"mode": "manual", "ideaId", "fields"}` (RF-9, the
-        idea's current 7 fields pre-fill the manual editing);
+        idea's current 6 fields pre-fill the manual editing);
       - with the IA: `{"mode": "chat", "ideaId", "fields", "newCapture": False}`
         — the conversation is pre-contextualized on the idea (RF-2).
     """

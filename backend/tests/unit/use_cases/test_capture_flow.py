@@ -294,7 +294,7 @@ def test_an_insufficient_answer_triggers_clarification_without_advancing() -> No
     assert store.get(cid)["state"] == "ACTIVA"
 
 
-def test_seven_fields_close_the_conversation_into_the_summary() -> None:
+def test_six_fields_close_the_conversation_into_the_summary() -> None:
     store, cid = _captured(
         {
             "description": "d",
@@ -302,7 +302,6 @@ def test_seven_fields_close_the_conversation_into_the_summary() -> None:
             "problem": "p",
             "expectedBenefit": "b",
             "strategicAlignment": "s",
-            "estimatedResources": "r",
         },
         "proponent",
     )
@@ -314,7 +313,7 @@ def test_seven_fields_close_the_conversation_into_the_summary() -> None:
     assert result["state"] == "RESUMEN"
     assert store.get(cid)["state"] == "RESUMEN"
     summary = result["summary"]
-    assert len(summary) == 7
+    assert len(summary) == 6
     assert summary["title"] == "t"
     assert summary["proponent"] == "Ana Torres (Compras), ana@x.com"
     # A further message in RESUMEN only re-shows the editable summary (RF-6).
@@ -501,16 +500,13 @@ def _resumen(
 
 
 def _complete_summary(**overrides: str) -> dict:
-    """The 7 fields complete: texts + the two structured fields as JSON strings."""
+    """The 6 fields complete: texts + the structured field as a JSON string."""
     summary = {
         "description": "Reducir los tiempos de compra con un flujo digital.",
         "title": "Flujo digital de compras",
         "problem": "Retrasos en la operación de compras.",
         "expectedBenefit": "Comprar antes y a mejor precio.",
         "strategicAlignment": "Eficiencia operativa y ahorro.",
-        "estimatedResources": json.dumps(
-            {"time": "3 meses", "people": "2", "budget": "100000"}, ensure_ascii=False
-        ),
         "proponent": _proponent_json(**overrides),
     }
     return summary
@@ -529,7 +525,6 @@ def test_finish_registers_the_idea_and_closes_the_conversation() -> None:
     assert result["origin"] == "asistida"
     assert result["ownerId"] == PROPOSER
     assert result["proponent"]["name"] == "Ana Torres"
-    assert result["estimatedResources"]["budget"] == "100000"
     assert result["conversationId"] == cid
     # The conversation is closed as TERMINADA (one per user, RF-2).
     assert store.get(cid)["state"] == "TERMINADA"

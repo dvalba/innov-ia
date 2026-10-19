@@ -116,7 +116,6 @@ export class NewIdea {
       problem: 'Problema u oportunidad',
       expectedBenefit: 'Beneficio esperado',
       strategicAlignment: 'Alineación estratégica',
-      estimatedResources: 'Recursos estimados',
       proponent: 'Proponente',
     };
     return mapa[campo] ?? campo;

@@ -16,9 +16,9 @@ QUEUE_STATE = STATE_SOLICITANDO_PUBLICACION
 def queue_entry(payload: dict) -> dict:
     """Projects a SOLICITANDO_PUBLICACION payload into one queue entry.
 
-    Holds `id`, `origin`, `requestDate` and the 7 fields (`fields`), with the
+    Holds `id`, `origin`, `requestDate` and the 6 fields (`fields`), with the
     `proponent` reduced to `name`/`area` (no `contact`). Anything beyond the
-    7 fields (ownerId, state, contact, ...) is never exposed (RF-14).
+    6 fields (ownerId, state, contact, ...) is never exposed (RF-14).
     """
     raw_proponent = payload.get("proponent", {})
     proponent = {"name": raw_proponent.get("name", ""), "area": raw_proponent.get("area", "")}

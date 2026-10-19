@@ -14,7 +14,7 @@ export type { CampoClave };
 /**
  * "Mis ideas" field metadata (T-047/T-049, RF-9/RF-13).
  *
- * The fixed 7-field contract shared by the manual edit form (RF-9) and the
+ * The fixed 6-field contract shared by the manual edit form (RF-9) and the
  * refined-vs-original comparison (RF-13). The read-only display metadata
  * (order, Spanish labels, read-only rendering, field diff) is re-exported from
  * the neutral shared module so every feature renders the fields identically;
@@ -37,20 +37,17 @@ export function versionOrigenLabel(origin: VersionRequestedBy | string): string 
   }
 }
 
-/** `true` when the 7-field form is complete (all parts non-empty, case 12 UI guard). */
+/** `true` when the 6-field form is complete (all parts non-empty, case 12 UI guard). */
 export function formCompleto(f: IdeaFields): boolean {
   const textos = [f.title, f.description, f.problem, f.expectedBenefit, f.strategicAlignment].every(
     (t) => t.trim() !== '',
   );
   const prop = f.proponent;
   const proOk = prop && prop.name.trim() !== '' && prop.area.trim() !== '' && prop.contact.trim() !== '';
-  const est = f.estimatedResources;
-  const estOk =
-    est && est.time.trim() !== '' && est.people.trim() !== '' && est.budget.trim() !== '';
-  return textos && !!proOk && !!estOk;
+  return textos && !!proOk;
 }
 
-/** Builds the editable 7-field form from an idea payload (manual edit, RF-9). */
+/** Builds the editable 6-field form from an idea payload (manual edit, RF-9). */
 export function formDesdeIdea(idea: Idea): IdeaFields {
   return {
     title: idea.title,
@@ -59,11 +56,10 @@ export function formDesdeIdea(idea: Idea): IdeaFields {
     expectedBenefit: idea.expectedBenefit,
     strategicAlignment: idea.strategicAlignment,
     proponent: { ...idea.proponent },
-    estimatedResources: { ...idea.estimatedResources },
   };
 }
 
-/** Compiles the editable form back into the 7-field payload for the PUT. */
+/** Compiles the editable form back into the 6-field payload for the PUT. */
 export function camposParaPut(f: IdeaFields): IdeaFields {
   return {
     title: f.title,
@@ -72,6 +68,5 @@ export function camposParaPut(f: IdeaFields): IdeaFields {
     expectedBenefit: f.expectedBenefit,
     strategicAlignment: f.strategicAlignment,
     proponent: { ...f.proponent },
-    estimatedResources: { ...f.estimatedResources },
   };
 }

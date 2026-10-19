@@ -58,14 +58,7 @@ export interface Proponente {
   contact: string;
 }
 
-/** Campo 7: preliminary resource estimate (plan §2.2). */
-export interface RecursosEstimados {
-  time: string;
-  people: string;
-  budget: string;
-}
-
-/** The 7 mandatory idea fields (plan §2.2, RNF-5). */
+/** The 6 mandatory idea fields (plan §2.2, RNF-5). */
 export interface IdeaFields {
   title: string;
   proponent: Proponente;
@@ -73,7 +66,6 @@ export interface IdeaFields {
   problem: string;
   expectedBenefit: string;
   strategicAlignment: string;
-  estimatedResources: RecursosEstimados;
 }
 
 /** Expert rejection note (RF-16, RNF-8, case 13): who rejected, when, why. */
@@ -91,7 +83,7 @@ export interface SolicitudMejora {
   requestedAt: string;
 }
 
-/** `Idea` entity (plan §2.2): the 7 fields + ownership, origin, state and audit. */
+/** `Idea` entity (plan §2.2): the 6 fields + ownership, origin, state and audit. */
 export interface Idea extends IdeaFields {
   id: string;
   ownerId: string;
@@ -174,7 +166,7 @@ export interface ProponentePublico {
 }
 
 /**
- * The 7 idea fields in their public visibility (queue + catalog, RF-14/RF-20):
+ * The 6 idea fields in their public visibility (queue + catalog, RF-14/RF-20):
  * identical to `IdeaFields` but the proponent is reduced to name/area.
  */
 export interface IdeaFieldsPublica {
@@ -184,7 +176,6 @@ export interface IdeaFieldsPublica {
   problem: string;
   expectedBenefit: string;
   strategicAlignment: string;
-  estimatedResources: RecursosEstimados;
 }
 
 /** `GET /validation/queue` entry (RF-14): a SOLICITANDO_PUBLICACION idea. */

@@ -1,7 +1,7 @@
 """Finish the capture use case (T-030, RF-6, RNF-5).
 
 Orchestration of `POST /capture/finish` (plan §3.3 step 5): when the
-proponent confirms the editable summary, the 7 fields of the confirmed
+proponent confirms the editable summary, the 6 fields of the confirmed
 payload are validated through `create_idea` (G06, the single source of
 RNF-5 and of the contact format, case 12) and the idea is registered in
 `EN_DESARROLLO` with origin `asistida`; the conversation is then closed as
@@ -38,7 +38,7 @@ def _own(store: ConversationStore, conversation_id: str, user_id: str) -> dict:
 def _normalized(fields: dict) -> dict:
     """The structured fields may arrive as JSON strings (as stored during the
     capture, plan §2.2); they are parsed back into their objects before the
-    idea's 7-field validation (RNF-5). A value that parses keeps its object
+    idea's 6-field validation (RNF-5). A value that parses keeps its object
     form; a text that does not parse is left as-is (it will fail the
     structured check, as it must)."""
     normalized = dict(fields)
@@ -79,7 +79,7 @@ def finish_capture(
     conversation = Conversation.from_payload(payload)
     # The confirmed summary wins over the stored value for the fields it
     # carries (a free correction overrides the capture); the merged mapping is
-    # then normalized before the 7-field validation.
+    # then normalized before the 6-field validation.
     confirmed = _normalized({**conversation.capturedFields, **(captured or {})})
     idea = create_idea(ledger, owner_id=user_id, origin=ORIGIN_ASISTIDA, fields=confirmed)
     # Compare-and-set (RNF-9): only from RESUMEN, so a concurrent state change

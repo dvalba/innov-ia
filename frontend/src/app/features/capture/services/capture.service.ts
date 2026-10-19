@@ -93,9 +93,9 @@ export class CaptureService {
   readonly conversacionId = signal<string | null>(null);
   /** The current assistant turn (question + chips + title suggestion). */
   readonly turno = signal<TurnAssistant | null>(null);
-  /** Conversation state: `ACTIVA` (in progress) or `RESUMEN` (7 fields closed). */
+  /** Conversation state: `ACTIVA` (in progress) or `RESUMEN` (6 fields closed). */
   readonly estadoConv = signal<'ACTIVA' | 'RESUMEN' | null>(null);
-  /** The editable summary when the 7 fields close (RF-6). */
+  /** The editable summary when the 6 fields close (RF-6). */
   readonly resumen = signal<Record<string, unknown> | null>(null);
   /** `true` when the capture was a resume of an existing ACTIVA (caso 8). */
   readonly retomada = signal(false);
@@ -233,7 +233,7 @@ export class CaptureService {
 
   /**
    * POST /ideas (RF-7, RNF-5) — register the manual idea (origin `manual`).
-   * The 7 fields go as objects; the owner comes from the session. The 7-field
+   * The 6 fields go as objects; the owner comes from the session. The 6-field
    * completeness and the contact format (case 12) are validated by the ideas
    * domain (a 422 leaves the form data untouched, caso 17).
    */

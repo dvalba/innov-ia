@@ -1,6 +1,6 @@
 """Ideas domain: field completeness and contact-format rules (T-017, RNF-5, case 12).
 
-Pure domain rules over the dict of the 7 idea fields (schema §2.2). They are
+Pure domain rules over the dict of the 6 idea fields (schema §2.2). They are
 the single source of "the idea is complete" that capture (RF-6/RF-7), manual
 forms and versions (RF-8/RF-13) share, so no idea is ever registered with an
 empty or omitted field (RNF-5).
@@ -10,7 +10,7 @@ import re
 
 from shared.contracts.idea_ledger import IDEA_FIELDS
 
-# Scalar fields of the 7 that must hold a non-empty text (schema §2.2).
+# Scalar fields of the 6 that must hold a non-empty text (schema §2.2).
 _TEXT_FIELDS: tuple[str, ...] = (
     "title",
     "description",
@@ -19,9 +19,8 @@ _TEXT_FIELDS: tuple[str, ...] = (
     "strategicAlignment",
 )
 
-# Sub-parts of the object fields (schema §2.2).
+# Sub-parts of the object field (schema §2.2).
 _PROPOSER_PARTS: tuple[str, ...] = ("name", "area", "contact")
-_RESOURCES_PARTS: tuple[str, ...] = ("time", "people", "budget")
 
 # Case 12: the contact is an e-mail or a phone number, never empty.
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -50,10 +49,10 @@ def contacto_valido(contact: object) -> bool:
 
 
 def campos_incompletos(fields: dict) -> list[str]:
-    """Names of the 7 fields that are missing, null or empty (RNF-5).
+    """Names of the 6 fields that are missing, null or empty (RNF-5).
 
-    An object field (proponent / estimatedResources) is incomplete when any
-    of its sub-parts is empty.
+    The object field `proponent` is incomplete when any of its sub-parts is
+    empty.
     """
     missing: list[str] = []
     for name, value in fields.items():
@@ -61,9 +60,6 @@ def campos_incompletos(fields: dict) -> list[str]:
             continue
         if name == "proponent":
             if not isinstance(value, dict) or any(_is_blank(value.get(part)) for part in _PROPOSER_PARTS):
-                missing.append(name)
-        elif name == "estimatedResources":
-            if not isinstance(value, dict) or any(_is_blank(value.get(part)) for part in _RESOURCES_PARTS):
                 missing.append(name)
         elif _is_blank(value):
             missing.append(name)
@@ -74,12 +70,12 @@ def campos_incompletos(fields: dict) -> list[str]:
 
 
 def campos_completos(fields: dict) -> bool:
-    """True when the idea holds all 7 non-empty fields (RNF-5)."""
+    """True when the idea holds all 6 non-empty fields (RNF-5)."""
     return not campos_incompletos(fields)
 
 
 def validar_campos(fields: dict) -> list[str]:
-    """All completeness problems of `fields`: the 7-field check (RNF-5) plus
+    """All completeness problems of `fields`: the 6-field check (RNF-5) plus
     the proponent contact format (case 12), as a list of field names."""
     problems = campos_incompletos(fields)
     proponent = fields.get("proponent")

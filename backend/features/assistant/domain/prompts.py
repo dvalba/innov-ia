@@ -7,7 +7,7 @@ reply can be interpreted deterministically by the domain logic
 rules (field order, chips, validation) live in the capture/assistant code.
 """
 
-# Names of the 7 idea fields (spec §1.1), shared by the extract/refine prompts.
+# Names of the 6 idea fields (spec §1.1), shared by the extract/refine prompts.
 FIELD_LABELS: dict[str, str] = {
     "title": "Título",
     "proponent": "Proponente (nombre, área y contacto)",
@@ -15,7 +15,6 @@ FIELD_LABELS: dict[str, str] = {
     "problem": "Problema u oportunidad",
     "expectedBenefit": "Beneficio esperado",
     "strategicAlignment": "Alineación estratégica",
-    "estimatedResources": "Recursos estimados (tiempo, personal, presupuesto)",
 }
 
 
@@ -66,27 +65,26 @@ def title_suggestion_prompt(context: str, avoid: tuple[str, ...]) -> str:
 
 
 def refine_idea_prompt(idea: dict) -> str:
-    """Refinement of a manual idea into its 7-field version (RF-11, RF-13).
+    """Refinement of a manual idea into its 6-field version (RF-11, RF-13).
 
     `idea` is the full idea payload (schema plan §2.2). The refined version
-    keeps all 7 fields and improves wording without inventing facts
-    (the 7-field completeness is re-validated by the code, RNF-5).
+    keeps all 6 fields and improves wording without inventing facts
+    (the 6-field completeness is re-validated by the code, RNF-5).
     """
     fields = idea.get("fields", {})
     current = "\n".join(f"- {FIELD_LABELS[key]}: {value or '(vacío)'}" for key, value in fields.items())
-    for key in ("proponent", "estimatedResources"):
+    for key in ("proponent",):
         if isinstance(fields.get(key), dict):
             current += f"\n- ({FIELD_LABELS[key]}) detalle: {fields[key]}"
     return _json_only_prelude() + (
         "Eres el asistente de Innov-IA. La siguiente idea fue capturada de forma "
         "manual y necesita ser refinada y estructurada. Mejora la redacción de cada "
         "campo para que sea clara y profesional, manteniendo el contenido original: "
-        "NO añadas datos que no estén en la idea. Los 7 campos deben quedar completos.\n"
+        "NO añadas datos que no estén en la idea. Los 6 campos deben quedar completos.\n"
         f"Idea actual:\n{current}\n\n"
         "JSON esperado: un objeto con las claves title, proponent, description, problem, "
-        "expectedBenefit, strategicAlignment, estimatedResources. `proponent` y "
-        "`estimatedResources` son objetos con sus subcampos (name/area/contact; "
-        "time/people/budget respectivamente)."
+        "expectedBenefit, strategicAlignment. `proponent` es un objeto con sus "
+        "subcampos (name/area/contact)."
     )
 
 
@@ -160,11 +158,11 @@ def improve_idea_prompt(idea: dict, instruction: str) -> str:
     return _json_only_prelude() + (
         "Eres el asistente de Innov-IA. El proponente pide una mejora concreta a su "
         "idea. Aplica la instrucción a los campos correspondientes y devuelve la "
-        "versión COMPLETA de los 7 campos; los campos que la instrucción no afecte "
+        "versión COMPLETA de los 6 campos; los campos que la instrucción no afecte "
         "se devuelven sin cambio. No inventes datos nuevos salvo los que la "
         "instrucción pida explícitamente.\n"
         f"Campo instrucción del proponente: \"\"\"{instruction}\"\"\"\n"
         f"Idea actual:\n{current}\n\n"
         "JSON esperado: un objeto con las claves title, proponent, description, problem, "
-        "expectedBenefit, strategicAlignment, estimatedResources."
+        "expectedBenefit, strategicAlignment."
     )

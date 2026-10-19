@@ -3,7 +3,7 @@
 Creates the in-app notifications for the four RF-18 events and performs the
 `IDEA_REQUESTED` fanout to every specialist. Emission is bound in the
 composition root (`app/deps`), so this feature is the only place that knows
-how to create a notification; `ideas`/`assistant` never import it. The 7-field
+how to create a notification; `ideas`/`assistant` never import it. The 6-field
 `ideaId` gives the recipient direct access to the object (RF-12/RF-18).
 """
 

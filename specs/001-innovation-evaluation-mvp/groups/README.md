@@ -1,8 +1,9 @@
 # Grupos de desarrollo vertical — Innov-IA MVP
 
-Organización de las **57 tareas pendientes** (de 68; ya completadas: T-001, T-002, T-003, T-007,
-T-008, T-010..T-015) en **16 grupos de desarrollo vertical**, cada uno con **máximo 5 tareas**,
-conectando el backend con su respectiva vista de frontend de extremo a extremo.
+Organización de las **57 tareas** del MVP v2.0 (G01–G16, todas completadas) más las **10 tareas
+de la ampliación de alcance v2.1** (G17–G18, pendientes) en **18 grupos de desarrollo vertical**,
+cada uno con **máximo 5 tareas**, conectando el backend con su respectiva vista de frontend de
+extremo a extremo.
 
 ## Orden recomendado (secuencia crítica)
 
@@ -27,11 +28,14 @@ conectando el backend con su respectiva vista de frontend de extremo a extremo.
 | 14 | [`14-cierre-backend-components.md`](14-cierre-backend-components.md) | Verificación transversal BE + `confirm-dialog` + `idea-card` en shared | T-036, T-056 | 2 | 2/2 | ✅ |
 | 15 | [`15-e2e-ollama-real.md`](15-e2e-ollama-real.md) | E2E con Ollama real: captura, contingencia, clarificación, validación | T-063, T-064, T-065, T-066 | 4 | 4/4 | ✅ |
 | 16 | [`16-accesibilidad-build-cierre.md`](16-accesibilidad-build-cierre.md) | Accesibilidad + build/guías + verificación spec §9 | T-057, T-058, T-068 | 3 | 3/3 | ✅ |
+| 17 | [`17-contexto-recursos.md`](17-contexto-recursos.md) | Contexto de empresa administrable + inyección en todos los prompts + retirada de *Recursos estimados* (6 campos, D11) | T-069, T-070, T-071, T-075, T-076 | 5 | 1/5 | ⏳ |
+| 18 | [`18-debate-evaluacion-catalogo.md`](18-debate-evaluacion-catalogo.md) | Debate (30 días, @asistant, cierre+resumen) + evaluación IA 5 criterios + catálogo compacto con detalle | T-072, T-073, T-074, T-077, T-078 | 5 | 0/5 | ⏳ |
 
-**Total: 4+4+3+2+3+5+5+5+3+4+5+3+2+2+4+3 = 57 tareas.** ✓ (una por grupo, sin huecos ni
-duplicados). **Progreso (2026-10-13): 57/57 tareas implementadas** (G01 ✅, G02 ✅, G03 ✅,
-G04 ✅, G05 ✅, G06 ✅, G07 ✅, G08 ✅, G09 ✅, G10 ✅, G11 ✅, G12 ✅, G13 ✅, G14 ✅,
-G15 ✅, G16 ✅). **MVP cerrado**: `pytest -q` 468 verdes, `ruff check .` limpio, `ng build` verde.
+**Total: 4+4+3+2+3+5+5+5+3+4+5+3+2+2+4+3+5+5 = 67 tareas** (57 del v2.0 + 10 de la ampliación
+v2.1). ✓ (una por grupo, sin huecos ni
+duplicados). **Progreso (2026-10-19): 58/67 tareas implementadas** (G01 ✅ … G16 ✅; G17 ⏳ 1/5,
+G18 ⏳ — ampliación de alcance v2.1 acordada con el propietario; 78 tareas en total, T-001..T-078).
+**MVP v2.0 cerrado**: `pytest -q` 468 verdes, `ruff check .` limpio, `ng build` verde.
 
 ## Criterio de la secuencia
 

@@ -6,7 +6,7 @@ Protocol, injected via dependency composition; no feature imports from
 another one.
 
 Payloads are dicts shaped like the JSON schemas of plan §2 (`Idea` and
-`IdeaVersion`). The `fields` key in a payload is the dict of the 7 idea
+`IdeaVersion`). The `fields` key in a payload is the dict of the 6 idea
 fields (schema `Idea` §2.2). State/origin string values are spec contracts
 and are kept as defined in the specification.
 """
@@ -14,7 +14,7 @@ and are kept as defined in the specification.
 from collections.abc import Iterable
 from typing import Protocol, runtime_checkable
 
-# The 7 idea fields (spec §1.1). An idea payload's `fields` dict always
+# The 6 idea fields (spec §1.1). An idea payload's `fields` dict always
 # contains these keys.
 IDEA_FIELDS: tuple[str, ...] = (
     "title",
@@ -23,7 +23,6 @@ IDEA_FIELDS: tuple[str, ...] = (
     "problem",
     "expectedBenefit",
     "strategicAlignment",
-    "estimatedResources",
 )
 
 # State machine states (plan §4.6).

@@ -19,7 +19,7 @@ import { Idea, IdeaFields, IdeaVersion } from '../../../../shared/types/models';
 /**
  * Idea detail (T-047/T-048/T-049/T-050, RF-9/RF-10/RF-8/RF-16).
  *
- * Shows the 7 fields, origin/state/`reviewedByAI` (RNF-2) and the actions for
+ * Shows the 6 fields, origin/state/`reviewedByAI` (RNF-2) and the actions for
  * the current state. When `EN_DESARROLLO` the fields are editable (PUT, RNF-9)
  * with a visual block while a generation is in flight (`generando`), plus
  * "Solicitar mejora a la IA" (T-048), the refinement view for manual ideas

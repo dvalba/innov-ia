@@ -1,7 +1,7 @@
 """Refinement queue and reply interpretation tests (T-060, plan §4.5 / §6.3).
 
 Covers: queue filtering (origin manual + EN_DESARROLLO + no valid refinement,
-oldest first) and the interpretation of the assistant reply (valid 7-field
+oldest first) and the interpretation of the assistant reply (valid 6-field
 payload extracted from noisy text; uninterpretable replies are failures,
 spec case 6/14).
 """
@@ -22,8 +22,7 @@ GOOD_REPLY = (
     '  "description": "Digitalizar la validación de proveedores.",\n'
     '  "problem": "Tres revisiones manuales duplican esfuerzo.",\n'
     '  "expectedBenefit": "Ahorro de 120 horas/mes.",\n'
-    '  "strategicAlignment": "Agiliza la cadena de suministro.",\n'
-    '  "estimatedResources": {"time": "6 semanas", "people": "2 dev", "budget": "50000 PLN"}\n'
+    '  "strategicAlignment": "Agiliza la cadena de suministro."\n'
     '}\n'
     '```'
 )
@@ -103,7 +102,6 @@ def test_interprets_valid_reply_wrapped_in_noise() -> None:
         "problem",
         "expectedBenefit",
         "strategicAlignment",
-        "estimatedResources",
     }
 
 
@@ -111,8 +109,7 @@ def test_interprets_plain_json_without_fences() -> None:
     plain = (
         '{"title": "T", "proponent": {"name": "A", "area": "C", "contact": "a@x"}, '
         '"description": "d", "problem": "Pregunta directa", "expectedBenefit": "b",'
-        ' "strategicAlignment": "s", '
-        '"estimatedResources": {"time": "t", "people": "p", "budget": "b"}}'
+        ' "strategicAlignment": "s"}'
     )
     fields = interpret_fields(plain)
     assert fields is not None
@@ -132,8 +129,7 @@ def test_extracts_object_after_reasoning_preamble_with_embedded_example() -> Non
         '</thinking>\n'
         '{"title": "T", "proponent": {"name": "A", "area": "C", "contact": "a@x"}, '
         '"description": "d", "problem": "p", "expectedBenefit": "b", '
-        '"strategicAlignment": "s", '
-        '"estimatedResources": {"time": "t", "people": "p", "budget": "b"}}'
+        '"strategicAlignment": "s"}'
     )
     obj = extract_json_object(raw)
     assert obj is not None
@@ -148,11 +144,10 @@ def test_uninterpretable_reply_is_a_failure() -> None:
 
 def test_incomplete_reply_is_a_failure() -> None:
     reply = (
-        '{"title": "T", "proponent": {"name": "A", "area": "C", "contact": "a@x"}, '
+        '{"title": "T", "proponent": {"name": "A", "area": ""}, '
         '"description": "d", "problem": "p", "expectedBenefit": "b",'
-        ' "strategicAlignment": "s", '
-        '"estimatedResources": {"time": "t", "people": "p"}}'
-    )  # budget missing
+        ' "strategicAlignment": "s"}'
+    )  # proponent area missing
     assert interpret_fields(reply) is None
 
 
@@ -160,8 +155,7 @@ def test_empty_field_rejected() -> None:
     reply = (
         '{"title": "T", "proponent": {"name": "A", "area": "C", "contact": "a@x"}, '
         '"description": "", "problem": "p", "expectedBenefit": "b",'
-        ' "strategicAlignment": "s", '
-        '"estimatedResources": {"time": "t", "people": "p", "budget": "b"}}'
+        ' "strategicAlignment": "s"}'
     )
     assert interpret_fields(reply) is None
 
@@ -170,7 +164,6 @@ def test_proponent_contact_is_required() -> None:
     reply = (
         '{"title": "T", "proponent": {"name": "A", "area": "C"}, '
         '"description": "d", "problem": "p", "expectedBenefit": "b",'
-        ' "strategicAlignment": "s", '
-        '"estimatedResources": {"time": "t", "people": "p", "budget": "b"}}'
+        ' "strategicAlignment": "s"}'
     )
     assert interpret_fields(reply) is None

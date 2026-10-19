@@ -12,7 +12,7 @@ from shared.contracts.idea_ledger import IdeaLedger
 def review_queue(ledger: IdeaLedger) -> list[dict]:
     """Lists the review queue: every idea in SOLICITANDO_PUBLICACION (RF-14).
 
-    Each entry uses the queue visibility of `queue_rules` (the 7 fields with
+    Each entry uses the queue visibility of `queue_rules` (the 6 fields with
     the proponent reduced to name/area, no contact) plus `id`, `origin` and
     `requestDate`. Ordered by request date (oldest first), then by id.
     """

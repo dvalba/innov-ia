@@ -87,9 +87,9 @@ def generate_turn_assist(
     Never raises (see module docstring).
 
     Only the free-text fields the assistant may compact are shown to the model:
-    the two structured fields (`proponent`, `estimatedResources`) travel in
-    `captured` as JSON strings and `title` is handled by RF-4, so none of them
-    may ever reach the prompt (their shape is code-owned).
+    the structured field (`proponent`) travels in `captured` as a JSON string
+    and `title` is handled by RF-4, so neither may ever reach the prompt
+    (their shape is code-owned).
     """
     free_captured = {
         key: str(value)
@@ -129,7 +129,7 @@ def land_turn(
     with the per-turn options the assistant generated for the new field and
     the improved free-text fields (compaction). Returns:
 
-      - `None` when the 7 fields close (the conversation is saved as
+      - `None` when the 6 fields close (the conversation is saved as
         ``RESUMEN``; the caller builds the editable summary, RF-6);
       - the assistant turn dict (``text``/``currentField``/``quickOptions``/
         ``titleSuggestion``) otherwise.
@@ -183,7 +183,7 @@ def build_turn(conversation: Conversation) -> dict:
     persisted by `propose_title` on landing).
     """
     current = conversation.currentField
-    if current is None:  # the 7 fields are complete (summary is built by finish)
+    if current is None:  # the 6 fields are complete (summary is built by finish)
         return {}
     turn = rules.build_question(
         current_field=current,

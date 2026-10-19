@@ -54,7 +54,7 @@ def _proponent_prefill(directory: UserDirectory, user_id: str) -> dict[str, str]
 def _assistant_turn(conversation: Conversation, *, greet: bool) -> dict:
     """The assistant turn for the conversation's current field.
 
-    `currentField` is `None` once the 7 fields are complete (the summary turn is
+    `currentField` is `None` once the 6 fields are complete (the summary turn is
     built by the finish flow, G08); a blank turn is returned for safety.
 
     The quick options travel back exactly as they were OFFERED and persisted for

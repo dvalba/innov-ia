@@ -15,7 +15,7 @@ Orchestration of `POST /capture/messages` (plan §3.3 step 2/3, §4.1
   - the turn then advances to the first still-pending field, skipping the
     captured ones (RF-3); on the landing the assistant generates the field's
     quick options AND improves the free-text fields already captured (the
-    single per-turn IA call, `turn_assist.land_turn`); when the 7 fields
+    single per-turn IA call, `turn_assist.land_turn`); when the 6 fields
     complete, the conversation moves to ``RESUMEN`` (RF-6) and the editable
     summary is returned;
   - a turn that lands on ``title`` is the suggestion turn (RF-4);
@@ -127,7 +127,7 @@ def process_message(
         insufficient, without advancing (RF-3);
       - the next question + its per-turn options (RF-5, D7 replacement), or the
         title-suggestion turn (RF-4), after advancing over the captured fields;
-      - the editable summary (``state == "RESUMEN"``) when the 7 fields close
+      - the editable summary (``state == "RESUMEN"``) when the 6 fields close
         (RF-6).
 
     Raises `AssistantUnavailable` (503) with the captured fields as fallback
@@ -232,7 +232,7 @@ def _advance(
 
 
 def _result(store: ConversationStore, conversation_id: str, turn: dict) -> dict:
-    """Wraps an advanced turn: when the 7 fields closed the conversation, the
+    """Wraps an advanced turn: when the 6 fields closed the conversation, the
     editable summary is returned (RF-6); otherwise the assistant turn (RF-3/5)."""
     stored = Conversation.from_payload(store.get(conversation_id))
     if stored.state == "RESUMEN":

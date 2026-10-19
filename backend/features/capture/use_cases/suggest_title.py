@@ -52,7 +52,6 @@ def _context(captured: dict) -> str:
         "problem": "Problema",
         "expectedBenefit": "Beneficio esperado",
         "strategicAlignment": "Alineación estratégica",
-        "estimatedResources": "Recursos",
     }
     parts = [f"{labels[key]}: {value}" for key, value in captured.items() if key in labels]
     return "\n".join(parts) if parts else "(todavía sin detalles)"
@@ -184,7 +183,7 @@ def suggest_title(
 
     next_field = rules.next_pending_field(conversation.order, conversation.capturedFields)
     if next_field is None:
-        # The title closed the 7 fields: straight to the editable summary (RF-6).
+        # The title closed the 6 fields: straight to the editable summary (RF-6).
         conversation.state = "RESUMEN"
         conversation.currentField = None
         store.save_conversation(conversation)

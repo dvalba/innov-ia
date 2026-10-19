@@ -1,8 +1,15 @@
 # Tareas de Implementación — Innov-IA MVP
 
 **Documento:** specs/001-innovation-evaluation-mvp/tasks.md
-**Depende de:** `specs/001-innovation-evaluation-mvp/spec.md` (v2.0 definitiva), `specs/001-innovation-evaluation-mvp/plan.md` (v1.0) y `docs/CONSTITUTION.md`
+**Depende de:** `specs/001-innovation-evaluation-mvp/spec.md` (v2.1 — ampliación de alcance del propietario), `specs/001-innovation-evaluation-mvp/plan.md` (v1.1) y `docs/CONSTITUTION.md`
 **Naturaleza:** Desglose de implementación en tareas atómicas (20–30 min cada una). Una tarea NO se marca como hecha hasta cumplir su criterio "Hecho cuando".
+
+> **Ampliación de alcance (v2.1):** el propietario del producto incorporó al MVP el debate de las
+> ideas publicadas (RF-24/RF-25), la evaluación de la IA sobre 5 criterios con criterio del
+> especialista (RF-26), el contexto de empresa gestionable (RF-21/RF-22), la eliminación del campo
+> *Recursos estimados* (D11), la vista compacta de catálogo + detalle (RF-20/RF-23) y las
+> preferencias de presentación (RNF-13). Quedan registradas en la **Fase 5 / G17–G18** (T-069 y
+> siguientes).
 
 > **Reglas de ejecución:**
 >
@@ -17,9 +24,10 @@
 | Fase | Contenido |
 |------|-----------|
 | **1** | Setup / Core (infraestructura de ambos lados) |
-| **2** | Backend: FastAPI Clean Architecture (7 features) |
+| **2** | Backend: FastAPI Clean Architecture (7 features en v2.0; 9 con `org`/`debate` de v2.1) |
 | **3** | Frontend: Angular 20+ features (6 features) |
 | **4** | Integración Ollama, e2e y cierre |
+| **5** | Ampliación de alcance v2.1: contexto de empresa, debate, evaluación IA, catálogo detalle, sin recursos (G17) |
 
 ---
 
@@ -411,6 +419,66 @@
 
 ---
 
+## Fase 5 — Ampliación de alcance v2.1 (G17/G18)
+
+> Pendiente: la v2.1 (decisión del propietario) amplía el alcance. Ejecutar en orden G17 → G18.
+
+### 5.1 G17 — Contexto de empresa y retirada de *Recursos estimados*
+
+- [x] **[T-069] Backend: retirar *Recursos estimados* del dominio de la idea (6 campos)**
+  - **Covers:** §1.1 (6 campos), RF-3, RF-6, RF-7, RF-9, D11
+  - **Dependencias:** Ninguna
+  - **Hecho cuando:** `estimatedResources` desaparece de todo el backend y el frontend (dominio `idea.py`, `validate.py`, schemas de `create_idea`/`edit_idea`, `FIELD_ORDER` de `conversation.py`, `capture_rules.py` (orden + preguntas + chips + saludo "6 datos"), `prompts.py` (FIELD_LABELS + plantillas), `fieldsMeta.ts`, formularios manual/field-summary/new-idea); `grep -rn estimatedResources backend frontend/src` → 0 coincidencias; los tests existentes se actualizan y `pytest -q` y `ng build` pasan; persistencia de ideas antiguas con el campo: el store lo descarta en la lectura (migración silenciosa).
+
+- [ ] **[T-070] Backend: contexto de empresa como documento administrable (plantilla, edición, subida)**
+  - **Covers:** RF-21, casos 24, 25
+  - **Dependencias:** [T-069]
+  - **Hecho cuando:** La feature `org` gestiona un **único documento** con secciones: perfil (name, sector, description, mission, strategicObjectives) + texto libre de guía (vocabulario, línea estratégica, información de referencia). Endpoints (solo admin): `GET /admin/contexto/plantilla` (200, `text/plain`, plantilla descargable con las secciones y ayudas), `GET /admin/contexto` (200, documento vigente o vacío), `PUT /admin/contexto` (200, guarda el documento editado: perfil + texto libre; 400 si el perfil queda vacío), `POST /admin/contexto/subida` (200, reemplaza el documento vigente con el contenido de un archivo de texto; 400 si el texto viene vacío). Se conserva el seed desde `INNOV_ORG_*` (compatibilidad) y la lectura sin sesión `GET /admin/organizacion` puede eliminarse; `pytest -q` verde en `tests/api/test_org_context_api.py`.
+
+- [ ] **[T-071] Backend: inyectar el contexto de empresa en TODAS las operaciones de la IA**
+  - **Covers:** RF-22, RNF-12, RF-25/RF-26 (premise)
+  - **Dependencias:** [T-070]
+  - **Hecho cuando:** `prompts.py` recibe un bloque de contexto (perfil + texto libre) en `extract_fields_prompt`, `title_suggestion_prompt`, `refine_idea_prompt`, `improve_idea_prompt` y `turn_options_prompt`; todos los use cases que invocan al motor (captura por turno, sugerencia de título, mejora, refinamiento) cargan el documento vigente del contexto y lo pasan; si el documento está vacío se inyecta el aviso "(sin contexto de empresa definido)"; tests unitarios en `tests/unit/domain/test_prompts.py` verifican que cada plantilla contiene el contexto o el aviso; `pytest -q` verde.
+
+- [ ] **[T-075] Frontend: captura y formularios sin *Recursos estimados***
+  - **Covers:** §1.1 (6 campos), RF-3, RF-6, RF-7, D11
+  - **Dependencias:** [T-069]
+  - **Hecho cuando:** El formulario manual (6 campos, sin la sección *Recursos estimados*), el resumen editable del chat, el detalle/edición de "Mis ideas", el resumen manual de contingencia en `new-idea` y el mapeo de etiquetas (`etiquetaCampo`) muestran/exigen solo los 6 campos; la validación de completitud se ajusta (6/6); `ng build` verde; sin texto "Recursos" visible en ninguna vista.
+
+- [ ] **[T-076] Frontend: sección de administración de contexto de empresa**
+  - **Covers:** RF-21, RNF-12, D13
+  - **Dependencias:** [T-070]
+  - **Hecho cuando:** En `/admin` (rol administrador) hay una sección **Contexto de empresa**: botón **Descargar plantilla** (GET plantilla, descarga el archivo .txt), formulario de **edición en línea** (campos de perfil: nombre/sector/descripción/misión/objetivos + textarea del texto libre de guía) con guardar (PUT), y **subida de archivo** (input de tipo archivo `.txt`/`.md`; el contenido se envía a `POST /subida` y reemplaza el documento); aviso visible cuando el documento está vacío (caso 24); la navegación la tiene el enlace en MainLayout/admin; `ng build` verde.
+
+### 5.2 G18 — Debate, evaluación IA y catálogo con detalle
+
+- [ ] **[T-072] Backend: dominio y persistencia del debate de ideas publicadas**
+  - **Covers:** RF-24, RNF-11
+  - **Dependencias:** [T-069]
+  - **Hecho cuando:** Existe la feature `debate`: dominio `Debate` (ideaId, deadline, closed, summary, audit de cierre/ajustes) y `DebateMessage` (id, ideaId, authorId, authorName, text, linkedMessageId, isAssistant, createdAt); `debate_store` JSON bajo `backend/data/debate.json`; rules: creación del debate al publicarse (deadline = publishedAt + 30 días), cierre automático cuando `now >= deadline` (solo una vez), ajuste de deadline por idea (solo admin; queda auditado: quien/cuándo/antes/después), los mensajes solo se admiten con debate abierto; tests unitarios en `tests/unit/features/debate/` (`pytest -q` verde).
+
+- [ ] **[T-073] Backend: router del debate + @asistant + resumen al cierre**
+  - **Covers:** RF-24, RF-25, casos 18, 19, 20, 21
+  - **Dependencias:** [T-072], [T-071]
+  - **Hecho cuando:** Endpoints: `GET /catalog/{ideaId}/debate` (200: mensajes + deadline + cerrado + resumen + autor), `POST /catalog/{ideaId}/debate` (201 mensaje; 409 si el debate está cerrado); detección de `@asistant`: si el texto empieza por `@asistant` y se enlaza un mensaje existente, el sistema responde con un mensaje de `isAssistant` generado por la IA (prompt con contexto de empresa + idea + mensaje enlazado + petición; RNF-3 aplica; si la IA cae, el mensaje queda guardado como no procesado con aviso y se reintenta en la siguiente interacción — caso 20, el debate sigue operando); cierre: la primera lectura tras la fecha límite cierra el debate y, si hay mensajes, genera `summary` (si la IA no está, el cierre sí ocurre y el resumen queda pendiente hasta la siguiente verificación — caso 21); `PUT /admin/ideas/{ideaId}/debate/deadline` (admin: nueva fecha; reabre si es futura; rastro auditado). Tests en `tests/api/test_debate_api.py` (`pytest -q` verde).
+
+- [ ] **[T-074] Backend: evaluación de la IA (5 criterios) al publicar + decisión del especialista**
+  - **Covers:** RF-26, RNF-11, RNF-8, caso 22, 23
+  - **Dependencias:** [T-071]
+  - **Hecho cuando:** Al validar/publicar (UC `approve_idea`), el sistema intenta generar la evaluación: 5 criterios fijos (*claridad del problema*, *factibilidad*, *impacto esperado*, *alineación estratégica*, *grado de innovación*), cada uno con score 1–10 (entero) y justificación breve, autor = "Asistente (IA)" y fecha; si la IA no está disponible la publicación no se bloquea y la evaluación queda `pending` (se genera en la siguiente verificación de disponibilidad; caso 22). El payload de la idea expone `evaluation` (criteria[], author, createdAt, status, decidedBy, decidedAt). Endpoints (rol especialista): `POST /validation/{ideaId}/evaluation/accept` (200, la evaluación de la IA queda como juicio final; 409 si ya había decisión) y `POST /validation/{ideaId}/evaluation` (200, sustituye la evaluación vigente por la del especialista sobre los mismos 5 criterios; 403 sin rol; 422 si faltan criterios/fuera de rango). Tests en `tests/api/test_evaluation_api.py` y unitarios del prompt (`pytest -q` verde).
+
+- [ ] **[T-077] Frontend: catálogo compacto + vista de detalle (resumen, debate, evaluación)**
+  - **Covers:** RF-20, RF-23, RF-24, RF-25, RF-26
+  - **Dependencias:** [T-075], [T-073], [T-074]
+  - **Hecho cuando:** `/catalogo/publico` lista ideas compactas (título, fecha de publicación, descripción, proponente nombre+área) y al pulsar abre `/catalogo/publico/{id}`: vista de detalle con resumen de los 6 campos (solo lectura), el debate (mensajes con autor/fecha, input para publicar, selector de mensaje enlazado, invocación de `@asistant` con estado de carga, indicador de cierre/fecha límite, resumen de la IA cuando existe, y para rol administrador un control inline para ajustar la fecha límite) y la evaluación (los 5 criterios con score y justificación; para rol especialista los botones **Acepto la evaluación de la IA** y **Sustituir con mi evaluación** abren el formulario de los 5 criterios); todo responsive y accesible (teclado/aria, RNF-6); `ng build` verde.
+
+- [ ] **[T-078] E2E e integración: verificación de la ampliación v2.1 (spec §9 10–14 + casos límite)**
+  - **Covers:** RF-20..RF-26, RNF-11..RNF-13, casos 18, 20, 22
+  - **Dependencias:** [T-072..T-077]
+  - **Hecho cuando:** Se verifica y firma cada criterio nuevo del spec §9 (10-14) y los casos límite 18, 20, 22 con evidencia de tests (tests de API integrados del flujo: publicar → debate abierto → mensaje → `@asistant` → cierre por deadline → resumen; evaluación generada → sustituida por especialista; contexto vacío/inyectado), `pytest -q` al completo verde, `ruff check .` limpio y `ng build` verde; el estado de G17/G18 queda firmado en los archivos de grupo.
+
+---
+
 ## Matriz de cobertura RF → tareas
 
 | RF | Tareas |
@@ -434,6 +502,12 @@
 | RF-17 | T-011, T-012, T-014..T-016, T-038, T-053, T-054, T-067 |
 | RF-18 | T-032, T-033, T-055, T-066 |
 | RF-19 | T-022, T-023, T-046, T-047 |
-| RF-20 | T-022, T-035, T-052, T-068 |
+| RF-20 | T-022, T-035, T-052, T-068, T-077 |
+| RF-21 | T-070, T-076 |
+| RF-22 | T-071, T-076 |
+| RF-23 | T-077 |
+| RF-24 | T-072, T-073, T-077, T-078 |
+| RF-25 | T-071, T-073, T-077, T-078 |
+| RF-26 | T-071, T-074, T-077, T-078 |
 
-**Cobertura:** los 20 RF (RF-1..RF-20) están cubiertos. **Total de tareas:** 68.
+**Cobertura:** los 26 RF (RF-1..RF-26) están cubiertos (RF-21..RF-26 son v2.1). **Total de tareas:** 78 (68 del MVP v2.0 + 10 de la ampliación v2.1: T-069..T-078).

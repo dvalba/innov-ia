@@ -1,19 +1,26 @@
 # Especificación Funcional — Innov-IA MVP
 
 **Documento:** specs/001-innovation-evaluation-mvp/spec.md
-**Versión:** 2.0 — **DEFINITIVA** (revisión QA incorporada; sin dudas abiertas)
-**Estado:** Aprobada por el propietario del producto. A partir de este punto es la fuente única del alcance del MVP.
+**Versión:** 2.1 — Revisión de alcance del propietario del producto (debate, evaluación IA, contexto de empresa, campo *Recursos estimados*, preferencias de presentación). Supera a la v2.0.
+**Estado:** Aprobada por el propietario del producto. Fuente única del alcance del MVP.
 **Fuente de verdad:** Este documento precede a cualquier código (enfoque Spec-First, Constitución §2.4 y §5).
+
+**Cambio de alcance v2.1 (sollicitud expresa del propietario del producto):**
+
+1. El debate de ideas publicadas y la evaluación IA (con override del especialista) **pasan a estar dentro del alcance del MVP** (antes, §8 v2.0).
+2. El campo *Recursos estimados* **se elimina del MVP completo** (decisión reversible para el futuro; §10 D11).
+3. Se incorpora el **contexto de empresa** gestionable por el administrador (plantilla, edición en línea, subida de archivo), inyectado en **todas** las operaciones de la IA (RF-21, RF-22).
+4. Se plasman las preferencias de presentación ya implementadas: **tema claro/oscuro persistente con vista de Ajustes y maquetación responsive** (RNF-13).
 
 ---
 
 ## 1. Contexto y objetivo
 
-Innov-IA es una plataforma corporativa de gestión de iniciativas de innovación. El MVP entrega la **captura asistida de ideas**: un asistente conversacional con IA actúa como formulario dinámico que recolecta progresivamente 7 datos por idea, con **contingencia manual** cuando la IA no está disponible o falla, **flujo de clarificación posterior** de las ideas manuales, y **validación por un especialista** antes de publicarla.
+Innov-IA es una plataforma corporativa de gestión de iniciativas de innovación. El MVP entrega la **captura asistida de ideas**: un asistente conversacional con IA actúa como formulario dinámico que recolecta progresivamente 6 datos por idea, con **contingencia manual** cuando la IA no está disponible o falla (el formulario manual se despliega automáticamente, prellenado con lo ya capturado), **flujo de clarificación posterior** de las ideas manuales, y **validación por un especialista** antes de publicarla.
 
-El MVP no incluye debate, evaluación por comité, scoring ni flujos de aprobación formales (ver §8).
+Al publicarse, cada idea abre un **debate** de 30 días (todos los usuarios con sesión; el asistente interviene bajo invocación `@asistant`; al cierre, la IA genera un resumen de los puntos principales) y una **evaluación de la IA sobre 5 criterios fijos**, que el especialista **acepta o sustituye** por su propia evaluación. Todo lo anterior opera guiado por un **contexto de empresa** gestionado por el administrador (RF-21/RF-22).
 
-### 1.1 Datos requeridos por idea (los 7 campos)
+### 1.1 Datos requeridos por idea (los 6 campos)
 
 | # | Campo | Descripción |
 |---|-------|-------------|
@@ -23,7 +30,8 @@ El MVP no incluye debate, evaluación por comité, scoring ni flujos de aprobaci
 | 4 | Problema u oportunidad | Situación actual que motiva la idea. |
 | 5 | Beneficio esperado | Ahorro de costos, eficiencia, nuevos ingresos, etc. |
 | 6 | Alineación estratégica | Correspondencia con los objetivos de la organización. |
-| 7 | Recursos estimados | Tiempo, personal y presupuesto, de forma preliminar. |
+
+> El campo *Recursos estimados* se eliminó del MVP (v2.1, decisión D11): no se captura, no se valida y no se muestra. Puede reintroducirse en una versión futura.
 
 ---
 
@@ -45,9 +53,9 @@ Tres roles; un usuario puede ostentar varios a la vez.
 
 | Rol | Qué puede hacer en el MVP |
 |-----|---------------------------|
-| **Proponente** | Captura ideas (asistida o manual); revisa, ajusta y solicita la publicación de sus ideas; consulta sus ideas, el catálogo público y sus notificaciones. |
-| **Especialista de desarrollo** | Consulta la cola de ideas en espera; valida (publica) o rechaza con comentario. |
-| **Administrador** | Crea/desactiva usuarios y gestiona roles desde el panel. |
+| **Proponente** | Captura ideas (asistida o manual); revisa, ajusta y solicita la publicación de sus ideas; consulta sus ideas, el catálogo público (detalle, debate y evaluación de cada idea publicada) y sus notificaciones. |
+| **Especialista de desarrollo** | Consulta la cola de ideas en espera; valida (publica) o rechaza con comentario; participa en el debate de ideas publicadas y **acepta o sustituye la evaluación de la IA** por la propia. |
+| **Administrador** | Crea/desactiva usuarios y gestiona roles; gestiona el contexto de empresa (plantilla, edición, subida de archivo); ajusta el límite del debate idea por idea. |
 
 * Un usuario **sin roles no puede acceder** a funciones de la plataforma (su cuenta e historial existen; ver RF-17).
 * Los demás roles del ciclo completo (dirección, comité de evaluación) son versiones futuras.
@@ -68,6 +76,10 @@ Tres roles; un usuario puede ostentar varios a la vez.
 | HU-8 | Como **usuario** de la plataforma, quiero consultar las ideas publicadas, para conocer las iniciativas válidas. |
 | HU-9 | Como **especialista de desarrollo**, quiero ver la cola de ideas en espera, y validarlas o rechazarlas con comentario, para filtrar la calidad antes de publicarse. |
 | HU-10 | Como **administrador**, quiero crear usuarios y asignar/revocar roles, para controlar quién puede proponer, validar o administrar. |
+| HU-11 | Como **usuario** con sesión, quiero leer el detalle de una idea publicada con un debate donde todos podemos enriquecerla, y pedirle criterio al asistente citando un mensaje, para mejorar la iniciativa colectivamente. |
+| HU-12 | Como **usuario** con sesión, quiero ver al cierre del debate un resumen de los puntos principales de la conversación (candidato a la ficha de la idea), para no perder las conclusiones. |
+| HU-13 | Como **especialista de desarrollo**, quiero aceptar la evaluación de la IA o sustituirla por mi propia evaluación sobre los mismos 5 criterios, para registrar el juicio final de la idea. |
+| HU-14 | Como **administrador**, quiero gestionar el contexto de empresa (descargar una plantilla, editarla en la plataforma o subir el archivo), para que la IA guíe toda la plataforma con la información correcta de la organización. |
 
 ---
 
@@ -86,7 +98,7 @@ Criterios en notación **EARS** (patrones: *Si/Cuando* = evento, *Mientras* = es
 
 ### 5.2 Captura asistida (con IA)
 
-> Régimen común de captura (modo asistido y manual): el campo *Proponente* se prellena con los datos de la cuenta y el usuario puede corregirlo o completarlo antes de registrar.
+> Régimen común de captura (modo asistido y manual): el campo *Proponente* se prellena con los datos de la cuenta y el usuario puede corregirlo o completarlo antes de registrar. El conjunto completo consta de las **6 preguntas/6 campos** de RF-3; no existe pregunta por *Recursos estimados* (v2.1, D11).
 
 **RF-2 — Conversación de captura**
 
@@ -97,7 +109,7 @@ Criterios en notación **EARS** (patrones: *Si/Cuando* = evento, *Mientras* = es
 **RF-3 — Preguntas progresivas**
 El asistente recorre un orden fijo de campos, aceptando también narrativa libre.
 
-* Criterio de aceptación: El orden de consulta es: **1) Descripción (narrativa libre) → 2) Título (sugerido, RF-4) → 3) Problema u oportunidad → 4) Beneficio esperado → 5) Alineación estratégica → 6) Recursos estimados → 7) Proponente (confirmación del prellenado)**.
+* Criterio de aceptación: El orden de consulta es: **1) Descripción (narrativa libre) → 2) Título (sugerido, RF-4) → 3) Problema u oportunidad → 4) Beneficio esperado → 5) Alineación estratégica → 6) Proponente (confirmación del prellenado)** (v2.1: sin *Recursos estimados*, D11).
 * Criterio de aceptación: Cuando la narrativa libre aporta información para varios campos, el sistema debe asignar cada fragmento al campo correspondiente, marcarlo como completado y no volver a preguntar por él.
 * Criterio de aceptación: Cuando una respuesta es insuficiente, el sistema debe pedir aclaración antes de avanzar.
 
@@ -115,7 +127,7 @@ El asistente recorre un orden fijo de campos, aceptando también narrativa libre
 
 **RF-6 — Finalización de la captura asistida**
 
-* Criterio de aceptación: Cuando los 7 campos están completados, el sistema debe mostrar un **resumen editable** y pedir confirmación.
+* Criterio de aceptación: Cuando los 6 campos están completados, el sistema debe mostrar un **resumen editable** y pedir confirmación.
 * Criterio de aceptación: Cuando el proponente confirma, el sistema registra la idea en **EN_DESARROLLO** con origen *asistida*.
 * Criterio de aceptación: No se aplica ninguna versión de la IA sin que el proponente la haya visto y confirmado (resumen o aceptación explícita, RF-8).
 
@@ -123,7 +135,7 @@ El asistente recorre un orden fijo de campos, aceptando también narrativa libre
 
 **RF-7 — Formulario manual**
 
-* Si el asistente no está disponible al iniciar, el sistema debe desplegar el formulario manual con los 7 campos (obligatorios) y un aviso claro de contingencia.
+* Si el asistente no está disponible al iniciar, el sistema debe desplegar el formulario manual **automáticamente** (sin necesidad de pulsar nada más, salvo continuar) con los 6 campos (obligatorios) y un aviso claro de contingencia.
 * Si el asistente falla durante una conversación en curso, el sistema debe ofrecer continuar por el formulario **prellenado con los campos ya capturados**, sin perder información.
 * Cuando el formulario se envía completo, el sistema registra la idea en **EN_DESARROLLO** con origen *manual*.
 * Criterio de aceptación: El formulario funciona sin dependencia del asistente.
@@ -138,7 +150,7 @@ El asistente recorre un orden fijo de campos, aceptando también narrativa libre
 
 **RF-9 — Edición manual**
 
-* Mientras una idea esté en **EN_DESARROLLO**, el proponente debe poder editar cualquiera de los 7 campos y el sistema debe conservar el cambio.
+* Mientras una idea esté en **EN_DESARROLLO**, el proponente debe poder editar cualquiera de los 6 campos y el sistema debe conservar el cambio.
 * Criterio de aceptación: Mientras el sistema esté generando una versión de la idea, la edición manual debe estar bloqueada con aviso hasta que la generación termine.
 
 **RF-10 — Solicitud de publicación**
@@ -168,7 +180,7 @@ El asistente recorre un orden fijo de campos, aceptando también narrativa libre
 
 **RF-14 — Cola de validación**
 
-* Criterio de aceptación: La pantalla de validación (rol especialista) muestra únicamente las ideas en **SOLICITANDO_PUBLICACIÓN**, con los 7 campos, proponente (nombre y área) y fecha de solicitud.
+* Criterio de aceptación: La pantalla de validación (rol especialista) muestra únicamente las ideas en **SOLICITANDO_PUBLICACIÓN**, con los 6 campos, proponente (nombre y área) y fecha de solicitud.
 * Criterio de aceptación: La cola no expone los datos de contacto del proponente (solo nombre y área).
 
 **RF-15 — Validación (publicación)**
@@ -204,10 +216,11 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 
 * Criterio de aceptación: El proponente consulta sus ideas (título, fecha de registro, origen, estado) y puede abrir cualquiera para ejecutar las acciones de su estado (RF-8, RF-9, RF-10, RF-13).
 
-**RF-20 — Catálogo público**
+**RF-20 — Catálogo público (vista compacta)**
 
-* Criterio de aceptación: Para todo usuario con sesión activa, el sistema muestra las ideas **VALIDADA_PUBLICA** (propias o de terceros) con los 7 campos, nombre y área del proponente, fecha de registro y de publicación; **solo de lectura** y sin datos de contacto.
+* Criterio de aceptación: Para todo usuario con sesión activa, el sistema muestra las ideas **VALIDADA_PUBLICA** (propias o de terceros) como una **lista compacta: título, fecha de publicación y descripción**; **solo de lectura** y sin datos de contacto.
 * Criterio de aceptación: Nada menos que **VALIDADA_PUBLICA** aparece en el catálogo.
+* Criterio de aceptación: Al seleccionar una idea, el sistema debe abrirla en su **vista de detalle** (RF-23) con sus 6 campos, el debate (RF-24) y la evaluación (RF-26).
 
 ### 5.10 Máquina de estados (MVP)
 
@@ -215,10 +228,53 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 |--------|-------------|--------------|
 | **EN_DESARROLLO** | Creada, aún no autorizada para publicar. Atributos: origen (*asistida*/*manual*), *revisada por IA*, versión vigente, fecha de registro. | → SOLICITANDO_PUBLICACIÓN (RF-10) |
 | **SOLICITANDO_PUBLICACIÓN** | Autorizada por el proponente; espera al especialista. | → VALIDADA_PUBLICA (RF-15); → EN_DESARROLLO (RF-16) |
-| **VALIDADA_PUBLICA** | Publicada; visible en el catálogo para toda la plataforma. | Terminal en el MVP |
+| **VALIDADA_PUBLICA** | Publicada; visible en el catálogo con debate (RF-24) y evaluación (RF-26). Atributos nuevos: fecha de publicación, fecha límite del debate, debate cerrado, resumen del debate, evaluación vigente. | Terminal en el MVP |
 
 * No existe borrador: la idea existe solo a partir de su registro (RF-6/RF-7).
-* En versiones futuras: estados *En debate* y *En evaluación* (fuera de alcance).
+* El debate y la evaluación son **atributos de la idea publicada**, no estados propios (D12).
+
+### 5.11 Contexto de empresa (administrador)
+
+**RF-21 — Gestión del contexto de empresa (solo administrador)**
+
+* Cuando el administrador accede a la sección de contexto de empresa, el sistema debe ofrecer: **descargar la plantilla**, **editar el contenido en la propia plataforma** (formulario con las secciones de la plantilla) y **subir un archivo** (texto) que contenga el contexto editado.
+* Criterio de aceptación: La plantilla es un documento de texto con secciones orientativas: **perfil de la organización, alineación estratégica (objetivos, prioridades y líneas de innovación), vocabulario e información de referencia** para guiar a la IA.
+* Criterio de aceptación: El contexto se persiste como un **único documento editable** por la plataforma; una subida reemplaza el contenido vigente en su totalidad.
+* Criterio de aceptación: El documento vigente queda como **contexto de empresa** a disposición de todas las operaciones de la IA de la plataforma.
+
+**RF-22 — Inyección del contexto de empresa en la IA**
+
+* Criterio de aceptación: El contexto de empresa debe inyectarse en **todas** las operaciones de la IA: preguntas y chips de la captura (RF-2/RF-5), sugerencia del título (RF-4), mejoras y refinamientos (RF-8/RF-11), intervención en el debate (RF-25) y evaluación de ideas (RF-26).
+* Criterio de aceptación: El perfil de organización (nombre, sector, misión, objetivos estratégicos) forma parte de la plantilla y se gestiona desde la misma sección; la información que el administrador deje allí es la que la IA usa.
+* Criterio de aceptación: Si el contexto es vacío o contiene solo secciones sin contenido, la IA opera sin contexto y el sistema muestra un aviso al administrador.
+
+### 5.12 Publicación, debate y evaluación (ideas VALIDADA_PUBLICA)
+
+**RF-23 — Vista de detalle de la idea publicada**
+
+* Criterio de aceptación: La vista de detalle muestra un **resumen** con los 6 campos de la idea, el proponente (nombre y área), las fechas de registro y publicación, el debate (RF-24) y la evaluación (RF-26). **Solo de lectura** en cuanto a los campos de la idea: no existe edición de una idea publicada en el MVP.
+
+**RF-24 — Debate de la idea publicada**
+
+* Criterio de aceptación: Para todo usuario con sesión activa (proponente, especialista o administrador), mientras el debate no haya cerrado, el sistema debe permitir **publicar mensajes** y leer todos los mensajes previos (autor, fecha y texto).
+* Criterio de aceptación: El debate abre con fecha límite = **fecha de publicación + 30 días por defecto**.
+* Criterio de aceptación: Al llegar la fecha límite, el debate se **cierra de forma automática y definitiva**: no se admiten nuevos mensajes y la interfaz lo comunica.
+* Criterio de aceptación: Solo el **administrador** puede ajustar la fecha límite de un debate **idea por idea** (adelantarla o extenderla), incluso sobre debates cerrados (reabrirlos es ajustando la fecha a un futuro; el ajuste queda registrado con quien lo hizo y cuándo).
+* Criterio de aceptación: Al cerrarse el debate, si existió al menos un mensaje, la IA debe generar un **resumen de los puntos principales** de la conversación (el debate, el estado del debate y su resumen son visibles en la vista de detalle).
+
+**RF-25 — Intervención del asistente en el debate (@asistant)**
+
+* Criterio de aceptación: Cuando un participante escribe **`@asistant` seguido de una petición**, citando o referenciando un mensaje concreto del debate (el sistema debe permitir seleccionar/enlazar el mensaje al que responde), el asistente debe responder en el propio hilo con el criterio o análisis solicitado, guiado por el contexto de empresa (RF-22).
+* Criterio de aceptación: El mensaje del asistente queda identificado como mensaje del asistente (autor *Asistente*), distinto de los de usuario.
+* Criterio de aceptación: Si el asistente está caído, la petición se notifica como no procesable y el debate sigue operando sin IA (RNF-1).
+
+**RF-26 — Evaluación de la IA y criterio del especialista**
+
+* Criterio de aceptación: Cuando una idea pasa a **VALIDADA_PUBLICA** (RF-15), el sistema debe generar automáticamente la **evaluación de la IA sobre 5 criterios fijos**: *claridad del problema*, *factibilidad*, *impacto esperado*, *alineación estratégica* y *grado de innovación*, cada uno con **puntuación 1–10 y justificación breve**.
+* Criterio de aceptación: La evaluación se muestra en la vista de detalle como **evaluación de la IA** con su autor y fecha, visible para todo usuario con sesión.
+* Criterio de aceptación: El rol **especialista de desarrollo** puede **aceptar** la evaluación de la IA (queda como el juicio final de la idea) o **sustituirla** por una nueva evaluación propia sobre los mismos 5 criterios (puntuación 1–10 y justificación por criterio); el sustituto se registra con autor y fecha y es revisable solo mientras la evaluación de la IA no haya sido aceptada.
+* Criterio de aceptación: El juicio final de la idea es único en todo momento: la evaluación de la IA (mientras no haya decisión del especialista), la evaluación de la IA aceptada o la evaluación sustitutiva del especialista.
+* Criterio de aceptación: Tanto la aceptación de la evaluación de la IA como la sustitución por la propia quedan **auditadas con quien y cuándo** (RNF-8).
 
 ---
 
@@ -230,12 +286,15 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 | RNF-2 | **Transparencia:** Cada idea muestra su origen y su estado de forma visible; la interfaz deja claro cuando se está con IA o en modo manual. |
 | RNF-3 | **Tiempo de respuesta:** Toda interacción con IA muestra carga; si no hay respuesta en 60 s, el sistema reintenta una vez y, de fallar, aplica la contingencia (RF-7). |
 | RNF-4 | **Idioma:** Interfaz, mensajes, preguntas y notificaciones en español. |
-| RNF-5 | **Integridad:** Ninguna idea se registra con los 7 campos vacíos u omitidos (ambos modos). |
+| RNF-5 | **Integridad:** Ninguna idea se registra con los 6 campos vacíos u omitidos (ambos modos). |
 | RNF-6 | **Accesibilidad:** Toda la interfaz (chat, chips, formularios, notificaciones, catálogos) debe poder operarse con teclado y lectores de pantalla. |
 | RNF-7 | **Segregación por rol:** Cada rol solo accede a sus funciones y datos. Excepción explícita: el catálogo público (RF-20) es de solo lectura y visible para todos los usuarios con sesión, independientemente de rol. |
 | RNF-8 | **Auditoría:** Toda transición a VALIDADA_PUBLICA registra quién y cuándo (inclusive autovalidación); todo rechazo conserva el comentario y la identidad de quien lo emitió. |
 | RNF-9 | **Consistencia:** Solo los roles autorizados provocan transiciones; ante dos acciones simultáneas sobre la misma idea, se aplica la que se ejecute primero y se descarta la otra, sin dejar estado inconsistente. |
 | RNF-10 | **Sin pérdida en contingencia:** Un fallo de la IA nunca borra campos ya capturados (RF-7). |
+| RNF-11 | **Auditoría de debate:** Cada mensaje de debate registra autor, fecha y, cuando corresponda, el mensaje enlazado; el ajuste de fechas de debate y la aceptación/sustitución de la evaluación se auditan (quién y cuándo) (RF-24, RF-26). |
+| RNF-12 | **Contexto inyectado:** La IA siempre opera con el contexto de empresa vigente; el contexto vacío se comunica al administrador (RF-22). |
+| RNF-13 | **Presentación:** La plataforma ofrece tema claro/oscuro (el usuario elige y la preferencia se persiste entre sesiones), una vista de ajustes accesible y una maquetación responsive legible en móvil, tablet y escritorio. |
 
 ---
 
@@ -260,19 +319,28 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 | 15 | Credenciales inválidas o sesión caducada | Devolución a pantalla de inicio de sesión; sin datos expuestos; el registro de ideas no depende de la sesión previa. |
 | 16 | Revocación de rol / desactivación de usuario | La cuenta, sus ideas e historial se conservan intactos; el usuario pierde el acceso a funciones. Las ideas en SOLICITANDO_PUBLICACIÓN quedan validables por otros especialistas; las notificaciones del usuario se conservan y son visibles al recuperar acceso. |
 | 17 | Fallo al guardar un registro | No se deja registro parcial; si es el formulario manual, los datos permanecen en pantalla para reintentar el envío. |
+| 18 | Debate cerrado por límite de fecha | Los mensajes no se admiten; la interfaz lo comunica y muestra el resumen del debate si existió (RF-24). |
+| 19 | `@asistant` sin mensaje enlazado o sin petición | Se trata como mensaje de usuario corriente; no se invoca al asistente. |
+| 20 | Invocación `@asistant` con la IA caída | La petición queda visible como mensaje no procesado con aviso; se reintenta en la siguiente interacción con la IA disponible (RNF-1, RF-25). |
+| 21 | Cierre del debate sin mensajes | No hay resumen generado; la interfaz indica que no hubo debate. |
+| 22 | IA caída al momento de publicarse una idea (evaluación pendiente) | La idea se publica normalmente (la validación no depende de la IA); la evaluación se genera en la siguiente verificación de disponibilidad (RNF-1, RF-26). |
+| 23 | Sustitución de la evaluación por el especialista y luego el especialista acepta la de la IA (o al revés) | Cada acción es sobre el estado previo; el juicio final siempre es el resultado de la última acción del especialista. |
+| 24 | Contexto de empresa vacío o solo plantilla sin contenido | La IA opera sin contexto; se muestra aviso al administrador en la sección de contexto (RF-22). |
+| 25 | Subida de archivo de contexto sin texto o corrupto | Se rechaza el guardado con aviso; el contexto vigente no se modifica. |
 
 ---
 
 ## 8. Fuera de alcance
 
-1. Estados **IDEA EN DEBATE** y **IDEA EN EVALUACIÓN** (y sus salidas Aprobada/Archivada/Rechazada), incluidos director y comité de evaluación.
-2. Evaluación automatizada y scoring (0–100).
-3. Flujos de aprobación formal más allá de la validación del especialista.
-4. Roles adicionales al MVP y su integración al panel.
+1. Estados formales **IDEA EN DEBATE** y **IDEA EN EVALUACIÓN** con salidas Aprobada/Archivada/Rechazada (el debate de la plataforma es un atributo de la idea publicada, RF-24, decisión D12), incluidos el comité de evaluación y sus decisiones formales.
+2. **Scoring global** (0–100) y ranking de ideas; la evaluación se expresa solo como los 5 criterios por criterio (RF-26).
+3. Flujos de evaluación formal más allá de la validación del especialista y la evaluación IA/sustitución del especialista (RF-26).
+4. Roles adicionales al MVP (dirección, comité) y su integración al panel.
 5. Borradores de ideas (decisión explícita).
 6. Notificaciones fuera de la aplicación.
 7. Publicación externa (portales, boletines, etc.); "publicada" significa publicada dentro de la plataforma.
-8. Edición de ideas en VALIDADA_PUBLICA (estado terminal; corresponde a fases futuras).
+8. Edición de ideas en VALIDADA_PUBLICA (no existe edición de una idea publicada; corresponde a fases futuras).
+9. Reintroducción del campo *Recursos estimados* (decisión D11: fuera del MVP, reversible en el futuro).
 
 ---
 
@@ -287,10 +355,14 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 7. **Validación e2e:** validación → VALIDADA_PUBLICA + notificación; rechazo → EN_DESARROLLO + comentario.
 8. **Usuarios/roles:** creación de usuario (contraseña temporal, cambio en primer acceso), asignación, revocación (sin roles = sin acceso, historial intacto), bloqueo del último administrador.
 9. **Notificaciones:** solo los 4 eventos de RF-18; contador, navegación y leídas.
-10. **Catálogo público:** solo VALIDADA_PUBLICA, de solo lectura, sin datos de contacto.
-11. **Casos límite:** verificados 1, 2, 5, 6, 7, 13, 16, 17.
-12. **Pruebas:** `pytest -q` pasa al completo (backend).
-13. **Conformidad:** estructura por features y capa compartida según Constitución; guías de Angular y Tailwind respetadas.
+10. **Catálogo público:** solo VALIDADA_PUBLICA, en vista compacta (título, fecha de publicación, descripción); al abrir, la vista de detalle muestra los 6 campos, el debate y la evaluación; de solo lectura, sin datos de contacto.
+11. **Debate:** mensajes de cualquier usuario con sesión; cierre automático a 30 días; ajuste de fecha por idea del administrador; `@asistant` responde con el mensaje enlazado; al cierre, resumen de la IA visible.
+12. **Evaluación:** generada al publicarse sobre 5 criterios (1–10 + justificación); aceptación o sustitución por el especialista dejan un único juicio final auditado.
+13. **Contexto de empresa:** plantilla descargable, edición en línea y subida de archivo; vacío detectado con aviso; inyectado en captura, título, mejoras, debate y evaluación.
+14. **Presentación:** tema claro/oscuro persistido, vista de ajustes, maquetación responsive.
+15. **Casos límite:** verificados 1, 2, 5, 6, 7, 13, 16, 17, 18, 20, 22.
+16. **Pruebas:** `pytest -q` pasa al completo (backend).
+17. **Conformidad:** estructura por features y capa compartida según Constitución; guías de Angular y Tailwind respetadas.
 
 ---
 
@@ -308,3 +380,10 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 | 8 | Una idea manual **puede publicarse sin refinar**; el refinamiento no es precondición de la publicación. | RF-10 |
 | 9 | La revocación de rol/desactivación **conserva cuenta, ideas e historial**; solo se pierde el acceso. | RF-17, §7 cas. 16 |
 | 10 | El **Proponente como campo** se prellena desde la cuenta en los dos modos de captura. | §1.1, RF-6, RF-7 |
+| 11 | **Recursos estimados fuera del MVP:** el campo no se captura, no se valida y no se muestra en ningún lugar (decisión reversible; puede reintroducirse en una versión futura). Sustituye a los "7 campos" de la v2.0: se trabaja con 6. | §1.1, D11, RF-3, RF-7, RF-9 |
+| 12 | **Debate y evaluación son atributos de la idea publicada, no estados:** el debate se cierra por fecha límite (30 días por defecto, ajustable idea por idea por el administrador) y la evaluación es única (IA o del especialista). No se introducen los estados formales *En debate*/*En evaluación* de la v1.0. | RF-24, RF-26, §5.10 |
+| 13 | **Contexto de empresa:** se gestiona como un único documento (plantilla + edición en línea + subida de archivo) y se inyecta en TODAS las operaciones de la IA. Sustituye/expande el perfil de organización de la v2.0 (D7): el perfil queda dentro del documento. | RF-21, RF-22, RNF-12 |
+| 14 | **@asistant en el debate:** la intervención del asistente es bajo invocación explícita citando un mensaje concreto; el resumen final del debate lo genera la IA al cerrarse (si hubo mensajes). El debate no es un chat asistido continuo. | RF-24, RF-25 |
+| 15 | **Evaluación IA:** 5 criterios fijos (*claridad del problema, factibilidad, impacto esperado, alineación estratégica, grado de innovación*), puntuación 1–10 + justificación por criterio; se genera al publicarse; el especialista la acepta o la sustituye por su propia sobre los mismos criterios. No hay scoring global 0–100. | RF-26 |
+| 16 | **Catálogo en vista compacta:** el listado muestra solo título, fecha de publicación y descripción; el resto (6 campos, debate, evaluación) se ve en la vista de detalle de la idea. | RF-20, RF-23 |
+| 17 | **Preferencia de presentación:** tema claro/oscuro elegible por el usuario, persistido entre sesiones, con vista de ajustes accesible del menú y maquetación responsive. | RNF-13 |

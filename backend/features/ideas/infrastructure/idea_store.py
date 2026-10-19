@@ -11,7 +11,7 @@ Consistency guarantees:
   - compare-and-set on state changes: a transition is persisted only when
     the idea is still in the state the rule was computed from (RNF-9,
     case 11 — the second concurrent action is discarded);
-  - creation and version application validate the 7 fields (RNF-5) and the
+  - creation and version application validate the 6 fields (RNF-5) and the
     proponent contact format (case 12).
 """
 
@@ -58,12 +58,12 @@ class IdeaStore:
     # -- ideas (IdeaLedger contract) ------------------------------------------
 
     def create(self, idea: Idea) -> Idea:
-        """Registers a new idea (RNF-5: the 7 fields must be complete)."""
+        """Registers a new idea (RNF-5: the 6 fields must be complete)."""
         problems = validar_campos(idea.fields())
         if problems:
             raise ValidationFailed(
                 "IDEA_FIELDS_INVALID",
-                "La idea requiere los 7 campos completos (RNF-5) y un contacto con formato válido (caso 12).",
+                "La idea requiere los 6 campos completos (RNF-5) y un contacto con formato válido (caso 12).",
                 details={"fields": problems},
             )
         if self.get(idea.id) is not None:
@@ -99,7 +99,7 @@ class IdeaStore:
         ]
 
     def save_current_fields(self, idea_id: str, fields: dict) -> dict:
-        """Contract entry: applies the 7 current fields (version acceptance)."""
+        """Contract entry: applies the 6 current fields (version acceptance)."""
 
         def apply(data: dict) -> dict:
             payload = data.get(idea_id)
@@ -165,7 +165,7 @@ class IdeaStore:
         if problems:
             raise ValidationFailed(
                 "VERSION_FIELDS_INVALID",
-                "La versión propuesta requiere los 7 campos completos (RNF-5) y un contacto válido (caso 12).",
+                "La versión propuesta requiere los 6 campos completos (RNF-5) y un contacto válido (caso 12).",
                 details={"fields": problems},
             )
         numbers = [entry["version"] for entry in self._versions.load().values() if entry["ideaId"] == idea_id]
@@ -240,7 +240,7 @@ class IdeaStore:
             except DomainError:
                 raise ValidationFailed(
                     "VERSION_FIELDS_INVALID",
-                    "La versión propuesta no es válida: los 7 campos deben estar completos y el "
+                    "La versión propuesta no es válida: los 6 campos deben estar completos y el "
                     "contacto debe tener un formato válido (RNF-5, caso 12).",
                 ) from None
             updated.currentVersionId = version_id

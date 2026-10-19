@@ -13,14 +13,13 @@ const FORM_VACIO: FormResumen = {
   expectedBenefit: '',
   strategicAlignment: '',
   proponent: { name: '', area: '', contact: '' },
-  estimatedResources: { time: '', people: '', budget: '' },
 };
 
 /**
  * Manual capture form (T-044, RF-7).
  *
  * Covers the capture without the assistant (caso 1, G08) and the mid-conversation
- * contingency (T-045): it deploys the 7 mandatory fields, prefills the proponent
+ * contingency (T-045): it deploys the 6 mandatory fields, prefills the proponent
  * from the account (correctable) and any field the assistant already captured
  * (the shared `contingencia.capturedFields`; RNF-10 — nothing is lost), gates the
  * submit on non-empty + a valid contact (case 12), and posts to `POST /ideas`
@@ -51,7 +50,7 @@ export class ManualIdea implements OnInit {
     this.formulario.set(construirResumen(base, cuenta));
   }
 
-  /** Whether all 7 fields are present with a valid contact (RNF-5, case 12). */
+  /** Whether all 6 fields are present with a valid contact (RNF-5, case 12). */
   protected completo(): boolean {
     return resumenCompleto(this.formulario());
   }

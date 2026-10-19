@@ -76,7 +76,6 @@ def _idea(idea_id: str, owner_id: str, state: str) -> dict:
         "problem": "Problema de prueba.",
         "expectedBenefit": "Beneficio de prueba.",
         "strategicAlignment": "Alineacion de prueba.",
-        "estimatedResources": {"time": "1", "people": "1", "budget": "1"},
         "ownerId": owner_id,
         "origin": "manual",
         "state": state,

@@ -1,6 +1,6 @@
 """Manual-idea refinement use case (T-061, RF-11/RF-12, plan §4.5).
 
-Refines one manual idea into a complete 7-field version: the prompt carries
+Refines one manual idea into a complete 6-field version: the prompt carries
 the current fields (`refine_idea_prompt`), the reply is interpreted
 deterministically (`interpret_fields`) and a valid result is registered as a
 PENDIENTE `IdeaVersion` with `requestedBy=refinement` (plan §2.5). The idea

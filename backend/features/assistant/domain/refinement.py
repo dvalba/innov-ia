@@ -4,7 +4,7 @@ Pure domain module (Constitution §4.2). It owns two things:
   1. The queue selection: ideas in `EN_DESARROLLO` with origin `manual` that
      still have no valid refined version, ordered from the oldest to the most
      recent (RF-11).
-  2. The interpretation of the assistant's raw reply: the 7 fields are
+  2. The interpretation of the assistant's raw reply: the 6 fields are
      validated and any uninterpretable reply is a failure (spec case 6/14).
 """
 
@@ -21,9 +21,8 @@ REQUESTED_BY_REFINEMENT = "refinement"
 # for the current request, so it is out of the queue (RF-11 "válida").
 _REFINED_STATUSES = ("PENDIENTE", "ACEPTADA", "VIGENTE")
 
-# Sub-fields that the structured objects must contain (schema plan §2.2).
+# Sub-fields that the structured object must contain (schema plan §2.2).
 _PROPOSER_KEYS = ("name", "area", "contact")
-_RESOURCE_KEYS = ("time", "people", "budget")
 
 
 def needs_refinement(idea: dict, versions: Iterable[dict] = ()) -> bool:
@@ -115,11 +114,11 @@ def _non_empty_obj(value: Any, keys: tuple[str, ...]) -> bool:
 
 
 def interpret_fields(raw: str) -> dict | None:
-    """Validates the 7 fields in the assistant reply; `None` on failure (case 14).
+    """Validates the 6 fields in the assistant reply; `None` on failure (case 14).
 
-    The reply must contain exactly the 7 idea fields (plan §2.2): the four
-    scalar strings plus `title`, with `proponent` and `estimatedResources` as
-    structured objects whose sub-fields are present and non-empty.
+    The reply must contain exactly the 6 idea fields (plan §2.2): the four
+    scalar strings plus `title`, with `proponent` as a structured object whose
+    sub-fields are present and non-empty.
     """
     data = extract_json_object(raw)
     if not isinstance(data, dict):
@@ -133,10 +132,5 @@ def interpret_fields(raw: str) -> dict | None:
         if not _non_empty_str(data.get(field)):
             return None
     if not _non_empty_obj(data.get("proponent"), _PROPOSER_KEYS):
-        return None
-    resources = data.get("estimatedResources")
-    if not isinstance(resources, dict):
-        return None
-    if not all(isinstance(resources.get(key), str) for key in _RESOURCE_KEYS):
         return None
     return {field: data[field] for field in IDEA_FIELDS}

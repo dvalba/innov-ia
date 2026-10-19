@@ -20,7 +20,7 @@ def create_idea(ledger: IdeaStore, *, owner_id: str, origin: str, fields: dict) 
     """Registers the idea in EN_DESARROLLO and returns its payload.
 
     `origin` is `asistida` (RF-6) or `manual` (RF-7). Raises
-    `ValidationFailed` (422) when any of the 7 fields is missing, empty or
+    `ValidationFailed` (422) when any of the 6 fields is missing, empty or
     the contact is malformed (RNF-5, case 12), and `DomainError` for an
     unknown origin or a duplicated id.
     """
@@ -29,7 +29,7 @@ def create_idea(ledger: IdeaStore, *, owner_id: str, origin: str, fields: dict) 
     if problems:
         raise ValidationFailed(
             "IDEA_FIELDS_INVALID",
-            "La idea requiere los 7 campos completos (RNF-5) y un contacto con formato válido (caso 12).",
+                "La idea requiere los 6 campos completos (RNF-5) y un contacto con formato válido (caso 12).",
             details={"fields": problems},
         )
     idea = Idea(

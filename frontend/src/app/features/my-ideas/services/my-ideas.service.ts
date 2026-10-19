@@ -40,7 +40,7 @@ export class MyIdeasService {
     return httpResource<IdeaDetalle>(() => `/ideas/${ideaId}`);
   }
 
-  /** PUT /ideas/{id} — manual edit of the 7 fields (RF-9); 409 while generating. */
+  /** PUT /ideas/{id} — manual edit of the 6 fields (RF-9); 409 while generating. */
   actualizar(ideaId: string, campos: IdeaFields): Promise<Idea> {
     return firstValueFrom(this.http.put<Idea>(`/ideas/${ideaId}`, campos));
   }

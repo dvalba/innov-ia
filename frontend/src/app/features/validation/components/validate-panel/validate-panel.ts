@@ -12,7 +12,7 @@ export type ResultadoValidacion = 'validada' | 'rechazada';
 /**
  * Specialist review panel (T-051, RF-14/RF-15/RF-16, case 13).
  *
- * Renders one review-queue entry — the 7 fields (the proponent reduced to
+ * Renders one review-queue entry — the 6 fields (the proponent reduced to
  * name/area, never the contact, RF-14) plus the origin and the request date —
  * and the two specialist decisions. "Validar" approves (publishes) the idea;
  * "Rechazar" reveals a mandatory expert comment (the button stays blocked

@@ -40,12 +40,12 @@ class IdeaError(DomainError):
 class Idea:
     """An innovation initiative, the business unit of the platform (plan §2.2).
 
-    The 7 mandatory fields (RNF-5) live in `title`, `proponent` (name/area/
-    contact), `description`, `problem`, `expectedBenefit`,
-    `strategicAlignment` and `estimatedResources` (time/people/budget).
-    `ownerId` backs "Mis ideas" (RF-19); `origin` and `state` drive the rest
-    of the platform (RNF-2, plan §4.6); `createdAt`/`requestDate`/
-    `publishedAt`/`publishedBy` are the audit trail (RNF-8).
+    The 6 mandatory fields (RNF-5) live in `title`, `proponent` (name/area/
+    contact), `description`, `problem`, `expectedBenefit` and
+    `strategicAlignment`. `ownerId` backs "Mis ideas" (RF-19); `origin` and
+    `state` drive the rest of the platform (RNF-2, plan §4.6);
+    `createdAt`/`requestDate`/`publishedAt`/`publishedBy` are the audit trail
+    (RNF-8).
     """
 
     id: str
@@ -56,7 +56,6 @@ class Idea:
     problem: str
     expectedBenefit: str
     strategicAlignment: str
-    estimatedResources: dict
     origin: str = ORIGIN_MANUAL
     state: str = STATE_EN_DESARROLLO
     reviewedByAI: bool = False
@@ -80,15 +79,13 @@ class Idea:
             raise IdeaError(f"Estado de idea no válido: «{self.state}» (solo {'/'.join(STATES)}).")
         if not isinstance(self.proponent, dict):
             raise IdeaError("El campo Proponente debe tener nombre, área y contacto.")
-        if not isinstance(self.estimatedResources, dict):
-            raise IdeaError("El campo Recursos estimados debe tener tiempo, personal y presupuesto.")
         if not self.createdAt:
             self.createdAt = datetime.now().isoformat()
 
-    # -- the 7 fields, as a plain dict (spec §2.2) --------------------------
+    # -- the 6 fields, as a plain dict (spec §2.2) --------------------------
 
     def fields(self) -> dict[str, Any]:
-        """Returns the dict of the 7 idea fields (the `fields` key of the payload)."""
+        """Returns the dict of the 6 idea fields (the `fields` key of the payload)."""
         return {
             "title": self.title,
             "proponent": self.proponent,
@@ -96,22 +93,20 @@ class Idea:
             "problem": self.problem,
             "expectedBenefit": self.expectedBenefit,
             "strategicAlignment": self.strategicAlignment,
-            "estimatedResources": self.estimatedResources,
         }
 
     def apply_fields(self, fields: dict) -> None:
-        """Applies the 7 current fields (version acceptance, RF-8/RF-13)."""
+        """Applies the 6 current fields (version acceptance, RF-8/RF-13)."""
         data = dict(fields)
         problems = validar_campos(data)
         if problems:
-            raise IdeaError(f"Los 7 campos de la idea son obligatorios (RNF-5); faltan: {', '.join(problems)}.")
+            raise IdeaError(f"Los 6 campos de la idea son obligatorios (RNF-5); faltan: {', '.join(problems)}.")
         self.title = data["title"]
         self.proponent = data["proponent"]
         self.description = data["description"]
         self.problem = data["problem"]
         self.expectedBenefit = data["expectedBenefit"]
         self.strategicAlignment = data["strategicAlignment"]
-        self.estimatedResources = data["estimatedResources"]
 
     # -- payload round-trip (camelCase, schema §2.2) ------------------------
 
@@ -149,7 +144,6 @@ class Idea:
                 problem=payload["problem"],
                 expectedBenefit=payload["expectedBenefit"],
                 strategicAlignment=payload["strategicAlignment"],
-                estimatedResources=payload["estimatedResources"],
                 origin=payload.get("origin", ORIGIN_MANUAL),
                 state=payload.get("state", STATE_EN_DESARROLLO),
                 reviewedByAI=payload.get("reviewedByAI", False),

@@ -10,9 +10,9 @@ import {
 /**
  * Editable capture summary (T-043, RF-6).
  *
- * When the 7 fields close (`state: RESUMEN`) this block shows them, editable,
+ * When the 6 fields close (`state: RESUMEN`) this block shows them, editable,
  * so the proponent can correct any of them before confirming. "Confirmar"
- * hands the confirmed 7 fields (structured ones as objects) back to the chat,
+ * hands the confirmed 6 fields (structured ones as objects) back to the chat,
  * which calls `POST /capture/finish`; a 201 navigates to "Mis ideas", a 422
  * (incomplete fields / bad contact) is reported field by field and the summary
  * stays editable. UI copy in Spanish (RNF-4).
@@ -29,7 +29,7 @@ export class FieldSummary implements OnInit {
   /** Field names the backend rejected on the last confirmation (RNF-5, case 12). */
   readonly camposError = input<string[]>([]);
 
-  /** Emits the confirmed 7 fields (objects for the structured ones). */
+  /** Emits the confirmed 6 fields (objects for the structured ones). */
   readonly confirmar = output<Record<string, unknown>>();
 
   protected readonly formulario = signal<FormResumen>({
@@ -39,7 +39,6 @@ export class FieldSummary implements OnInit {
     expectedBenefit: '',
     strategicAlignment: '',
     proponent: { name: '', area: '', contact: '' },
-    estimatedResources: { time: '', people: '', budget: '' },
   });
 
   /** Seeds the editable form from the captured summary (stable once RESUMEN). */

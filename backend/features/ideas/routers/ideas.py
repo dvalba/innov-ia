@@ -20,7 +20,7 @@ Endpoints (plan §3.1), all guarded to an active `proponente` session
 
 Pydantic schemas live in this layer only (plan D8, Constitution §4.2). The
 field schemas are deliberately permissive (empty/omitted allowed): the single
-source of truth for the 7 fields (RNF-5) and the contact format (case 12) is
+source of truth for the 6 fields (RNF-5) and the contact format (case 12) is
 the `ideas` domain, so every 422 keeps the unified error contract (plan §3.6).
 Business rules live in the use cases and `IdeaStore` (T-019..T-024): `improve`
 is orchestrated there with the injected assistant client (G04).
@@ -60,14 +60,8 @@ class ProponentIn(BaseModel):
     contact: str = ""
 
 
-class ResourcesIn(BaseModel):
-    time: str = ""
-    people: str = ""
-    budget: str = ""
-
-
 class IdeaFieldsIn(BaseModel):
-    """The 7 idea fields (RNF-5); permissive here, validated by the domain."""
+    """The 6 idea fields (RNF-5); permissive here, validated by the domain."""
 
     title: str = ""
     proponent: ProponentIn | None = None
@@ -75,7 +69,6 @@ class IdeaFieldsIn(BaseModel):
     problem: str = ""
     expectedBenefit: str = ""
     strategicAlignment: str = ""
-    estimatedResources: ResourcesIn | None = None
 
 
 class CreateIdeaRequest(IdeaFieldsIn):
@@ -129,7 +122,7 @@ def idea_detail_endpoint(idea_id: str, session: ProponentDep,
 @ideas_router.put("/{idea_id}")
 def edit_idea_endpoint(idea_id: str, payload: IdeaFieldsIn, session: ProponentDep,
                        ledger: IdeaLedgerDep) -> dict:
-    """Manual editing of the 7 fields (RF-9): owner + EN_DESARROLLO + no generation."""
+    """Manual editing of the 6 fields (RF-9): owner + EN_DESARROLLO + no generation."""
     return edit_idea(ledger, idea_id=idea_id, owner_id=session.user_id,
                      fields=payload.model_dump())
 

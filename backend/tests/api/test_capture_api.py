@@ -168,12 +168,10 @@ def auth(directory, idea_ledger, conversation_store, assistant, org_store):
 
 
 def _structure(**overrides: dict) -> dict:
-    """The two structured fields as valid objects (§2.2), for a finish body."""
+    """The structured field (`proponent`) as a valid object (§2.2)."""
     data = {
         "proponent": {"name": "Ana Torres", "area": "Compras",
                       "contact": "ana.torres@innov-ia.local"},
-        "estimatedResources": {"time": "3 meses", "people": "2 personas",
-                               "budget": "100000 PLN"},
     }
     data.update(overrides)
     return data
@@ -208,8 +206,7 @@ def _full_flow(client: TestClient, assistant: ProgrammableMock) -> str:
 
     # Each of the 4 remaining fields is answered with the per-turn option the
     # assistant offered (RF-5, D7: a chip is only valid when actually offered).
-    for field in ("problem", "expectedBenefit", "strategicAlignment",
-                  "estimatedResources"):
+    for field in ("problem", "expectedBenefit", "strategicAlignment"):
         assert turn["currentField"] == field
         reply = client.post("/capture/messages",
                             json={"conversationId": conv_id,
@@ -219,7 +216,7 @@ def _full_flow(client: TestClient, assistant: ProgrammableMock) -> str:
             turn = reply.json()["assistant"]
     assert reply.json()["state"] == "RESUMEN"
     summary = reply.json()["summary"]
-    assert len(summary) == 7
+    assert len(summary) == 6
     return conv_id
 
 
@@ -301,18 +298,20 @@ def test_full_assisted_flow_finishes_with_a_201_idea(auth, assistant,
 
 def test_finish_without_confirmation_is_a_422_with_no_partial_record(
         auth, assistant, conversation_store, idea_ledger) -> None:
-    """Case 17 + RNF-5: the proponent was prefilled from the account (spec
-    §5.2, a valid object) but the `estimatedResources` chip is a bare text,
-    not a time/people/budget object — confirming as-is is a 422; nothing is
-    registered and the conversation keeps the summary for a corrected retry."""
+    """Case 17 + RNF-5/case 12: the proponent was prefilled from the account
+    (spec §5.2) but the confirmed summary carries an invalid contact —
+    confirming is a 422; nothing is registered and the conversation keeps the
+    summary for a corrected retry."""
     client = auth()
     conv_id = _full_flow(client, assistant)
-    # A chip is a free-text answer (RF-5): the stored `estimatedResources` is
-    # the verbatim option, not a valid structured object, so the finish fails.
-    result = client.post("/capture/finish", json={"conversationId": conv_id, "captured": {}})
+    # The confirmed summary wins over the stored value: an invalid proponent
+    # contact (neither a valid e-mail nor a phone) fails the 6-field check.
+    bad = _structure(proponent={"name": "Ana Torres", "area": "Compras",
+                                "contact": "no-es-una-clave"})
+    result = client.post("/capture/finish", json={"conversationId": conv_id, "captured": bad})
     assert result.status_code == 422
     assert result.json()["error"]["code"] == "IDEA_FIELDS_INVALID"
-    assert result.json()["error"]["details"]["fields"] == ["estimatedResources"]
+    assert result.json()["error"]["details"]["fields"] == ["proponent"]
     assert idea_ledger.list() == []  # no draft, no partial record (case 7/17)
     assert conversation_store.get(conv_id)["state"] == "RESUMEN"
     # The next attempt with the corrected fields succeeds (the retry works).
@@ -388,7 +387,7 @@ def test_activate_manual_from_resumen_marks_contingency(auth, assistant) -> None
                            json={"conversationId": conv_id})
     assert response.status_code == 200
     assert response.json()["state"] == "CONTINGENCIA"
-    assert len(response.json()["capturedFields"]) == 7
+    assert len(response.json()["capturedFields"]) == 6
     # The conversation is no longer finishable: its path is the manual form.
     finish = client.post("/capture/finish", json={"conversationId": conv_id,
                                                   "captured": _structure()})

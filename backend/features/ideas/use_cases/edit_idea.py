@@ -1,6 +1,6 @@
 """Edit idea use case (T-020, RF-9, RNF-5).
 
-Manual editing of any of the 7 fields, only while the idea is in
+Manual editing of any of the 6 fields, only while the idea is in
 EN_DESARROLLO and only by its owner (RNF-7: every role sees and edits only
 its own data). While the assistant is producing a version of the idea the
 edit is blocked with a `DomainError` 409 (`generando` flag, RF-9); it
@@ -15,7 +15,7 @@ from shared.exceptions.handlers import DomainError, ValidationFailed
 
 
 def edit_idea(ledger: IdeaStore, *, idea_id: str, owner_id: str, fields: dict) -> dict:
-    """Applies the 7 fields to the idea and returns the updated payload.
+    """Applies the 6 fields to the idea and returns the updated payload.
 
     Order of the guards:
       - unknown idea -> `DomainError` 404;
@@ -53,7 +53,7 @@ def edit_idea(ledger: IdeaStore, *, idea_id: str, owner_id: str, fields: dict) -
     if problems:
         raise ValidationFailed(
             "IDEA_FIELDS_INVALID",
-            "La idea requiere los 7 campos completos (RNF-5) y un contacto con formato válido (caso 12).",
+            "La idea requiere los 6 campos completos (RNF-5) y un contacto con formato válido (caso 12).",
             details={"fields": problems},
         )
     idea = Idea.from_payload(payload)

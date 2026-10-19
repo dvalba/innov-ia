@@ -142,7 +142,6 @@ def _idea_payload(owner_id: str, *, title: str, created_at: str) -> dict:
         "problem": f"Problema de {title}.",
         "expectedBenefit": f"Beneficio de {title}.",
         "strategicAlignment": f"Alineación de {title}.",
-        "estimatedResources": {"time": "1 mes", "people": "1", "budget": "1000"},
         "ownerId": owner_id, "origin": "manual", "state": "EN_DESARROLLO",
         "createdAt": created_at,
     }
@@ -229,10 +228,9 @@ def test_t063_assisted_capture_end_to_end(env, api_client: TestClient) -> None:
     assert written.json()["assistant"]["currentField"] == "problem"
 
     # Each remaining field in course gets its own per-turn quick options
-    # (D7 replacement); `proponent` was prefilled, so four chip turns remain,
+    # (D7 replacement); `proponent` was prefilled, so three chip turns remain,
     # each one answering with the first option OFFERED by that same turn.
-    for current in ("problem", "expectedBenefit", "strategicAlignment",
-                    "estimatedResources"):
+    for current in ("problem", "expectedBenefit", "strategicAlignment"):
         turn = written.json() if current == "problem" else reply.json()
         chip = turn["assistant"]["quickOptions"][0]
         reply = api_client.post(
@@ -241,19 +239,16 @@ def test_t063_assisted_capture_end_to_end(env, api_client: TestClient) -> None:
             headers=headers,
         )
         assert reply.status_code == 200
-        if current != "estimatedResources":
-            assert reply.json()["assistant"]["currentField"] is not None
     summary = reply.json()
     assert summary["state"] == "RESUMEN"
-    assert len(summary["summary"]) == 7
+    assert len(summary["summary"]) == 6
 
     # RF-6: the summary is EDITABLE before the confirmation — a free
     # correction wins over the chip in the confirmed payload.
     finish = api_client.post(
         "/capture/finish",
         json={"conversationId": conv_id, "captured": {
-            "estimatedResources": {"time": "6 semanas", "people": "2 personas",
-                                   "budget": "50000 PLN"},
+            "strategicAlignment": "Alineación revisada en el resumen",
         }},
         headers=headers,
     )
@@ -263,8 +258,7 @@ def test_t063_assisted_capture_end_to_end(env, api_client: TestClient) -> None:
     assert finish_body["origin"] == "asistida"
     payload = env.ledger.get(finish_body["ideaId"])
     assert payload["title"] == "Proceso digital de compras de proveedores"
-    assert payload["estimatedResources"] == {
-        "time": "6 semanas", "people": "2 personas", "budget": "50000 PLN"}
+    assert payload["strategicAlignment"] == "Alineación revisada en el resumen"
     assert payload["ownerId"] == PROPOSER
     assert env.ledger.list() == [payload], "one idea, no partial records"
 
@@ -365,8 +359,6 @@ def test_t064_contingency_end_to_end(env, api_client: TestClient) -> None:
               "problem": "Tarea manual repetitiva",
               "expectedBenefit": "Ahorro de tiempo operativo",
               "strategicAlignment": "Agilizar procesos internos",
-              "estimatedResources": {"time": "1 mes", "people": "1",
-                                     "budget": "1000"},
               "proponent": {"name": "Ana Torres", "area": "Compras",
                             "contact": "ana.torres@innov-ia.local"}},
         headers=headers,
@@ -400,8 +392,6 @@ def _refined_reply(prompt: str) -> str:
                 "problem": f"Problema profesional de {title}.",
                 "expectedBenefit": f"Beneficio profesional de {title}.",
                 "strategicAlignment": f"Alineación profesional de {title}.",
-                "estimatedResources": {"time": "2 meses", "people": "2",
-                                       "budget": "20000"},
             }, ensure_ascii=False)
     return "respuesta sin JSON interpretable"
 
@@ -525,7 +515,6 @@ def test_t066_validation_end_to_end(env, api_client: TestClient) -> None:
         "description": "Descripción A.", "problem": "Problema A.",
         "expectedBenefit": "Beneficio A.",
         "strategicAlignment": "Alineación A.",
-        "estimatedResources": {"time": "1", "people": "1", "budget": "1"},
         "ownerId": PROPOSER, "origin": "asistida",
         "state": "EN_DESARROLLO", "createdAt": "2026-01-01T00:00:00",
     }
@@ -536,7 +525,6 @@ def test_t066_validation_end_to_end(env, api_client: TestClient) -> None:
         "description": "Descripción B.", "problem": "Problema B.",
         "expectedBenefit": "Beneficio B.",
         "strategicAlignment": "Alineación B.",
-        "estimatedResources": {"time": "1", "people": "1", "budget": "1"},
         "ownerId": PROPOSER, "origin": "manual",
         "state": "EN_DESARROLLO", "createdAt": "2026-01-02T00:00:00",
     }
@@ -547,7 +535,6 @@ def test_t066_validation_end_to_end(env, api_client: TestClient) -> None:
         "description": "Descripción C.", "problem": "Problema C.",
         "expectedBenefit": "Beneficio C.",
         "strategicAlignment": "Alineación C.",
-        "estimatedResources": {"time": "1", "people": "1", "budget": "1"},
         "ownerId": DUAL, "origin": "manual",
         "state": "EN_DESARROLLO", "createdAt": "2026-01-03T00:00:00",
     }

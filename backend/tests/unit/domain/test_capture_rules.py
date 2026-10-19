@@ -23,7 +23,6 @@ ALL_FIELDS: dict[str, str] = {
     "problem": "Tres revisiones manuales que duplican esfuerzo.",
     "expectedBenefit": "Ahorro de 120 horas mensuales.",
     "strategicAlignment": "Agilizar la cadena de suministro.",
-    "estimatedResources": "6 semanas, 2 personas, 50000 PLN",
     "proponent": "Ana Torres (Compras)",
 }
 
@@ -44,7 +43,6 @@ def test_field_order_is_the_spec_sequence() -> None:
         "problem",
         "expectedBenefit",
         "strategicAlignment",
-        "estimatedResources",
         "proponent",
     )
 
@@ -78,8 +76,8 @@ def test_eligible_and_compactable_fields_cover_the_right_sets() -> None:
     # The free opening narrative and the title (RF-4 flow) never get chips.
     assert "description" not in rules.CHIP_ELIGIBLE_FIELDS
     assert "title" not in rules.CHIP_ELIGIBLE_FIELDS
-    # The structured fields and the title are never compacted.
-    for field_name in ("title", "estimatedResources", "proponent"):
+    # The structured field and the title are never compacted.
+    for field_name in ("title", "proponent"):
         assert field_name not in rules.COMPACTABLE_FIELDS
     # Every chip-eligible field is free-text and compactable, except the
     # structured proponent confirmation.
@@ -236,7 +234,6 @@ def test_structured_field_parses_json_back_to_its_object() -> None:
         "area": "Compras",
         "contact": "ana@x.local",
     }
-    assert conversation.field_object("estimatedResources") is None
 
 
 def test_structured_field_rejects_non_structured_keys() -> None:

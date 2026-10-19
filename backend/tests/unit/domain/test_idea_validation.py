@@ -16,7 +16,7 @@ from shared.exceptions.handlers import DomainError
 
 
 def _fields(**overrides: object) -> dict:
-    """A dict of complete 7 fields, open to pinpoint overrides per test."""
+    """A dict of complete 6 fields, open to pinpoint overrides per test."""
     base: dict = {
         "title": "Optimización del proceso de aprobación de proveedores",
         "proponent": {"name": "Ana Torres", "area": "Compras", "contact": "ana.torres@innov-ia.local"},
@@ -24,7 +24,6 @@ def _fields(**overrides: object) -> dict:
         "problem": "El proceso actual exige tres revisiones manuales independientes que duplican esfuerzo.",
         "expectedBenefit": "Ahorro de 120 horas por mes de personal.",
         "strategicAlignment": "Agilizar la cadena de suministro y reducir carga administrativa manual.",
-        "estimatedResources": {"time": "6 semanas", "people": "2 desarrolladores", "budget": "50000 PLN"},
     }
     base.update(overrides)
     return base
@@ -45,7 +44,7 @@ def _idea(**overrides: object) -> Idea:
 # -- IDEA_FIELDS / contracts -------------------------------------------------
 
 
-def test_seven_fields_match_the_contract() -> None:
+def test_six_fields_match_the_contract() -> None:
     assert tuple(_fields()) == (
         "title",
         "proponent",
@@ -53,18 +52,17 @@ def test_seven_fields_match_the_contract() -> None:
         "problem",
         "expectedBenefit",
         "strategicAlignment",
-        "estimatedResources",
     )
 
 
 # -- the entity ----------------------------------------------------------------
 
 
-def test_idea_holds_the_seven_fields_and_the_spec_attributes() -> None:
+def test_idea_holds_the_six_fields_and_the_spec_attributes() -> None:
     idea = _idea()
     assert set(idea.fields()) == {
         "title", "proponent", "description", "problem",
-        "expectedBenefit", "strategicAlignment", "estimatedResources",
+        "expectedBenefit", "strategicAlignment",
     }
     assert idea.fields()["proponent"]["name"] == "Ana Torres"
     assert idea.origin in ORIGINS
@@ -109,7 +107,7 @@ def test_from_payload_reports_the_missing_key() -> None:
         Idea.from_payload(payload)
 
 
-def test_apply_fields_updates_the_seven_fields_and_rejects_incomplete() -> None:
+def test_apply_fields_updates_the_six_fields_and_rejects_incomplete() -> None:
     idea = _idea()
     idea.apply_fields(_fields(title="Nuevo título"))
     assert idea.title == "Nuevo título"
@@ -142,19 +140,17 @@ def test_a_missing_field_breaks_completeness() -> None:
 def test_an_object_field_is_incomplete_with_any_empty_part() -> None:
     fields = _fields(proponent={"name": "Ana", "area": "", "contact": "a@b.co"})
     assert campos_incompletos(fields) == ["proponent"]
-    fields = _fields(estimatedResources={"time": "6 semanas", "people": "", "budget": "1"})
-    assert campos_incompletos(fields) == ["estimatedResources"]
 
 
 def test_a_garbage_extra_key_is_ignored_for_completeness() -> None:
     assert campos_incompletos(_fields(**{"otraClave": "x"})) == []
 
 
-def test_empty_dict_is_seven_missing_fields() -> None:
+def test_empty_dict_is_six_missing_fields() -> None:
     missing = campos_incompletos({})
     assert missing == [
         "title", "proponent", "description", "problem",
-        "expectedBenefit", "strategicAlignment", "estimatedResources",
+        "expectedBenefit", "strategicAlignment",
     ]
     assert campos_completos({}) is False
 

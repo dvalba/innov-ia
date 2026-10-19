@@ -27,7 +27,6 @@ def _idea(state: str) -> Idea:
         problem="Tres revisiones manuales independientes causan retrasos.",
         expectedBenefit="Ahorro de 120 horas mensuales.",
         strategicAlignment="Agilizar la cadena de suministro.",
-        estimatedResources={"time": "6 semanas", "people": "2 personas", "budget": "50000 PLN"},
         state=state,
     )
 

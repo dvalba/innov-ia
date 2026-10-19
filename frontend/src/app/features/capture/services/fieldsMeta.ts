@@ -2,20 +2,19 @@
  * Capture field metadata (T-040, RF-3/RF-5, RNF-4).
  *
  * Client mirror of the backend's fixed capture contract (`capture_rules`,
- * decision D7): the exact order of the 7 questions and the Spanish question
+ * decision D7): the exact order of the 6 questions and the Spanish question
  * per field. The quick replies are NOT a client catalog: the backend offers
  * them per turn (IA-generated, D7 replacement) and the UI renders the turn's
  * `quickOptions` as they arrive.
  */
 
-/** RF-3: the fixed order of the 7 capture questions (mirror of the backend). */
+/** RF-3: the fixed order of the 6 capture questions (mirror of the backend). */
 export const FIELD_ORDER = [
   'description',
   'title',
   'problem',
   'expectedBenefit',
   'strategicAlignment',
-  'estimatedResources',
   'proponent',
 ] as const;
 
@@ -29,7 +28,6 @@ export const FIELD_LABEL: Record<FieldName, string> = {
   problem: 'Problema u oportunidad',
   expectedBenefit: 'Beneficio esperado',
   strategicAlignment: 'Alineación estratégica',
-  estimatedResources: 'Recursos estimados',
   proponent: 'Proponente',
 };
 
@@ -45,15 +43,13 @@ export const QUESTION_BY_FIELD: Record<FieldName, string> = {
   problem: '¿Cuál es el problema u oportunidad que tu idea aborda?',
   expectedBenefit: '¿Qué beneficio esperado genera para la organización?',
   strategicAlignment: '¿Cómo se alinea tu idea con la estrategia de la organización?',
-  estimatedResources:
-    '¿Qué recursos estimas necesitas? Indícame tiempo, personal y presupuesto.',
   proponent:
     'Por último, estos son tus datos de proponente registrados en tu cuenta. ' +
     'Confírmame si están bien o escríbeme la corrección.',
 };
 
-/** The two structured fields (plan §2.2) carried as JSON strings. */
-export const STRUCTURED_FIELDS: readonly FieldName[] = ['proponent', 'estimatedResources'];
+/** The single structured field (plan §2.2) carried as a JSON string. */
+export const STRUCTURED_FIELDS: readonly FieldName[] = ['proponent'];
 
 /**
  * Parses a structured field's JSON string back into its object (mirror of the
@@ -71,7 +67,7 @@ export function parseStructuredField(raw: string | undefined | null): unknown {
   }
 }
 
-/** The editable 7-field form shared by the summary (RF-6) and the manual form (RF-7). */
+/** The editable 6-field form shared by the summary (RF-6) and the manual form (RF-7). */
 export interface FormResumen {
   title: string;
   description: string;
@@ -79,7 +75,6 @@ export interface FormResumen {
   expectedBenefit: string;
   strategicAlignment: string;
   proponent: { name: string; area: string; contact: string };
-  estimatedResources: { time: string; people: string; budget: string };
 }
 
 // Case 12: a valid contact is an e-mail or a 7–15 digit phone (mirror of the
@@ -104,7 +99,7 @@ function _texto(valor: unknown): string {
 }
 
 /**
- * Builds the editable 7-field form from a raw field map (the RESUMEN summary or
+ * Builds the editable 6-field form from a raw field map (the RESUMEN summary or
  * the contingency `capturedFields`). `cuenta` (the account proponent) fills any
  * missing proponent part, as in the manual contingency (RNF-10: nothing is lost
  * and the proponent is prefilled from the account).
@@ -121,7 +116,6 @@ export function construirResumen(
       : undefined;
   };
   const pro = objeto(base['proponent']) ?? {};
-  const est = objeto(base['estimatedResources']) ?? {};
   const parte = (val: string | undefined, fallback: string) =>
     val && val.trim() !== '' ? val : fallback;
   return {
@@ -135,15 +129,10 @@ export function construirResumen(
       area: parte(pro['area'], cuenta?.area ?? ''),
       contact: parte(pro['contact'], cuenta?.contact ?? ''),
     },
-    estimatedResources: {
-      time: est['time'] ?? '',
-      people: est['people'] ?? '',
-      budget: est['budget'] ?? '',
-    },
   };
 }
 
-/** True when the form is complete: all 7 parts non-empty + a valid contact (RNF-5, case 12). */
+/** True when the form is complete: all 6 parts non-empty + a valid contact (RNF-5, case 12). */
 export function resumenCompleto(f: FormResumen): boolean {
   const textosLlenos = [
     f.title,
@@ -154,9 +143,6 @@ export function resumenCompleto(f: FormResumen): boolean {
     f.proponent.name,
     f.proponent.area,
     f.proponent.contact,
-    f.estimatedResources.time,
-    f.estimatedResources.people,
-    f.estimatedResources.budget,
   ].every((t) => t.trim() !== '');
   return textosLlenos && contactoValido(f.proponent.contact);
 }
@@ -181,8 +167,5 @@ export function faltantes(f: FormResumen): string[] {
   else if (!contactoValido(f.proponent.contact)) {
     faltan.push('proponente: contacto inválido (usa un correo o un teléfono)');
   }
-  if (vacio(f.estimatedResources.time)) faltan.push('recursos: tiempo');
-  if (vacio(f.estimatedResources.people)) faltan.push('recursos: personal');
-  if (vacio(f.estimatedResources.budget)) faltan.push('recursos: presupuesto');
   return faltan;
 }

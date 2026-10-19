@@ -9,7 +9,7 @@ import { IdeaCatalogo } from '../../../../shared/types/models';
  * Public catalog (T-052, RF-20, RNF-7; T-056: shared `idea-card`).
  *
  * Reads only (no edit actions at all, RNF-7): every `VALIDADA_PUBLICA` idea
- * the community has published — the 7 fields, the proponent's name and area
+ * the community has published — the 6 fields, the proponent's name and area
  * (never the contact), and the registration + publication dates. It is
  * reachable by any signed-in user (the route carries no role guard), so the
  * catalog lists ideas of any owner. Each entry is the shared `idea-card` in
