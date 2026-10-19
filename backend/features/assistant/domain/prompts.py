@@ -191,6 +191,105 @@ def turn_options_prompt(
     )
 
 
+def _idea_block(idea_fields: dict) -> str:
+    """Renders the 6 idea fields for a prompt (the proponent is reduced to
+    name/area — the `contact` is never part of a public debate, RNF-7)."""
+    proponent = idea_fields.get("proponent") or {}
+    if isinstance(proponent, dict):
+        name = str(proponent.get("name") or "").strip()
+        area = str(proponent.get("area") or "").strip()
+        proponent_text = (name + (f" ({area})" if area else "")) or "(sin datos)"
+    else:
+        proponent_text = str(proponent) or "(sin datos)"
+    return "\n".join(
+        [
+            f"- {FIELD_LABELS['title']}: {str(idea_fields.get('title') or '').strip() or '(vacío)'}",
+            f"- {FIELD_LABELS['proponent']}: {proponent_text}",
+            f"- {FIELD_LABELS['description']}: {str(idea_fields.get('description') or '').strip() or '(vacío)'}",
+            f"- {FIELD_LABELS['problem']}: {str(idea_fields.get('problem') or '').strip() or '(vacío)'}",
+            f"- {FIELD_LABELS['expectedBenefit']}: {str(idea_fields.get('expectedBenefit') or '').strip() or '(vacío)'}",
+            f"- {FIELD_LABELS['strategicAlignment']}: {str(idea_fields.get('strategicAlignment') or '').strip() or '(vacío)'}",
+        ]
+    )
+
+
+def debate_assistant_prompt(
+    *,
+    idea_fields: dict,
+    company_context: dict | None = None,
+    linked_message: dict | None = None,
+    request: str = "",
+) -> str:
+    """The `@asistant` reply in the published-idea debate (RF-25, RF-22).
+
+    When a participant writes `@asistant` citing one concrete message of the
+    thread, the assistant must reply in the same thread with the requested
+    criterion/analysis, grounded on the company context, the idea and the linked
+    message. The reply is a natural-language text (NOT JSON): it lands in the
+    thread verbatim. `request` is the text following the `@asistant` token
+    (case 19: a blank request still asks the assistant, the prompt falls back
+    to a general analysis).
+    """
+    if linked_message:
+        author = str(linked_message.get("authorName") or "").strip() or "un participante"
+        text = str(linked_message.get("text") or "").strip()
+        linked_block = f'Mensaje al que se refiere el participante (de {author}): """{text}"""'
+    else:
+        linked_block = "(no se enlaza ningún mensaje concreto; responde al debate en general)"
+    question = str(request or "").strip() or (
+        "(sin petición concreta: ofrece tu análisis de la idea y de lo discutido en el debate)"
+    )
+    return (
+        "Eres el asistente de Innov-IA participando en el debate público de una idea "
+        "publicada. Un participante te ha invocado con «@asistant» pidiendo un criterio "
+        "o análisis. Responde EN EL PROPIO HILO, en español, con un texto natural, claro "
+        "y conciso (máximo 500 caracteres) que aporte el criterio o análisis solicitado. "
+        "Basarte en el contexto de la empresa, en la idea y en el mensaje enlazado. No "
+        "inventes datos que no estén en la idea ni en el debate; si no puedes fundamentar "
+        "una respuesta, dilo con honestidad.\n"
+        f"{_company_context_block(company_context)}\n\n"
+        f"Idea publicada:\n{_idea_block(idea_fields)}\n\n"
+        f"{linked_block}\n"
+        f'Petición del participante: """{question}"""\n\n'
+        "Responde únicamente con el texto de tu intervención, sin etiquetas, prefijos "
+        "ni bloques de código."
+    )
+
+
+def debate_summary_prompt(
+    *,
+    idea_fields: dict,
+    company_context: dict | None = None,
+    messages: list,
+) -> str:
+    """The AI closure summary of the published-idea debate (RF-24, RF-22, case 21).
+
+    Generated once, at the deadline closure, ONLY when the debate had at least
+    one message (otherwise no summary is produced, case 21). It recaps the main
+    points discussed (agreements, disagreements, objections, conclusions) based
+    strictly on the thread and the company context, without the assistant's own
+    opinion. Returns the summary as a natural-language text (NOT JSON).
+    """
+    body_lines = [
+        f"- {str(message.get('authorName') or '').strip() or 'participante'}: {str(message.get('text') or '').strip()}"
+        for message in (messages or [])
+    ] or ["(sin mensajes)"]
+    body = "\n".join(body_lines)
+    return (
+        "Eres el asistente de Innov-IA. El debate público de una idea publicada ha "
+        "llegado a su fecha límite y va a cerrarse definitivamente. Redacta un RESUMEN "
+        "conciso en español (máximo 600 caracteres) de los puntos principales discutidos "
+        "en el debate: desacuerdos, objeciones, aportaciones y conclusiones destacadas. "
+        "Basarte solo en los mensajes del debate y en el contexto de la empresa; no "
+        "añadas opiniones propias ni datos que no se hayan dicho.\n"
+        f"{_company_context_block(company_context)}\n\n"
+        f"Idea publicada:\n{_idea_block(idea_fields)}\n\n"
+        f"Mensajes del debate (del primero al último):\n{body}\n\n"
+        "Responde únicamente con el texto del resumen, sin etiquetas, prefijos ni "
+        "bloques de código."
+    )
+
+
 def improve_idea_prompt(
     idea: dict, instruction: str, company_context: dict | None = None
 ) -> str:

@@ -247,3 +247,68 @@ def test_chat_message_requires_a_role_and_a_conversation() -> None:
         ChatMessage(conversationId="c", role="machine")
     with pytest.raises(ValueError):
         ChatMessage(conversationId="", role="user")
+
+
+# -- T-069/D11: silent migration of pre-6-field records (REGRESION) ----------
+
+
+def _legacy_v2_payload() -> dict:
+    """The shape a conversation persisted under the old 7-field capture (v2.0)
+    has in `data/conversations.json`: the removed `estimatedResources` still
+    sits in `order` and `capturedFields`."""
+    return {
+        "id": "conv_legacy",
+        "userId": "u_ana",
+        "state": "ACTIVA",
+        "capturedFields": {
+            "description": "Digitalizar la validación de proveedores.",
+            "title": "Optimización del proceso de proveedores",
+            "estimatedResources": "2 desarrolladores y 3 sprints.",
+            "proponent": '{"name": "Ana", "area": "Compras", "contact": "ana@x.local"}',
+        },
+        "currentField": "estimatedResources",
+        "order": [
+            "description",
+            "title",
+            "problem",
+            "estimatedResources",
+            "expectedBenefit",
+            "strategicAlignment",
+            "proponent",
+        ],
+        "titleSuggestions": [],
+        "createdAt": "2026-01-01T00:00:00",
+        "offeredField": "estimatedResources",
+        "offeredOptions": ["Dos personas"],
+    }
+
+
+def test_rebuilding_a_legacy_record_migrates_it_silently() -> None:
+    """D11: a stored pre-6-field conversation must keep working (no 500 on
+    resume, the removed field is skipped — it is no longer asked nor shown)."""
+    conversation = Conversation.from_payload(_legacy_v2_payload())
+    # The removed field leaves the order and the turn points at the next
+    # real pending field.
+    assert "estimatedResources" not in conversation.order
+    assert conversation.order == ("description", "title", "problem", "expectedBenefit", "strategicAlignment", "proponent")
+    # currentField was the removed field: it migrates to the first still-pending
+    # real field (problem), not to `None`.
+    assert conversation.currentField == "problem"
+    # The dangling offered options are reset (a chip for the removed field is
+    # no longer valid).
+    assert conversation.offeredField is None
+    assert conversation.offeredOptions == []
+
+
+def test_legacy_record_completes_with_remaining_fields() -> None:
+    conversation = Conversation.from_payload(_legacy_v2_payload())
+    # The legacy value stays in the raw mapping (RNF-10 no-loss) but is not a
+    # pending field, so it never blocks the summary.
+    assert rules.next_pending_field(conversation.order, conversation.capturedFields) == "problem"
+    for name, value in ALL_FIELDS.items():
+        conversation.add_field(name, value)
+    assert rules.is_complete(conversation.order, conversation.capturedFields) is True
+    # The editable summary carries only the 6 valid fields.
+    assert "estimatedResources" not in conversation.to_summary()
+    for name in ALL_FIELDS:
+        assert name in conversation.to_summary()

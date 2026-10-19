@@ -452,12 +452,12 @@
 
 ### 5.2 G18 — Debate, evaluación IA y catálogo con detalle
 
-- [ ] **[T-072] Backend: dominio y persistencia del debate de ideas publicadas**
+- [x] **[T-072] Backend: dominio y persistencia del debate de ideas publicadas**
   - **Covers:** RF-24, RNF-11
   - **Dependencias:** [T-069]
   - **Hecho cuando:** Existe la feature `debate`: dominio `Debate` (ideaId, deadline, closed, summary, audit de cierre/ajustes) y `DebateMessage` (id, ideaId, authorId, authorName, text, linkedMessageId, isAssistant, createdAt); `debate_store` JSON bajo `backend/data/debate.json`; rules: creación del debate al publicarse (deadline = publishedAt + 30 días), cierre automático cuando `now >= deadline` (solo una vez), ajuste de deadline por idea (solo admin; queda auditado: quien/cuándo/antes/después), los mensajes solo se admiten con debate abierto; tests unitarios en `tests/unit/features/debate/` (`pytest -q` verde).
 
-- [ ] **[T-073] Backend: router del debate + @asistant + resumen al cierre**
+- [x] **[T-073] Backend: router del debate + @asistant + resumen al cierre**
   - **Covers:** RF-24, RF-25, casos 18, 19, 20, 21
   - **Dependencias:** [T-072], [T-071]
   - **Hecho cuando:** Endpoints: `GET /catalog/{ideaId}/debate` (200: mensajes + deadline + cerrado + resumen + autor), `POST /catalog/{ideaId}/debate` (201 mensaje; 409 si el debate está cerrado); detección de `@asistant`: si el texto empieza por `@asistant` y se enlaza un mensaje existente, el sistema responde con un mensaje de `isAssistant` generado por la IA (prompt con contexto de empresa + idea + mensaje enlazado + petición; RNF-3 aplica; si la IA cae, el mensaje queda guardado como no procesado con aviso y se reintenta en la siguiente interacción — caso 20, el debate sigue operando); cierre: la primera lectura tras la fecha límite cierra el debate y, si hay mensajes, genera `summary` (si la IA no está, el cierre sí ocurre y el resumen queda pendiente hasta la siguiente verificación — caso 21); `PUT /admin/ideas/{ideaId}/debate/deadline` (admin: nueva fecha; reabre si es futura; rastro auditado). Tests en `tests/api/test_debate_api.py` (`pytest -q` verde).

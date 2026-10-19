@@ -186,3 +186,25 @@ def make_directory() -> Callable[[], InMemoryDirectory]:
         return directory
 
     return _create
+
+
+@pytest.fixture(autouse=True)
+def debate_store():
+    """Keeps the published-idea debate store in memory for every test.
+
+    Publishing an idea opens its debate (T-073); without this override the
+    debate router would fall back to the file-backed store and write to
+    `backend/data/debate.json` during the API/e2e suites. One `DebateStore` is
+    created per test and shared by every request of the test (the override must
+    NOT create a new store per request or the debate opened at approval would
+    vanish); tests that exercise the debate can inspect it through this
+    fixture.
+    """
+    from app import deps as deps_module
+    from app.main import app as main_app
+    from features.debate.infrastructure.debate_store import DebateStore
+
+    store = DebateStore(InMemoryStore())
+    main_app.dependency_overrides[deps_module.get_debate_store] = lambda: store
+    yield store
+    main_app.dependency_overrides.pop(deps_module.get_debate_store, None)

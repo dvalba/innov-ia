@@ -34,6 +34,12 @@ FIELD_ORDER: tuple[str, ...] = (
 # `capturedFields` they are JSON strings.
 STRUCTURED_FIELDS: tuple[str, ...] = ("proponent",)
 
+# Idea fields removed from the capture (T-069/D11, 6 campos): the stored
+# conversations still carry them in their persistent state, so a rebuild
+# migrates them silently (the spec's *migración silenciosa*): the field is
+# dropped, no error, nothing lost that still matters.
+LEGACY_FIELDS: frozenset[str] = frozenset({"estimatedResources"})
+
 CHAT_ROLES: tuple[str, ...] = ("user", "assistant", "system")
 
 
@@ -145,19 +151,41 @@ class Conversation:
 
     @classmethod
     def from_payload(cls, payload: dict) -> "Conversation":
-        """Rebuilds the entity from a stored payload (deep-copy semantics)."""
+        """Rebuilds the entity from a stored payload (deep-copy semantics).
+
+        Old records (T-069/D11: *Recursos estimados* removed, 6 campos) are
+        migrated silently: the `order` drops the removed field and the
+        captured/offered state points at the next real field, so a resumed
+        conversation keeps working (the field is simply skipped — it can no
+        longer be asked nor extracted).
+        """
         try:
+            order = tuple(payload.get("order", ()))
+            order = tuple(name for name in order if name not in LEGACY_FIELDS)
+            current_field = payload.get("currentField")
+            if current_field in LEGACY_FIELDS:
+                current_field = next(
+                    (name for name in order if not str(payload.get("capturedFields", {}).get(name, "")).strip()),
+                    None,
+                )
+            offered_field = payload.get("offeredField")
+            offered_options = list(payload.get("offeredOptions", []))
+            if offered_field in LEGACY_FIELDS:
+                # The turn is reset: the removed field can no longer be asked,
+                # so the options offered for it are void (a chip never matches).
+                offered_field = None
+                offered_options = []
             return cls(
                 id=payload["id"],
                 userId=payload["userId"],
                 state=payload["state"],
                 capturedFields=dict(payload.get("capturedFields", {})),
-                currentField=payload.get("currentField"),
-                order=tuple(payload.get("order", ())),
+                currentField=current_field,
+                order=order,
                 titleSuggestions=list(payload.get("titleSuggestions", [])),
                 createdAt=payload.get("createdAt", ""),
-                offeredField=payload.get("offeredField"),
-                offeredOptions=list(payload.get("offeredOptions", [])),
+                offeredField=offered_field,
+                offeredOptions=offered_options,
             )
         except KeyError as missing:
             raise ValueError(
@@ -227,8 +255,9 @@ class Conversation:
     def to_summary(self) -> dict:
         """The editable summary (RF-6): all captured fields, with the structured
         one (`proponent`) parsed back into its object (plan §2.2) and the rest
-        kept as text."""
-        summary: dict[str, Any] = dict(self.capturedFields)
+        kept as text. A legacy captured field (T-069/D11) is skipped so the
+        confirmed summary carries only the 6 valid fields."""
+        summary = {key: value for key, value in self.capturedFields.items() if key not in LEGACY_FIELDS}
         for key in STRUCTURED_FIELDS:
             if key in summary:
                 parsed = self.field_object(key)

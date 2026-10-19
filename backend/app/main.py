@@ -16,6 +16,7 @@ from features.assistant.routers.assistant import assistant_router
 from features.auth.infrastructure.token_store import seed_first_admin
 from features.auth.routers.auth import auth_router
 from features.capture.routers.capture import capture_router
+from features.debate.routers.debate import debate_router
 from features.ideas.routers.catalog import catalog_router
 from features.ideas.routers.ideas import ideas_router
 from features.notifications.routers.notifications import notifications_router
@@ -79,6 +80,7 @@ app.include_router(capture_router)
 app.include_router(notifications_router)
 app.include_router(validation_router)
 app.include_router(catalog_router)
+app.include_router(debate_router)
 app.include_router(org_router)
 
 if settings.cors_origins:

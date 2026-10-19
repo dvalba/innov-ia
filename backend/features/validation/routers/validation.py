@@ -19,6 +19,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from app.deps import (
+    DebateOpenDep,
     IdeaLedgerDep,
     PublishedEmitterDep,
     RejectedEmitterDep,
@@ -52,11 +53,19 @@ def queue_endpoint(session: SpecialistDep, ledger: IdeaLedgerDep) -> list[dict]:
 
 @validation_router.post("/{idea_id}/approve")
 def approve_endpoint(idea_id: str, session: SpecialistDep, ledger: IdeaLedgerDep,
-                     directory: UserDirectoryDep, emit: PublishedEmitterDep) -> dict:
-    """Approves/publishes the idea, reusing `approve_idea` (G06) + `IDEA_PUBLISHED`."""
-    return approve_idea(ledger, idea_id=idea_id, user_id=session.user_id,
-                        user_name=_specialist_name(directory, session),
-                        user_roles=session.roles, emit_notification=emit)
+                     directory: UserDirectoryDep, emit: PublishedEmitterDep,
+                     open_debate_now: DebateOpenDep) -> dict:
+    """Approves/publishes the idea, reusing `approve_idea` (G06) + `IDEA_PUBLISHED`.
+
+    Publishing opens the idea's debate with a `30-day` deadline (RF-24, T-073):
+    the opener is wired in the composition root so `validation` keeps importing
+    only `ideas`.
+    """
+    payload = approve_idea(ledger, idea_id=idea_id, user_id=session.user_id,
+                           user_name=_specialist_name(directory, session),
+                           user_roles=session.roles, emit_notification=emit)
+    open_debate_now(payload)
+    return payload
 
 
 @validation_router.post("/{idea_id}/reject")

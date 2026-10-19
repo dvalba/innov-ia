@@ -373,6 +373,61 @@ def test_only_the_owner_can_message_a_conversation() -> None:
     assert error.value.status_code == 403
 
 
+def test_a_message_to_a_legacy_v2_conversation_keeps_working() -> None:
+    """The production 500 (RF-6, 6 campos): a conversation persisted under the
+    old 7-field capture still carries `estimatedResources` in `order`; a new
+    message used to crash in the extraction prompt (KeyError on the removed
+    field's label). The rebuild migrates the record silently (D11) so the
+    field is skipped and the conversation keeps running to the summary."""
+    from features.capture.domain.conversation import Conversation
+
+    legacy = Conversation(
+        id="c_legacy",
+        userId=PROPOSER,
+        order=(
+            "description",
+            "title",
+            "problem",
+            "estimatedResources",
+            "expectedBenefit",
+            "strategicAlignment",
+            "proponent",
+        ),
+    )
+    legacy.capturedFields = {
+        "description": "Digitalizar la validación de proveedores.",
+        "title": "Optimización del proceso de proveedores",
+        "estimatedResources": "2 desarrolladores y 3 sprints.",
+        "proponent": _proponent_json(),
+    }
+    legacy.currentField = "estimatedResources"  # the turn was on the removed field
+    store = _store()
+    store.create(legacy)
+
+    assistant = _Extractor(
+        extract={
+            "problem": "Tres revisiones manuales que duplican esfuerzo.",
+            "expectedBenefit": "Ahorro de 120 horas mensuales.",
+        }
+    )
+    # Without the migration this raises KeyError → HTTP 500 (prompts.py).
+    result = msg_uc.process_message(
+        store, assistant, conversation_id="c_legacy", user_id=PROPOSER,
+        message="El problema son las revisiones manuales; ahorraremos 120 horas al mes.",
+    )
+    assert result["state"] == "ACTIVA"
+    # The removed field never reaches the assistant (neither asked nor labelled).
+    for prompt in assistant.prompts:
+        assert "estimatedResources" not in prompt
+        assert "Recursos" not in prompt
+    # The turn advanced to the next real pending field.
+    assert result["assistant"]["currentField"] == "strategicAlignment"
+    # The migration persists: the stored order is the 6-field one.
+    stored = store.get("c_legacy")
+    assert "estimatedResources" not in stored["order"]
+    assert stored["currentField"] == "strategicAlignment"
+
+
 # ---------------------------------------------------------------------------
 # T-029: suggest_title
 # ---------------------------------------------------------------------------
