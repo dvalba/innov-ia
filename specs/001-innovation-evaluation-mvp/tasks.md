@@ -435,7 +435,7 @@
   - **Dependencias:** [T-069]
   - **Hecho cuando:** La feature `org` gestiona un **único documento** con secciones: perfil (name, sector, description, mission, strategicObjectives) + texto libre de guía (vocabulario, línea estratégica, información de referencia). Endpoints (solo admin): `GET /admin/contexto/plantilla` (200, `text/plain`, plantilla descargable con las secciones y ayudas), `GET /admin/contexto` (200, documento vigente o vacío), `PUT /admin/contexto` (200, guarda el documento editado: perfil + texto libre; 400 si el perfil queda vacío), `POST /admin/contexto/subida` (200, reemplaza el documento vigente con el contenido de un archivo de texto; 400 si el texto viene vacío). Se conserva el seed desde `INNOV_ORG_*` (compatibilidad) y la lectura sin sesión `GET /admin/organizacion` puede eliminarse; `pytest -q` verde en `tests/api/test_org_context_api.py`.
 
-- [ ] **[T-071] Backend: inyectar el contexto de empresa en TODAS las operaciones de la IA**
+- [x] **[T-071] Backend: inyectar el contexto de empresa en TODAS las operaciones de la IA**
   - **Covers:** RF-22, RNF-12, RF-25/RF-26 (premise)
   - **Dependencias:** [T-070]
   - **Hecho cuando:** `prompts.py` recibe un bloque de contexto (perfil + texto libre) en `extract_fields_prompt`, `title_suggestion_prompt`, `refine_idea_prompt`, `improve_idea_prompt` y `turn_options_prompt`; todos los use cases que invocan al motor (captura por turno, sugerencia de título, mejora, refinamiento) cargan el documento vigente del contexto y lo pasan; si el documento está vacío se inyecta el aviso "(sin contexto de empresa definido)"; tests unitarios en `tests/unit/domain/test_prompts.py` verifican que cada plantilla contiene el contexto o el aviso; `pytest -q` verde.

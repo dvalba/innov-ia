@@ -1,8 +1,9 @@
 """Improve idea use case (T-024, RF-8, plan §4.5 `SOLICITAR_MEJORA`).
 
 Orchestration of the AI improvement: the proponent's instruction is sent to
-the assistant (injected `AssistantClient`, G04) and the reply is interpreted
-into the 7 structured fields (`refinement.interpret_fields`). On success a
+the assistant (injected `AssistantClient`, G04) grounded on the company
+context document (RF-22) and the reply is interpreted into the 6 structured
+fields (`refinement.interpret_fields`). On success a
 `IdeaVersion` PENDIENTE with `requestedBy=improvement` is registered (it
 always requires an accept/discard decision, RF-8) and the idea flags
 `reviewedByAI` and `generando` (manual editing is blocked until the version
@@ -49,12 +50,14 @@ def improve_idea(
     idea_id: str,
     owner_id: str,
     instruction: str,
+    company_context: dict | None = None,
 ) -> dict:
     """Applies the proponent's instruction via the IA and returns the outcome.
 
     Guards: unknown idea -> 404; not the owner -> 403 (RNF-7); state other
     than EN_DESARROLLO -> 409 (RF-8); a generation already in flight -> 409
-    (no overlapping improvement, RF-9).
+    (no overlapping improvement, RF-9). `company_context` is the current
+    company-context document injected in the prompt (RF-22).
 
     Returns:
       - on success: `{"version": <the PENDIENTE version>, "idea": <payload>}`
@@ -82,7 +85,7 @@ def improve_idea(
     improved: dict | None = None
     if assistant.ping():
         idea_for_prompt = {"fields": {key: payload[key] for key in IDEA_FIELDS}}
-        prompt = improve_idea_prompt(idea_for_prompt, instruction)
+        prompt = improve_idea_prompt(idea_for_prompt, instruction, company_context)
         try:
             raw = assistant.generate(prompt)
         except AssistantUnavailable:

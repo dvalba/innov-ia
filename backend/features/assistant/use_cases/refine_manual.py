@@ -30,11 +30,14 @@ def refine_manual(
     *,
     idea_id: str,
     emit: Callable[[dict], None] | None = None,
+    company_context: dict | None = None,
 ) -> dict | None:
     """Refines `idea_id` with the assistant and returns the updated payload.
 
     `None` when the idea is missing or the assistant cannot produce a valid
     version (case 6/14: nothing changes, the idea stays pending).
+    `company_context` is the current company-context document injected in the
+    prompt (RF-22); the plain dict keeps this feature feature-isolated.
     """
     payload = ledger.get(idea_id)
     if payload is None:
@@ -43,7 +46,7 @@ def refine_manual(
         return None
     idea_for_prompt = {"fields": {key: payload[key] for key in IDEA_FIELDS}}
     try:
-        raw = assistant.generate(refine_idea_prompt(idea_for_prompt))
+        raw = assistant.generate(refine_idea_prompt(idea_for_prompt, company_context))
     except AssistantUnavailable:
         return None
     fields = interpret_fields(raw)

@@ -55,18 +55,24 @@ def _pending_fields(conversation: Conversation) -> tuple[str, ...]:
     return tuple(name for name in conversation.order if not conversation.has_field(name))
 
 
-def _extract_fields(assistant: AssistantClient, conversation: Conversation, narrative: str):
+def _extract_fields(
+    assistant: AssistantClient,
+    conversation: Conversation,
+    narrative: str,
+    company_context: dict | None,
+):
     """Runs the extraction (RF-3) and normalizes the reply.
 
     Returns `{"fields": mapping, "clarify": bool}`, or `None` when the reply
     cannot be interpreted deterministically (case 14). Raises
-    `AssistantUnavailable` when the model is unreachable.
+    `AssistantUnavailable` when the model is unreachable. `company_context` is
+    the current company-context document injected in the prompt (RF-22).
     """
     pending = _pending_fields(conversation)
     if not pending:
         return {"fields": {}, "clarify": False}
     try:
-        raw = assistant.generate(extract_fields_prompt(narrative, pending))
+        raw = assistant.generate(extract_fields_prompt(narrative, pending, company_context))
     except AssistantUnavailable:
         raise
     data = extract_json_object(raw)
@@ -113,14 +119,14 @@ def process_message(
     user_id: str,
     message: str | None = None,
     quick_option: str | None = None,
-    org_profile: dict | None = None,
+    company_context: dict | None = None,
 ) -> dict:
     """Processes one user message of the capture conversation and returns the next turn.
 
     Exactly one of `message` (free narrative) or `quick_option` (a chip) must be
-    given. `org_profile` is the organization profile grounding the per-turn
-    assistant call (D7 replacement); when absent the assistant still answers
-    (the prompt is told the profile is missing).
+    given. `company_context` is the current company-context document injected in
+    EVERY assistant call of the turn (RF-22); when empty the prompt carries the
+    no-context notice and the assistant still answers (case 24).
 
     Returns:
       - a clarification turn (`needsClarification: True`) when the answer is
@@ -172,14 +178,14 @@ def process_message(
                 status_code=400,
             )
         rules.apply_capture(conversation.capturedFields, {current: chip}, current)
-        turn = _advance(store, assistant, conversation, org_profile=org_profile)
+        turn = _advance(store, assistant, conversation, company_context=company_context)
         return _result(store, conversation_id, turn)
 
     narrative = str(message).strip()
     if not assistant.ping():
         _mark_contingency(store, conversation_id)
         raise _unavailable(conversation)
-    extracted = _extract_fields(assistant, conversation, narrative)
+    extracted = _extract_fields(assistant, conversation, narrative, company_context)
     if extracted is None:  # uninterpretable reply (case 14): manual fallback
         _mark_contingency(store, conversation_id)
         raise _unavailable(conversation)
@@ -206,7 +212,7 @@ def process_message(
         }
 
     rules.apply_capture(conversation.capturedFields, fields, conversation.currentField)
-    turn = _advance(store, assistant, conversation, org_profile=org_profile)
+    turn = _advance(store, assistant, conversation, company_context=company_context)
     return _result(store, conversation_id, turn)
 
 
@@ -215,7 +221,7 @@ def _advance(
     assistant: AssistantClient,
     conversation: Conversation,
     *,
-    org_profile: dict | None = None,
+    company_context: dict | None = None,
 ) -> dict:
     """Advances the turn to the next pending field (or closes the conversation)
     via `land_turn` and returns the reply turn.
@@ -225,7 +231,7 @@ def _advance(
     contingency fallback (RF-7 case 2, RNF-10).
     """
     try:
-        return land_turn(store, assistant, conversation, org_profile=org_profile) or {}
+        return land_turn(store, assistant, conversation, company_context=company_context) or {}
     except AssistantUnavailable:
         _mark_contingency(store, conversation.id)
         raise

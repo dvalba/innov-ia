@@ -35,6 +35,7 @@ from app.deps import (
     AssistantCheckDep,
     AssistantClientDep,
     IdeaLedgerDep,
+    OrgStoreDep,
     RequestedEmitterDep,
     role_dependency,
 )
@@ -46,6 +47,7 @@ from features.ideas.use_cases.edit_idea import edit_idea
 from features.ideas.use_cases.improve_idea import improve_idea
 from features.ideas.use_cases.list_my_ideas import list_my_ideas
 from features.ideas.use_cases.request_publication import request_publication
+from features.org.use_cases.get_context import get_context
 from shared.contracts.idea_ledger import ORIGIN_MANUAL
 from shared.exceptions.handlers import DomainError
 
@@ -129,14 +131,17 @@ def edit_idea_endpoint(idea_id: str, payload: IdeaFieldsIn, session: ProponentDe
 
 @ideas_router.post("/{idea_id}/improve")
 def improve_idea_endpoint(idea_id: str, payload: ImproveRequest, session: ProponentDep,
-                          ledger: IdeaLedgerDep, assistant: AssistantClientDep,
-                          background: BackgroundTasks, check: AssistantCheckDep) -> dict:
+                           ledger: IdeaLedgerDep, assistant: AssistantClientDep,
+                           org_store: OrgStoreDep, background: BackgroundTasks,
+                           check: AssistantCheckDep) -> dict:
     """Requests an AI improvement (RF-8): with the IA a pending version is
     registered for the proponent to accept/discard; without it the request is
     saved as pending on the idea with the case-10 notice (plan §4.5). The
-    on-demand refinement verification (RF-11) runs in the background."""
+    improvement is grounded on the current company-context document (RF-22)
+    and the on-demand refinement verification (RF-11) runs in the background."""
     result = improve_idea(ledger, assistant, idea_id=idea_id, owner_id=session.user_id,
-                          instruction=payload.instruction)
+                           instruction=payload.instruction,
+                           company_context=get_context(org_store))
     background.add_task(check)
     return result
 

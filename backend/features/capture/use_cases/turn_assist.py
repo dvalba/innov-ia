@@ -1,8 +1,8 @@
 """Per-turn capture assistance (D7 replacement; RF-5 + free-text compaction).
 
 `generate_turn_assist` is the single IA call made when the conversation lands
-on a new field. It asks the model — grounded on the organization profile — for
-BOTH at once:
+on a new field. It asks the model — grounded on the company-context document
+(RF-22) — for BOTH at once:
   - the quick options to offer on the turn in the course, and
   - the improved, concise version of the free-text fields already captured.
 
@@ -78,13 +78,14 @@ def generate_turn_assist(
     *,
     current_field: str,
     captured: dict[str, Any],
-    org_profile: dict | None,
+    company_context: dict | None,
 ) -> tuple[list[str], dict[str, str]]:
     """Runs the turn assistance and returns `(options, compact)`.
 
     `options` are valid only when the field in the course accepts chips;
     `compact` are the improved free-text fields to apply to the conversation.
-    Never raises (see module docstring).
+    Never raises (see module docstring). `company_context` grounds the call on
+    the company-context document (RF-22).
 
     Only the free-text fields the assistant may compact are shown to the model:
     the structured field (`proponent`) travels in `captured` as a JSON string
@@ -103,7 +104,7 @@ def generate_turn_assist(
     try:
         raw = assistant.generate(
             turn_options_prompt(current_field=current_field,
-                                captured=free_captured, org=org_profile)
+                                captured=free_captured, company_context=company_context)
         )
     except AssistantUnavailable:
         return [], {}
@@ -120,7 +121,7 @@ def land_turn(
     assistant: AssistantClient,
     conversation: Conversation,
     *,
-    org_profile: dict | None = None,
+    company_context: dict | None = None,
 ) -> dict | None:
     """Advances the conversation to the next pending field and builds its turn.
 
@@ -151,7 +152,8 @@ def land_turn(
         conversation.offeredField = "title"
         conversation.offeredOptions = []
         store.save_conversation(conversation)
-        suggestion = propose_title(store, assistant, conversation_id=conversation.id)
+        suggestion = propose_title(store, assistant, conversation_id=conversation.id,
+                                   company_context=company_context)
         return {
             "text": rules.QUESTION_BY_FIELD.get("title", ""),
             "currentField": "title",
@@ -163,7 +165,7 @@ def land_turn(
         assistant,
         current_field=next_field,
         captured=conversation.capturedFields,
-        org_profile=org_profile,
+        company_context=company_context,
     )
     for key, value in compact.items():
         conversation.set_field(key, value)

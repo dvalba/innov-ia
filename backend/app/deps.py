@@ -39,6 +39,7 @@ from features.notifications.use_cases.create_notification import (
     fanout_requested,
 )
 from features.org.infrastructure.org_store import OrgStore
+from features.org.use_cases.get_context import get_context
 from shared.config.settings import settings
 from shared.contracts.assistant_client import AssistantClient
 from shared.contracts.user_directory import UserDirectory
@@ -196,18 +197,22 @@ RequestedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_requested_em
 
 
 def get_assistant_check(ledger: IdeaLedgerDep, assistant: AssistantClientDep,
-                        emit: RefinedEmitterDep) -> Callable[[], dict]:
+                        emit: RefinedEmitterDep, org_store: OrgStoreDep) -> Callable[[], dict]:
     """Builds the on-demand assistant check (T-062, RF-11).
 
-    Wraps `run_refinement_queue` bound to the ledger, the assistant and the
+    Wraps `run_refinement_queue` bound to the ledger, the assistant, the
     IDEA_REFINED emitter (the idea payload is adapted to the `Idea` the
-    emitter contract expects). The zero-arg callable performs the pass when
-    invoked; building it is cheap — no probe until the check runs.
+    emitter contract expects) and the organization store. The context document
+    is re-read AT PASS TIME (RF-22: the pass runs as a background task, so the
+    document in force then is the one injected). The zero-arg callable performs
+    the pass when invoked; building it is cheap — no probe until the check runs.
     """
 
     def _check() -> dict:
         return run_refinement_queue(
-            ledger, assistant, emit=lambda payload: emit(Idea.from_payload(payload))
+            ledger, assistant,
+            emit=lambda payload: emit(Idea.from_payload(payload)),
+            company_context=get_context(org_store),
         )
 
     return _check

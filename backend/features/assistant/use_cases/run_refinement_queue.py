@@ -66,19 +66,23 @@ def _pending_count(ledger: IdeaLedger) -> int:
 
 
 def _convert_pending_request(
-    ledger: IdeaLedger, assistant: AssistantClient, payload: dict, emit: Callable | None
+    ledger: IdeaLedger, assistant: AssistantClient, payload: dict, emit: Callable | None,
+    company_context: dict | None,
 ) -> bool:
     """Applies the stored improvement instruction (case 10); `True` on success.
 
     Registers the PENDIENTE version with `requestedBy=improvement` (RF-8: it
     still requires the proponent's decision) and clears the stored request;
     nothing changes when the assistant produces nothing (the request stays
-    saved and is retried at the next verification).
+    saved and is retried at the next verification). `company_context` grounds
+    the conversion on the company-context document (RF-22).
     """
     request = payload["improvementRequest"]
     idea_for_prompt = {"fields": {key: payload[key] for key in IDEA_FIELDS}}
     try:
-        raw = assistant.generate(improve_idea_prompt(idea_for_prompt, request["instruction"]))
+        raw = assistant.generate(
+            improve_idea_prompt(idea_for_prompt, request["instruction"], company_context)
+        )
     except AssistantUnavailable:
         return False
     fields = interpret_fields(raw)
@@ -98,6 +102,7 @@ def run_refinement_queue(
     assistant: AssistantClient,
     *,
     emit: Callable[[dict], None] | None = None,
+    company_context: dict | None = None,
 ) -> dict:
     """Verifies the assistant and processes the whole queue; returns the summary.
 
@@ -105,7 +110,9 @@ def run_refinement_queue(
     assistant is down; otherwise `{"status": "OK", "refined": n, "failed": m,
     "pending": p}` for the pass result (case 6: partial failures are kept
     pending, the processed is kept). A second immediate call is idempotent
-    when the assistant kept producing valid versions.
+    when the assistant kept producing valid versions. `company_context` is the
+    current company-context document injected in every prompt of the pass
+    (RF-22); the plain dict keeps this feature feature-isolated.
     """
     if not assistant.ping():
         return {"status": "UNAVAILABLE", "refined": 0, "failed": 0,
@@ -115,9 +122,14 @@ def run_refinement_queue(
     for payload in _ordered_queue(ledger):
         try:
             if payload.get("improvementRequest") is not None:
-                succeeded = _convert_pending_request(ledger, assistant, payload, emit)
+                succeeded = _convert_pending_request(
+                    ledger, assistant, payload, emit, company_context
+                )
             else:
-                succeeded = refine_manual(ledger, assistant, idea_id=payload["id"], emit=emit) is not None
+                succeeded = refine_manual(
+                    ledger, assistant, idea_id=payload["id"], emit=emit,
+                    company_context=company_context,
+                ) is not None
         except Exception:
             succeeded = False
         if succeeded:

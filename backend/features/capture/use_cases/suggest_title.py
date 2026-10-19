@@ -68,13 +68,15 @@ def _parse_title(raw: str) -> str | None:
 
 
 def propose_title(
-    store: ConversationStore, assistant: AssistantClient, *, conversation_id: str
+    store: ConversationStore, assistant: AssistantClient, *, conversation_id: str,
+    company_context: dict | None = None,
 ) -> dict:
     """Generates a NEW title distinct from the earlier suggestions and persists it.
 
     Returns the `titleSuggestion` dict (text + the RF-4 actions). Raises
     `AssistantUnavailable` (503, with the conversation's fields as fallback)
-    when the model is unreachable.
+    when the model is unreachable. `company_context` grounds the suggestion on
+    the company-context document (RF-22).
     """
     payload = store.get(conversation_id)
     if payload is None:
@@ -84,7 +86,9 @@ def propose_title(
     avoid = list(conversation.titleSuggestions)
     for _ in range(MAX_TITLE_ATTEMPTS):
         try:
-            raw = assistant.generate(title_suggestion_prompt(context, tuple(avoid)))
+            raw = assistant.generate(
+                title_suggestion_prompt(context, tuple(avoid), company_context)
+            )
         except AssistantUnavailable as error:
             raise AssistantUnavailable(
                 "ASSISTANT_UNAVAILABLE",
@@ -114,7 +118,7 @@ def suggest_title(
     user_id: str,
     action: str,
     manual_text: str | None = None,
-    org_profile: dict | None = None,
+    company_context: dict | None = None,
 ) -> dict:
     """Applies a title action (RF-4) and returns the resulting turn.
 
@@ -123,8 +127,9 @@ def suggest_title(
     advance to the next field (or to ``RESUMEN`` when the title was the last);
     ``another`` keeps the conversation on ``title`` with the new suggestion.
 
-    `org_profile` grounds the per-turn IA call on the advance (D7 replacement);
-    when absent the assistant still answers.
+    `company_context` is the current company-context document injected in the
+    assistant calls of this action (RF-22); when empty the prompt carries the
+    no-context notice and the assistant still answers (case 24).
     """
     payload = _own(store, conversation_id, user_id)
     if action not in TITLE_ACTIONS:
@@ -154,7 +159,8 @@ def suggest_title(
             "conversationId": conversation_id,
             "state": "ACTIVA",
             "assistant": rules.build_question(current_field="title")
-            | propose_title(store, assistant, conversation_id=conversation_id),
+            | propose_title(store, assistant, conversation_id=conversation_id,
+                            company_context=company_context),
         }
 
     if action == "accept":
@@ -193,7 +199,7 @@ def suggest_title(
             "summary": conversation.to_summary(),
         }
 
-    turn = land_turn(store, assistant, conversation, org_profile=org_profile)
+    turn = land_turn(store, assistant, conversation, company_context=company_context)
     return {
         "conversationId": conversation_id,
         "state": "ACTIVA",
