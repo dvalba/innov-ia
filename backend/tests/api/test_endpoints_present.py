@@ -155,7 +155,8 @@ def test_every_endpoint_of_plan_3_1_is_present() -> None:
         ("get", "/users"), ("post", "/users"),
         ("put", "/users/{id}/roles"), ("patch", "/users/{id}/active"),
         ("post", "/assistant/check"),
-        ("get", "/admin/organizacion"), ("put", "/admin/organizacion"),
+        ("get", "/admin/contexto/plantilla"), ("get", "/admin/contexto"),
+        ("put", "/admin/contexto"), ("post", "/admin/contexto/subida"),
         ("get", "/health"),
     ]
 

@@ -27,22 +27,28 @@ from shared.exceptions.handlers import register_exception_handlers
 
 
 def _seed_org_profile() -> None:
-    """Seeds the organization profile once, idempotently (D7 replacement).
+    """Seeds the company-context document once, idempotently (D7 replacement).
 
-    When the administrator did not provide `INNOV_ORG_*` values the profile
-    starts empty and is completed through the panel.
+    The `INNOV_ORG_*` values (v2.0 compatibility) become the `profile` section
+    of the single document; the guide text starts empty. When the administrator
+    did not provide them the context starts empty and is completed through the
+    panel (RF-21).
     """
     store = get_org_store()
     if store.has():
         return
     if not settings.org_name:
         return
-    store.put({
-        "name": settings.org_name,
-        "sector": settings.org_sector,
-        "description": settings.org_description,
-        "mission": settings.org_mission,
-        "strategicObjectives": list(settings.org_objectives),
+    store.seed({
+        "profile": {
+            "name": settings.org_name,
+            "sector": settings.org_sector,
+            "description": settings.org_description,
+            "mission": settings.org_mission,
+            "strategicObjectives": list(settings.org_objectives),
+        },
+        "guideText": "",
+        "updatedAt": "",
     })
 
 

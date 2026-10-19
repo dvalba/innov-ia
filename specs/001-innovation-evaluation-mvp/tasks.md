@@ -430,7 +430,7 @@
   - **Dependencias:** Ninguna
   - **Hecho cuando:** `estimatedResources` desaparece de todo el backend y el frontend (dominio `idea.py`, `validate.py`, schemas de `create_idea`/`edit_idea`, `FIELD_ORDER` de `conversation.py`, `capture_rules.py` (orden + preguntas + chips + saludo "6 datos"), `prompts.py` (FIELD_LABELS + plantillas), `fieldsMeta.ts`, formularios manual/field-summary/new-idea); `grep -rn estimatedResources backend frontend/src` → 0 coincidencias; los tests existentes se actualizan y `pytest -q` y `ng build` pasan; persistencia de ideas antiguas con el campo: el store lo descarta en la lectura (migración silenciosa).
 
-- [ ] **[T-070] Backend: contexto de empresa como documento administrable (plantilla, edición, subida)**
+ - [x] **[T-070] Backend: contexto de empresa como documento administrable (plantilla, edición, subida)**
   - **Covers:** RF-21, casos 24, 25
   - **Dependencias:** [T-069]
   - **Hecho cuando:** La feature `org` gestiona un **único documento** con secciones: perfil (name, sector, description, mission, strategicObjectives) + texto libre de guía (vocabulario, línea estratégica, información de referencia). Endpoints (solo admin): `GET /admin/contexto/plantilla` (200, `text/plain`, plantilla descargable con las secciones y ayudas), `GET /admin/contexto` (200, documento vigente o vacío), `PUT /admin/contexto` (200, guarda el documento editado: perfil + texto libre; 400 si el perfil queda vacío), `POST /admin/contexto/subida` (200, reemplaza el documento vigente con el contenido de un archivo de texto; 400 si el texto viene vacío). Se conserva el seed desde `INNOV_ORG_*` (compatibilidad) y la lectura sin sesión `GET /admin/organizacion` puede eliminarse; `pytest -q` verde en `tests/api/test_org_context_api.py`.
