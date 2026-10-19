@@ -116,9 +116,24 @@ export const routes: Routes = [
         path: 'admin',
         canActivate: [requireRole(ROLE_ADMIN)],
         loadComponent: () =>
-          import('./features/admin/pages/users/users').then(
-            (m) => m.UserManagement,
-          ),
+          import('./features/admin/pages/admin/admin').then((m) => m.AdminShell),
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            loadComponent: () =>
+              import('./features/admin/pages/users/users').then(
+                (m) => m.UserManagement,
+              ),
+          },
+          {
+            path: 'contexto',
+            loadComponent: () =>
+              import('./features/admin/pages/admin/contexto/contexto').then(
+                (m) => m.ContextoPage,
+              ),
+          },
+        ],
       },
       {
         path: 'ajustes',

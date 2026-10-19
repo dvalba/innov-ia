@@ -1,0 +1,119 @@
+<div class="space-y-4">
+  <form (ngSubmit)="onGuardar()" class="space-y-4">
+    <div class="grid gap-4 sm:grid-cols-2">
+      <div>
+        <label for="ctx-nombre" class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+          >Nombre de la empresa</label
+        >
+        <input
+          id="ctx-nombre"
+          type="text"
+          [ngModel]="perfil().name"
+          (ngModelChange)="onPerfilCampo('name', $event)"
+          name="ctx-nombre"
+          [disabled]="guardando() || cargando()"
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+          placeholder="Ej. Innov-IA"
+        />
+      </div>
+      <div>
+        <label for="ctx-sector" class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Sector</label>
+        <input
+          id="ctx-sector"
+          type="text"
+          [ngModel]="perfil().sector"
+          (ngModelChange)="onPerfilCampo('sector', $event)"
+          name="ctx-sector"
+          [disabled]="guardando() || cargando()"
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+          placeholder="Ej. Software y servicios"
+        />
+      </div>
+    </div>
+
+    <div>
+      <label for="ctx-descripcion" class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+        >Descripción</label
+      >
+      <textarea
+        id="ctx-descripcion"
+        rows="2"
+        [ngModel]="perfil().description"
+        (ngModelChange)="onPerfilCampo('description', $event)"
+        name="ctx-descripcion"
+        [disabled]="guardando() || cargando()"
+        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+        placeholder="A qué se dedica la empresa, mercado y productos principales."
+      ></textarea>
+    </div>
+
+    <div>
+      <label for="ctx-mision" class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Misión</label>
+      <textarea
+        id="ctx-mision"
+        rows="2"
+        [ngModel]="perfil().mission"
+        (ngModelChange)="onPerfilCampo('mission', $event)"
+        name="ctx-mision"
+        [disabled]="guardando() || cargando()"
+        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+        placeholder="Propósito y propuesta de valor de la organización."
+      ></textarea>
+    </div>
+
+    <div>
+      <span class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+        >Objetivos estratégicos
+        <span class="font-normal text-slate-500 dark:text-slate-400">(uno por línea)</span></span
+      >
+      <textarea
+        id="ctx-objetivos"
+        rows="3"
+        [ngModel]="objetivosTexto()"
+        (ngModelChange)="onObjetivos($event)"
+        name="ctx-objetivos"
+        [disabled]="guardando() || cargando()"
+        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+        placeholder="Escribe cada objetivo en su propia línea."
+        aria-label="Objetivos estratégicos, uno por línea"
+      ></textarea>
+    </div>
+
+    <div>
+      <label for="ctx-guia" class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+        >Guía estratégica (texto libre)</label
+      >
+      <p class="mb-1 text-xs text-slate-500 dark:text-slate-400">
+        Alineación estratégica, prioridades, líneas de innovación y vocabulario de referencia. La IA usa este
+        texto en todas sus operaciones.
+      </p>
+      <textarea
+        id="ctx-guia"
+        rows="8"
+        [ngModel]="guia()"
+        (ngModelChange)="onGuia($event)"
+        name="ctx-guia"
+        [disabled]="guardando() || cargando()"
+        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 font-mono text-sm leading-relaxed text-slate-900 transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+        placeholder="Describe aquí la guía de referencia para la IA."
+      ></textarea>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button
+        type="submit"
+        [disabled]="guardando() || cargando()"
+        class="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {{ guardando() ? 'Guardando…' : 'Guardar cambios' }}
+      </button>
+      @if (updatedAt()) {
+        <span class="text-xs text-slate-500 dark:text-slate-400">Última guardada: {{ updatedAt() }}</span>
+      }
+    </div>
+
+    @if (error()) {
+      <p role="alert" class="text-sm text-red-700 dark:text-red-300">{{ error() }}</p>
+    }
+  </form>
+</div>

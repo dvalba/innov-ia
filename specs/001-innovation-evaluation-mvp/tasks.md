@@ -445,7 +445,7 @@
   - **Dependencias:** [T-069]
   - **Hecho cuando:** El formulario manual (6 campos, sin la sección *Recursos estimados*), el resumen editable del chat, el detalle/edición de "Mis ideas", el resumen manual de contingencia en `new-idea` y el mapeo de etiquetas (`etiquetaCampo`) muestran/exigen solo los 6 campos; la validación de completitud se ajusta (6/6); `ng build` verde; sin texto "Recursos" visible en ninguna vista.
 
-- [ ] **[T-076] Frontend: sección de administración de contexto de empresa**
+- [x] **[T-076] Frontend: sección de administración de contexto de empresa**
   - **Covers:** RF-21, RNF-12, D13
   - **Dependencias:** [T-070]
   - **Hecho cuando:** En `/admin` (rol administrador) hay una sección **Contexto de empresa**: botón **Descargar plantilla** (GET plantilla, descarga el archivo .txt), formulario de **edición en línea** (campos de perfil: nombre/sector/descripción/misión/objetivos + textarea del texto libre de guía) con guardar (PUT), y **subida de archivo** (input de tipo archivo `.txt`/`.md`; el contenido se envía a `POST /subida` y reemplaza el documento); aviso visible cuando el documento está vacío (caso 24); la navegación la tiene el enlace en MainLayout/admin; `ng build` verde.
