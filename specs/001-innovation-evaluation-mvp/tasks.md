@@ -440,7 +440,7 @@
   - **Dependencias:** [T-070]
   - **Hecho cuando:** `prompts.py` recibe un bloque de contexto (perfil + texto libre) en `extract_fields_prompt`, `title_suggestion_prompt`, `refine_idea_prompt`, `improve_idea_prompt` y `turn_options_prompt`; todos los use cases que invocan al motor (captura por turno, sugerencia de título, mejora, refinamiento) cargan el documento vigente del contexto y lo pasan; si el documento está vacío se inyecta el aviso "(sin contexto de empresa definido)"; tests unitarios en `tests/unit/domain/test_prompts.py` verifican que cada plantilla contiene el contexto o el aviso; `pytest -q` verde.
 
-- [ ] **[T-075] Frontend: captura y formularios sin *Recursos estimados***
+- [x] **[T-075] Frontend: captura y formularios sin *Recursos estimados***
   - **Covers:** §1.1 (6 campos), RF-3, RF-6, RF-7, D11
   - **Dependencias:** [T-069]
   - **Hecho cuando:** El formulario manual (6 campos, sin la sección *Recursos estimados*), el resumen editable del chat, el detalle/edición de "Mis ideas", el resumen manual de contingencia en `new-idea` y el mapeo de etiquetas (`etiquetaCampo`) muestran/exigen solo los 6 campos; la validación de completitud se ajusta (6/6); `ng build` verde; sin texto "Recursos" visible en ninguna vista.

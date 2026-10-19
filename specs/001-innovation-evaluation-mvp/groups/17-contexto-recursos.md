@@ -7,14 +7,14 @@ decisión D11) en backend y frontend.
 
 ## Estado
 
-> ⏳ **En curso** — 3/5 tareas completadas. Depende del cierre de G16.
+> ⏳ **En curso** — 4/5 tareas completadas. Depende del cierre de G16.
 
 ## Tareas (orden de ejecución)
 
 - [x] **T-069** _(BE+FE)_ — Retirar `estimatedResources` de todo el backend y frontend (dominio, validación, schemas, FIELD_ORDER, preguntas, chips, prompts, formularios, labels); migración silenciosa de ideas antiguas al leer
  - [x] **T-070** _(BE)_ — Contexto de empresa como único documento administrable: plantilla descargable (`GET /admin/contexto/plantilla`), lectura (`GET /admin/contexto`), edición (`PUT /admin/contexto`), subida de archivo (`POST /admin/contexto/subida`); seed desde `INNOV_ORG_*` conservado; casos 24 y 25
 - [x] **T-071** _(BE)_ — Inyección del contexto de empresa en TODAS las operaciones de la IA (extract, título, refinamiento, mejora, turn_options); aviso "(sin contexto de empresa definido)" cuando el documento está vacío (RNF-12)
-- [ ] **T-075** _(FE)_ — Captura y formularios con 6 campos: manual, resumen editable del chat, detalle/edición de Mis ideas, contingencia de new-idea y labels; validación 6/6
+- [x] **T-075** _(FE)_ — Captura y formularios con 6 campos: manual, resumen editable del chat, detalle/edición de Mis ideas, contingencia de new-idea y labels; validación 6/6
 - [ ] **T-076** _(FE)_ — Sección **Contexto de empresa** en administración: descargar plantilla, editar en línea, subir archivo, aviso de contexto vacío
 
 ## Criterio de salida
