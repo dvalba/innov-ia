@@ -7,13 +7,13 @@ idea (resumen de los 6 campos, debate y evaluación).
 
 ## Estado
 
-> ⏳ **En curso** — 2/5 tareas. Depende de G17 (contexto inyectado en la IA y 6 campos).
+> ⏳ **En curso** — 3/5 tareas. Depende de G17 (contexto inyectado en la IA y 6 campos).
 
 ## Tareas (orden de ejecución)
 
 - [x] **T-072** _(BE)_ — Feature `debate`: dominio `Debate`/`DebateMessage`, store JSON (`backend/data/debate.json`), rules de creación (publishedAt + 30 días), cierre automático una sola vez, ajuste de deadline por idea auditado (admin), mensajes solo con debate abierto
 - [x] **T-073** _(BE)_ — Router del debate: `GET/POST /catalog/{ideaId}/debate`, `PUT /admin/ideas/{ideaId}/debate/deadline` (admin); `@asistant` con mensaje enlazado responde en el hilo (IA + contexto de empresa, RNF-3); cierre genera el resumen de la IA si hubo mensajes (casos 18-21)
-- [ ] **T-074** _(BE)_ — Evaluación de la IA al publicar (5 criterios fijos: claridad del problema, factibilidad, impacto esperado, alineación estratégica, grado de innovación; score 1–10 + justificación; autor "Asistente (IA)"); si la IA cae, `pending` sin bloquear la publicación (caso 22); `POST /validation/{ideaId}/evaluation/accept` y `POST /validation/{ideaId}/evaluation` (sustitución por especialista, caso 23), auditados (RNF-8, RNF-11)
+- [x] **T-074** _(BE)_ — Evaluación de la IA al publicar (5 criterios fijos: claridad del problema, factibilidad, impacto esperado, alineación estratégica, grado de innovación; score 1–10 + justificación; autor "Asistente (IA)"); si la IA cae, `pending` sin bloquear la publicación (caso 22); `POST /validation/{ideaId}/evaluation/accept` y `POST /validation/{ideaId}/evaluation` (sustitución por especialista, caso 23), auditados (RNF-8, RNF-11)
 - [ ] **T-077** _(FE)_ — Catálogo compacto + ruta `/catalogo/publico/{id}`: resumen de los 6 campos (solo lectura), debate (mensajes, input, selector de mensaje enlazado, @asistant, cierre/fecha límite, resumen IA, ajuste admin inline) y evaluación (5 criterios; aceptar/sustituir para especialista con formulario); responsive y accesible (RNF-6)
 - [ ] **T-078** _(E2E)_ — Verificación de los criterios v2.1 del spec §9 (10-14) y casos límite 18, 20, 22 con evidencia: publicar → debate → @asistant → cierre → resumen; evaluación → sustitución; contexto vacío/inyectado; `pytest -q`, `ruff check .` y `ng build` verdes
 

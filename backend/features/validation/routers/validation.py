@@ -1,18 +1,26 @@
-"""Validation router (T-034, RF-14/RF-15/RF-16).
+"""Validation router (T-034, RF-14/RF-15/RF-16; T-074, RF-26).
 
 Specialist review surface, all guarded to the `especialista` role (403
 otherwise):
   GET  /validation/queue          -> 200 the review queue (SOLICITANDO only,
-                                      proponent without contact)
+                                       proponent without contact)
   POST /validation/{id}/approve   -> 200 payload (VALIDADA_PUBLICA, rastro +
-                                      `IDEA_PUBLISHED`)
+                                       `IDEA_PUBLISHED`); publishing attempts
+                                       the AI evaluation (RF-26, case 22)
   POST /validation/{id}/reject    -> 200 payload (EN_DESARROLLO, comentario +
-                                      `IDEA_REJECTED`; 400 sin comentario)
+                                       `IDEA_REJECTED`; 400 sin comentario)
+  POST /validation/{id}/evaluation/accept -> 200 payload (la evaluación de la
+                                       IA queda como juicio final; 409 si no
+                                       existe la evaluación de la IA)
+  POST /validation/{id}/evaluation        -> 200 payload (sustitución por la
+                                       del especialista; 422 si faltan
+                                       criterios o el score está fuera de rango)
 
 The approve/reject endpoints do NOT reimplement the transition: they reuse
 `approve_idea`/`reject_idea` from the `ideas` feature (G06), preserving the
-audit trail and the emission points. The emitted notifications are wired in
-the composition root (`app/deps`) so this feature imports only `ideas`.
+audit trail and the emission points. The emitted notifications and the
+on-publish seeder (debate + AI evaluation) are wired in the composition root
+(`app/deps`) so this feature imports only `ideas`.
 """
 
 from fastapi import APIRouter
@@ -20,6 +28,7 @@ from pydantic import BaseModel
 
 from app.deps import (
     DebateOpenDep,
+    EvaluationSeedDep,
     IdeaLedgerDep,
     PublishedEmitterDep,
     RejectedEmitterDep,
@@ -28,6 +37,8 @@ from app.deps import (
 )
 from features.ideas.use_cases.approve_idea import approve_idea
 from features.ideas.use_cases.reject_idea import reject_idea
+from features.validation.use_cases.accept_ai_evaluation import accept_ai_evaluation
+from features.validation.use_cases.replace_evaluation import replace_evaluation
 from features.validation.use_cases.review_queue import review_queue
 from shared.contracts.user_directory import UserDirectory
 
@@ -38,6 +49,20 @@ SpecialistDep = role_dependency("especialista")
 
 class RejectRequest(BaseModel):
     comment: str = ""
+
+
+class EvaluationCriterionIn(BaseModel):
+    """One of the 5 fixed criteria (RF-26): the domain re-validates the set."""
+
+    criterion: str
+    score: int
+    justification: str
+
+
+class EvaluationReplaceRequest(BaseModel):
+    """The specialist's replacement judgment: the same 5 fixed criteria (RF-26)."""
+
+    criteria: list[EvaluationCriterionIn]
 
 
 def _specialist_name(directory: UserDirectory, session) -> str:
@@ -54,18 +79,24 @@ def queue_endpoint(session: SpecialistDep, ledger: IdeaLedgerDep) -> list[dict]:
 @validation_router.post("/{idea_id}/approve")
 def approve_endpoint(idea_id: str, session: SpecialistDep, ledger: IdeaLedgerDep,
                      directory: UserDirectoryDep, emit: PublishedEmitterDep,
-                     open_debate_now: DebateOpenDep) -> dict:
+                     open_debate_now: DebateOpenDep, seed_evaluation: EvaluationSeedDep) -> dict:
     """Approves/publishes the idea, reusing `approve_idea` (G06) + `IDEA_PUBLISHED`.
 
-    Publishing opens the idea's debate with a `30-day` deadline (RF-24, T-073):
-    the opener is wired in the composition root so `validation` keeps importing
-    only `ideas`.
+    Publishing opens the idea's debate with a `30-day` deadline (RF-24, T-073)
+    and attempts the AI evaluation on the 5 fixed criteria (RF-26, T-074):
+    `GENERADA` when the assistant answers, `PENDING` (case 22) when it is down —
+    the publication is never blocked. Both are wired in the composition root
+    so `validation` keeps importing only `ideas`.
     """
     payload = approve_idea(ledger, idea_id=idea_id, user_id=session.user_id,
-                           user_name=_specialist_name(directory, session),
-                           user_roles=session.roles, emit_notification=emit)
+                            user_name=_specialist_name(directory, session),
+                            user_roles=session.roles, emit_notification=emit)
     open_debate_now(payload)
-    return payload
+    seed_evaluation(payload)
+    # The seeder persists the `evaluation` on the idea AFTER `approve_idea`
+    # built its payload, so the response is re-read to reflect the final state
+    # (RF-26: the evaluation — or its `PENDING` — is part of the publication).
+    return ledger.get(idea_id)
 
 
 @validation_router.post("/{idea_id}/reject")
@@ -81,3 +112,34 @@ def reject_endpoint(idea_id: str, payload: RejectRequest, session: SpecialistDep
                        user_name=_specialist_name(directory, session),
                        user_roles=session.roles, comment=payload.comment,
                        emit_notification=emit)
+
+
+@validation_router.post("/{idea_id}/evaluation/accept")
+def accept_evaluation_endpoint(idea_id: str, session: SpecialistDep, ledger: IdeaLedgerDep) -> dict:
+    """Accepts the AI evaluation as the final judgment (RF-26, caso 23).
+
+    The `aiEvaluation` snapshot becomes `evaluation` with `status=ACEPTADA`
+    and the specialist's decision audit (RNF-8). 409 when there is no AI
+    evaluation yet (still `PENDING`, case 22: nothing to accept). The
+    decision may follow a replacement — last action wins (case 23).
+    """
+    return accept_ai_evaluation(ledger, idea_id=idea_id, user_id=session.user_id)
+
+
+@validation_router.post("/{idea_id}/evaluation")
+def replace_evaluation_endpoint(idea_id: str, payload: EvaluationReplaceRequest,
+                                session: SpecialistDep, ledger: IdeaLedgerDep,
+                                directory: UserDirectoryDep) -> dict:
+    """Replaces the final judgment with the specialist's own (RF-26, caso 23).
+
+    The same 5 fixed criteria (RNF-5: missing/unknown/duplicated criteria or
+    a score out of 1-10 -> 422 with the problems in `details`). No state
+    guard: it applies before or after accepting the AI's evaluation; the
+    judgment is the result of the last action (case 23) and the AI snapshot
+    stays visible untouched (RF-26).
+    """
+    return replace_evaluation(
+        ledger, idea_id=idea_id, user_id=session.user_id,
+        user_name=_specialist_name(directory, session),
+        criteria=[item.model_dump() for item in payload.criteria],
+    )

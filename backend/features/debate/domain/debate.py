@@ -2,7 +2,7 @@
 
 Pure domain: no FastAPI/Pydantic (decision D8). The `Debate` is an attribute
 of a `VALIDADA_PUBLICA` idea (D12 — the published idea is never edited; the
-debate and the AI evaluation live alongside it).
+debate lives alongside it).
 
 Rules owned here:
 - The debate opens when the idea is published with a deadline of
@@ -61,16 +61,6 @@ def _require_iso(value: Any, name: str) -> str:
     except ValueError:
         raise DebateError(f"El campo {name} del debate no es una fecha ISO válida.") from None
     return text
-
-
-def _require_int(value: Any, name: str) -> int:
-    try:
-        number = int(value)
-    except (TypeError, ValueError):
-        raise DebateError(f"El campo {name} del debate debe ser un número entero.") from None
-    if number < 1 or number > 10:
-        raise DebateError(f"El campo {name} del debate debe estar entre 1 y 10.")
-    return number
 
 
 def _as_str(value: Any) -> str:
@@ -185,7 +175,6 @@ class Debate:
     pendingAssistant: dict | None = None
     deadlineHistory: list = field(default_factory=list)
     messages: list = field(default_factory=list)
-    evaluation: dict | None = None
 
     def __post_init__(self) -> None:
         if not str(self.ideaId).strip():
@@ -282,7 +271,6 @@ class Debate:
             "pendingAssistant": self.pendingAssistant,
             "deadlineHistory": list(self.deadlineHistory or []),
             "messages": [message.to_payload() for message in self.messages],
-            "evaluation": self.evaluation,
         }
 
     @classmethod
@@ -302,7 +290,6 @@ class Debate:
             pendingAssistant=payload.get("pendingAssistant"),
             deadlineHistory=list(payload.get("deadlineHistory") or []),
             messages=list(payload.get("messages") or []),
-            evaluation=payload.get("evaluation"),
         )
 
 

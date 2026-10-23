@@ -7,6 +7,8 @@ reply can be interpreted deterministically by the domain logic
 rules (field order, chips, validation) live in the capture/assistant code.
 """
 
+from shared.contracts.evaluation import EVALUATION_CRITERIA_LABELS
+
 # Names of the 6 idea fields (spec §1.1), shared by the extract/refine prompts.
 FIELD_LABELS: dict[str, str] = {
     "title": "Título",
@@ -315,4 +317,36 @@ def improve_idea_prompt(
         f"Idea actual:\n{current}\n\n"
         "JSON esperado: un objeto con las claves title, proponent, description, problem, "
         "expectedBenefit, strategicAlignment."
+    )
+
+
+def evaluate_idea_prompt(idea_fields: dict, company_context: dict | None = None) -> str:
+    """The AI evaluation of a published idea on the 5 fixed criteria (RF-26, RF-22).
+
+    Generated at publication (plan §4.8 `GENERAR_EVALUACION`) and retried at the
+    next assistant verification when it stayed `PENDING` (case 22). Each of the
+    5 criteria carries an integer `score` 1-10 and a short `justification`; the
+    reply is strict JSON so the code can interpret it deterministically
+    (`evaluation.py::interpret_evaluation`), degrading to `None` (case 14) when
+    the model cannot be interpreted. `company_context` grounds the criteria on
+    the organization's context (RF-22); an empty document degrades to the
+    `NO_CONTEXT_NOTICE` (case 24).
+    """
+    labels = "\n".join(
+        f'- {name} (clave "{key}"), score 1-10 y justificación breve'
+        for key, name in EVALUATION_CRITERIA_LABELS.items()
+    )
+    return _json_only_prelude() + (
+        "Eres el comité de evaluación de Innov-IA. Evalúa la idea publicada en los "
+        "5 criterios fijos, de forma objetiva y fundamentada en los campos de la "
+        "idea y en el contexto de la empresa: NO inventes datos que no estén en la "
+        "idea. Cada criterio lleva un score entero de 1 a 10 (10 = máximo) y una "
+        "justificación breve en español (máximo 200 caracteres) que explique el "
+        "score.\n"
+        f"{_company_context_block(company_context)}\n\n"
+        f"Idea publicada:\n{_idea_block(idea_fields)}\n\n"
+        f"Criterios a evaluar (exactamente estos 5, en este orden):\n{labels}\n\n"
+        "JSON esperado: un objeto con una clave por criterio, cada una con \"score\" "
+        "(entero 1-10) y \"justification\" (texto no vacío). Ejemplo: "
+        "{\"claridadDelProblema\": {\"score\": 8, \"justification\": \"…\"}, …}."
     )

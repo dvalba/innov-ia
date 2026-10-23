@@ -45,7 +45,8 @@ class Idea:
     `strategicAlignment`. `ownerId` backs "Mis ideas" (RF-19); `origin` and
     `state` drive the rest of the platform (RNF-2, plan §4.6);
     `createdAt`/`requestDate`/`publishedAt`/`publishedBy` are the audit trail
-    (RNF-8).
+    (RNF-8). `evaluation` is the final judgment over the 5 fixed criteria
+    (RF-26) and `aiEvaluation` its immutable AI-generated snapshot.
     """
 
     id: str
@@ -67,6 +68,8 @@ class Idea:
     rejectionNote: dict | None = None
     generando: bool = False
     improvementRequest: dict | None = None
+    evaluation: dict | None = None
+    aiEvaluation: dict | None = None
 
     def __post_init__(self) -> None:
         if not self.id or not str(self.id).strip():
@@ -128,6 +131,8 @@ class Idea:
                 "rejectionNote": self.rejectionNote,
                 "generando": self.generando,
                 "improvementRequest": self.improvementRequest,
+                "evaluation": self.evaluation,
+                "aiEvaluation": self.aiEvaluation,
             }
         )
         return payload
@@ -155,6 +160,8 @@ class Idea:
                 rejectionNote=payload.get("rejectionNote"),
                 generando=payload.get("generando", False),
                 improvementRequest=payload.get("improvementRequest"),
+                evaluation=payload.get("evaluation"),
+                aiEvaluation=payload.get("aiEvaluation"),
             )
         except KeyError as missing:
             raise IdeaError(f"El registro de la idea está incompleto; falta «{missing.args[0]}».") from missing

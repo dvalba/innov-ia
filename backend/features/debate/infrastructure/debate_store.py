@@ -1,13 +1,12 @@
 """Debate feature infrastructure: the JSON debate store (RF-24, RF-25).
 
 `DebateStore` persists one record per published idea in `backend/data/debate.json`
-through `JsonStore`, keyed by idea id. Each record couples the debate thread
-(`messages`, `deadline`, `closed`, `summary`, ...) with the AI evaluation
-(`evaluation`), because both are attributes of the same `VALIDADA_PUBLICA`
-idea (D12 — the idea itself is never edited). Writes are atomic (the store
-contract) and records are normalized on read: a stored payload is rebuilt
-through `Debate.from_payload(...).to_payload()`, so the in-memory copy is
-always the canonical shape (RNF-9).
+through `JsonStore`, keyed by idea id. Each record holds the debate thread
+(`messages`, `deadline`, `closed`, `summary`, ...), which is an attribute of the
+corresponding `VALIDADA_PUBLICA` idea (D12 — the idea itself is never edited).
+Writes are atomic (the store contract) and records are normalized on read:
+a stored payload is rebuilt through `Debate.from_payload(...).to_payload()`,
+so the in-memory copy is always the canonical shape (RNF-9).
 """
 
 from collections.abc import Sequence
@@ -52,8 +51,8 @@ class DebateStore:
         return self.get(idea_id)  # type: ignore[return-value]
 
     def set(self, debate: Debate) -> dict:
-        """Replaces the whole record of the idea (messages, closure, summary,
-        evaluation). Raises `DebateError` semantics through `update` on failure."""
+        """Replaces the whole record of the idea (messages, closure, summary).
+        Raises `DebateError` semantics through `update` on failure."""
         idea_id = debate.ideaId
 
         def apply(data: dict) -> dict:

@@ -10,6 +10,7 @@ import pytest
 
 from features.assistant.domain.prompts import (
     NO_CONTEXT_NOTICE,
+    evaluate_idea_prompt,
     extract_fields_prompt,
     improve_idea_prompt,
     refine_idea_prompt,
@@ -53,6 +54,7 @@ TEMPLATES = [
     lambda ctx: turn_options_prompt(
         current_field="problem", captured={"description": "Digitalizar."}, company_context=ctx
     ),
+    lambda ctx: evaluate_idea_prompt(IDEA["fields"], ctx),
 ]
 
 TEMPLATE_NAMES = (
@@ -61,6 +63,7 @@ TEMPLATE_NAMES = (
     "refine_idea_prompt",
     "improve_idea_prompt",
     "turn_options_prompt",
+    "evaluate_idea_prompt",
 )
 
 
@@ -84,3 +87,17 @@ def test_prompt_contains_context_when_document_has_content(build):
 def test_prompt_carries_no_context_notice_when_document_empty(build, ctx):
     prompt = build(ctx)
     assert NO_CONTEXT_NOTICE in prompt
+
+
+def test_evaluate_idea_prompt_carries_the_five_fixed_criteria() -> None:
+    prompt = evaluate_idea_prompt(IDEA["fields"], CONTEXT)
+    for key in (
+        "claridadDelProblema",
+        "factibilidad",
+        "impactoEsperado",
+        "alineacionEstrategica",
+        "gradoDeInnovacion",
+    ):
+        assert f'clave "{key}"' in prompt
+    assert "score 1-10" in prompt
+    assert "Optimización de aprobación" in prompt  # the idea itself grounds the judgment

@@ -145,14 +145,12 @@ def test_a_debate_message_with_blank_text_is_rejected() -> None:
         Debate(id="debate_x", ideaId="idea_1", deadline="no-es-fecha")
 
 
-def test_debate_payload_round_trips_messages_and_evaluation(store: DebateStore) -> None:
+def test_debate_payload_round_trips_messages(store: DebateStore) -> None:
     debate = _debate()
     debate.add_message(_message())
-    debate.evaluation = {"criteria": [], "author": "Asistente (IA)"}
     record = store.set(debate)
     assert store.get("idea_1") == record
     assert len(store.get_debate("idea_1").messages) == 1  # type: ignore[union-attr]
-    assert store.get("idea_1")["evaluation"]["author"] == "Asistente (IA)"
 
 
 # -- store ------------------------------------------------------------------------
