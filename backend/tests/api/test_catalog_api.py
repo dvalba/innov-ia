@@ -1,11 +1,15 @@
-"""Catalog router API tests (T-035, RF-20, RNF-7, plan §3.1).
+"""Catalog router API tests (T-035, T-077, RF-20, RF-23, RNF-7, plan §3.1).
 
 Covers the public catalog: `GET /catalog/public` is read-only for any active
-session (401 without one) and returns only `VALIDADA_PUBLICA` ideas — with the 7
-fields (proponent reduced to name/area, never contact), the origin and the
-registration/publication dates. Ideas in any other state are absent.
+session (401 without one) and returns only `VALIDADA_PUBLICA` ideas — with the
+6 fields (proponent reduced to name/area, never contact), the origin and the
+registration/publication dates. Ideas in any other state are absent. And the
+public detail (`GET /catalog/{ideaId}`, RF-23): the same fields plus the final
+`evaluation` and the immutable `aiEvaluation` snapshot, only for published
+ideas — an unknown id or an unpublished idea is a 404.
 """
 
+import json
 from datetime import datetime
 
 import pytest
@@ -15,6 +19,7 @@ from app import deps as deps_module
 from app.main import app as main_app
 from features.auth.infrastructure.token_store import TokenStore
 from features.ideas.infrastructure.idea_store import IdeaStore
+from shared.contracts.evaluation import EVALUATION_CRITERIA
 from shared.contracts.idea_ledger import IDEA_FIELDS
 from shared.utils.password import hash_password
 from tests.conftest import InMemoryDirectory, InMemoryStore, OllamaMock
@@ -62,14 +67,17 @@ def idea_ledger() -> IdeaStore:
 
 
 @pytest.fixture()
-def auth(directory, idea_ledger):
+def mock() -> OllamaMock:
+    return OllamaMock(available=False)
+
+
+@pytest.fixture()
+def auth(directory, idea_ledger, mock):
     token_store = TokenStore(InMemoryStore(), ttl_minutes=480, now_factory=datetime.now)
     main_app.dependency_overrides[deps_module.get_user_directory] = lambda: directory
     main_app.dependency_overrides[deps_module.get_token_store] = lambda: token_store
     main_app.dependency_overrides[deps_module.get_idea_ledger] = lambda: idea_ledger
-    main_app.dependency_overrides[deps_module.get_assistant_client] = (
-        lambda: OllamaMock(available=False)
-    )
+    main_app.dependency_overrides[deps_module.get_assistant_client] = lambda: mock
 
     def _client(user_id: str = "u_solo", token: bool = True) -> TestClient:
         if not token:
@@ -140,3 +148,104 @@ def test_public_catalog_never_leaks_another_users_contact(auth) -> None:
     entry = auth("u_ana").get("/catalog/public").json()[0]
     assert entry["fields"]["proponent"]["name"] == "Beto"
     assert "beto@corp.com" not in str(entry)
+
+
+# -- public detail (T-077, RF-23, plan line 708) -------------------------------------
+
+
+def evaluation_json() -> str:
+    """A contract-shaped AI reply: exactly the 5 criteria, score + justification."""
+    return json.dumps(
+        {key: {"score": 7, "justification": f"Valoración IA de {key}."}
+         for key in EVALUATION_CRITERIA},
+        ensure_ascii=False,
+    )
+
+
+def _publish(auth, mock, *, available: bool, respond=None, **field_overrides) -> dict:
+    """Creates + requests + approves an idea; returns the created idea payload.
+
+    `respond`, when given, is the assistant's reply (a `prompt -> str` callable,
+    as in `test_evaluation_api.py`).
+    """
+    mock.available = available
+    if respond is not None:
+        mock.respond = respond
+    idea = auth("u_ana").post("/ideas", json=_fields(**field_overrides)).json()
+    auth("u_ana").post(f"/ideas/{idea['id']}/request-publication")
+    auth("u_solo").post(f"/validation/{idea['id']}/approve")
+    return idea
+
+
+def test_detail_requires_an_active_session_401(auth) -> None:
+    assert auth(token=False).get("/catalog/u_ana_1").status_code == 401
+
+
+def test_detail_is_open_to_any_active_role(auth, mock) -> None:
+    idea = _publish(auth, mock, available=False)
+    # A specialist reads it ... (RF-23: any session).
+    assert auth("u_solo").get(f"/catalog/{idea['id']}").status_code == 200
+    # ... and so does a pure proponent (the public surface).
+    assert auth("u_ana").get(f"/catalog/{idea['id']}").status_code == 200
+
+
+def test_detail_of_an_unknown_id_is_a_404(auth, mock) -> None:
+    assert auth("u_ana").get("/catalog/idea_inexistente").status_code == 404
+
+
+def test_detail_of_an_unpublished_idea_is_a_404(auth, mock) -> None:
+    # In development: exists, but the catalog never leaks it (RF-20 guard).
+    idea = auth("u_beto").post("/ideas", json=_fields(title="Borrador")).json()
+    assert auth("u_beto").get(f"/catalog/{idea['id']}").status_code == 404
+    # Waiting for review: same, the publication is what makes it visible.
+    solicitado = auth("u_beto").post("/ideas", json=_fields(title="Solicitando")).json()
+    auth("u_beto").post(f"/ideas/{solicitado['id']}/request-publication")
+    assert auth("u_solo").get(f"/catalog/{solicitado['id']}").status_code == 404
+
+
+def test_detail_holds_the_fields_and_the_pending_evaluation(auth, mock) -> None:
+    # The assistant is down on publication (case 22): the evaluation stays PENDING.
+    idea = _publish(auth, mock, available=False)
+    detail = auth("u_ana").get(f"/catalog/{idea['id']}").json()
+    assert set(detail) == {
+        "id", "fields", "origin", "createdAt", "publishedAt", "evaluation", "aiEvaluation",
+    }
+    assert detail["id"] == idea["id"]
+    assert set(detail["fields"]) == set(IDEA_FIELDS)
+    # The proponent is reduced to name/area; the contact is never exposed (RNF-7).
+    assert detail["fields"]["proponent"] == {"name": "Ana Torres", "area": "Compras"}
+    assert "contact" not in str(detail)
+    assert detail["origin"] == "manual"
+    assert detail["createdAt"] and detail["publishedAt"]
+    # Nothing generated yet: PENDING, no snapshot.
+    assert detail["evaluation"] == {"status": "PENDING"}
+    assert detail["aiEvaluation"] is None
+
+
+def test_detail_exposes_the_generated_evaluation_and_its_snapshot(auth, mock) -> None:
+    idea = _publish(auth, mock, available=True, respond=lambda _p: evaluation_json())
+    detail = auth("u_ana").get(f"/catalog/{idea['id']}").json()
+    evaluation = detail["evaluation"]
+    assert evaluation["status"] == "GENERADA"
+    assert [criterion["criterion"] for criterion in evaluation["criteria"]] == \
+        list(EVALUATION_CRITERIA)
+    assert evaluation["author"] == "Asistente (IA)"
+    assert evaluation["createdAt"]
+    assert evaluation["decidedBy"] is None and evaluation["decidedAt"] is None
+    # The immutable snapshot mirrors the generated evaluation (RF-26).
+    assert detail["aiEvaluation"] == evaluation
+
+
+def test_detail_reflects_the_specialists_last_decision(auth, mock) -> None:
+    idea = _publish(auth, mock, available=True, respond=lambda _p: evaluation_json())
+    # The specialist accepts the AI evaluation (T-074); the detail is read-only
+    # and simply reflects the final judgment (case 23).
+    accepted = auth("u_solo").post(f"/validation/{idea['id']}/evaluation/accept").json()
+    assert accepted["evaluation"]["status"] == "ACEPTADA"
+    detail = auth("u_ana").get(f"/catalog/{idea['id']}").json()
+    assert detail["evaluation"]["status"] == "ACEPTADA"
+    assert detail["evaluation"]["decidedBy"] == "u_solo"
+    assert detail["evaluation"]["decidedAt"]
+    # The AI snapshot is kept untouched by the acceptance (RF-26, RNF-8).
+    assert detail["aiEvaluation"]["status"] == "GENERADA"
+    assert detail["aiEvaluation"]["decidedBy"] is None
