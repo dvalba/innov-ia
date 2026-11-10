@@ -8,9 +8,9 @@ neither owns the idea record nor the evaluation rules — it consumes the
 `interpret_evaluation` turns the assistant's raw reply into the 5-criterion
 list or `None` (an uninterpretable reply is a failure, case 14; the
 evaluation stays `PENDING`). `generate_evaluation` writes the result onto the
-idea and `retry_pending_evaluations` re-attempts the `PENDING` ones of the
-published ideas at every assistant verification (case 22: the publication is
-never blocked by a down assistant).
+idea at the debate's closure and `retry_pending_evaluations` re-attempts the
+`PENDING` ones of the published ideas at every assistant verification (case
+22: the platform is never blocked by a down assistant).
 """
 
 from typing import Any
@@ -20,8 +20,10 @@ from features.assistant.domain.refinement import extract_json_object
 from shared.contracts.evaluation import (
     EVALUATION_AI_AUTHOR,
     EVALUATION_CRITERIA,
+    STATE_ACEPTADA,
     STATE_GENERADA,
     STATE_PENDING,
+    STATE_SUSTITUIDA,
 )
 from shared.contracts.idea_ledger import STATE_VALIDADA_PUBLICA
 from shared.exceptions.handlers import AssistantUnavailable
@@ -67,14 +69,20 @@ def generate_evaluation(
     company_context: dict | None,
     now: str,
 ) -> str:
-    """Generates the AI evaluation of a published idea (plan §4.8 `GENERAR_EVALUACION`).
+    """Generates the AI evaluation of a published idea at its debate closure
+    (plan §4.8 `GENERAR_EVALUACION`).
 
     Writes the result onto the idea through the ledger contract and returns
     the final `evaluation.status`:
+      - the current status, unchanged, when the idea already carries an
+        evaluation that is not `PENDING` (`GENERADA`, `ACEPTADA` or
+        `SUSTITUIDA`): a decided or already-generated judgment is never
+        clobbered by a later generation attempt (a debate re-opened by an
+        admin and closed again must not erase the specialist's decision);
       - `PENDING` when the assistant is down or does not answer in time (case
-        22: the publication is never blocked, the platform keeps operating),
-        or when the reply cannot be interpreted (case 14); the retry happens
-        at the next assistant verification (`retry_pending_evaluations`);
+        22: the platform is never blocked, it keeps operating), or when the
+        reply cannot be interpreted (case 14); the retry happens at the next
+        assistant verification (`retry_pending_evaluations`);
       - `GENERADA` with the 5 criteria, author "Asistente (IA)", the
         generation date and the `decidedBy`/`decidedAt` audit fields still
         `None` (RF-26, RNF-8). The immutable `aiEvaluation` snapshot is
@@ -86,6 +94,11 @@ def generate_evaluation(
     payload = ledger.get(idea_id)
     if payload is None:
         return STATE_PENDING
+    current = payload.get("evaluation")
+    if isinstance(current, dict) and current.get("status") in (
+        STATE_GENERADA, STATE_ACEPTADA, STATE_SUSTITUIDA,
+    ):
+        return str(current["status"])
     if not assistant.ping():
         persist({"evaluation": {"status": STATE_PENDING}})
         return STATE_PENDING

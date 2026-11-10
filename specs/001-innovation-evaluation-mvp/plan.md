@@ -282,11 +282,11 @@ backend/
 | `features/auth` | RF-1 |
 | `features/capture` | RF-2, RF-3, RF-5, RF-6, RF-7 |
 | `features/assistant` | RF-3 (asignación), RF-4, RF-8, RF-11, RF-12, RF-22 (prompts con contexto) |
-| `features/ideas` | RF-10, RF-19, RF-20, RF-23 + máquina de estados + evaluación al publicar (RF-26) |
+| `features/ideas` | RF-10, RF-19, RF-20, RF-23 + máquina de estados |
 | `features/validation` | RF-14, RF-15, RF-16, RF-26 (aceptar/sustituir evaluación) |
 | `features/users` | RF-17 |
 | `features/org` | RF-21, RF-22 (contexto de empresa) |
-| `features/debate` | RF-24, RF-25 (debate + @asistant + resumen) |
+| `features/debate` | RF-24, RF-25 (debate + @asistant + resumen) + disparo de la evaluación IA al cerrarse el debate (RF-26, caso 22) |
 | `features/notifications` | RF-12, RF-15, RF-16, RF-18 |
 
 > **Nota de acoplamiento:** las features solo se comunican mediante contratos definidos en `shared/` (Constitución §3.2/§4.2). Ej.: `assistant` no importará de `ideas`; consumirá un contrato de lectura/expediente de idea expuesto a través de la capa compartida.
@@ -387,9 +387,9 @@ Si `idea-card` (usado en `my-ideas`, `validation` y `catalog`) se reutiliza en m
 
     "evaluation": {
       "type": ["object", "null"],
-      "description": "Juicio final vigente (RF-26); null hasta el primer intento de generación",
+      "description": "Juicio final vigente (RF-26); null hasta que el debate se cierra y se intenta la generación",
       "properties": {
-        "status":      { "enum": ["PENDING", "GENERADA", "ACEPTADA", "SUSTITUIDA"], "description": "PENDING mientras la IA no puede generarla (caso 22); el juicio final es siempre el resultado de la última acción del especialista (caso 23)" },
+        "status":      { "enum": ["PENDING", "GENERADA", "ACEPTADA", "SUSTITUIDA"], "description": "PENDING mientras la IA no puede generarla al cierre (caso 22); el juicio final es siempre el resultado de la última acción del especialista (caso 23)" },
         "criteria":    {
           "type": "array",
           "description": "Los 5 criterios fijos: claridadDelProblema, factibilidad, impactoEsperado, alineacionEstrategica, gradoDeInnovacion",
@@ -700,7 +700,7 @@ Base: `/api/v1`. Autenticación por **portador de sesión** (RF-1). Todos los pa
 | POST | `/ideas/{id}/versions/{vid}/decide` | dueño | RF-8,RF-13 | Aceptar/descartar versión |
 | POST | `/ideas/{id}/request-publication` | dueño | RF-10 | Solicita publicación |
 | GET  | `/validation/queue` | especialista | RF-14 | Cola en SOLICITANDO_PUBLICACION |
-| POST | `/validation/{id}/approve` | especialista | RF-15, RF-24, RF-26 | Valida/publica; abre el debate (30 d) e intenta la evaluación IA |
+| POST | `/validation/{id}/approve` | especialista | RF-15, RF-24 | Valida/publica; abre el debate (30 d). No ejecuta la evaluación IA (se genera al cerrarse el debate, RF-26) |
 | POST | `/validation/{id}/reject` | especialista | RF-16 | Rechaza con comentario |
 | POST | `/validation/{id}/evaluation/accept` | especialista | RF-26 | Acepta la evaluación de la IA (juicio final) |
 | POST | `/validation/{id}/evaluation` | especialista | RF-26 | Sustituye la evaluación vigente por la propia (5 criterios) |
@@ -1025,7 +1025,7 @@ func TRANSICIONAR(idea, accion, usuario):
     if accion == "approve":
         registrar rastro (publishedBy=usuario, publishedAt=now)   # RNF-8
         ABRIR_DEBATE(idea, publishedAt=now)                      # RF-24: deadline = +30 d
-        GENERAR_EVALUACION(idea)                                 # RF-26 (no bloquea; ver 4.8)
+        # la evaluación IA NO se ejecuta aquí: se genera al cerrarse el debate (RF-26, ver 4.7/4.8)
     if accion == "reject": adjuntar comentario + identificar usuario (RNF-8)
     notificar según evento (RF-18)
     devolver idea
@@ -1041,19 +1041,26 @@ func ABRIR_DEBATE(idea, publishedAt):
                           closed=false, summary=null, adjustments=[])
 
 func LEER_DEBATE(ideaId, ahora):
+    CERRAR_DEBATE(ideaId, ahora)                                   # cierra si llegó el deadline + resumen/evaluación (idempotente)
     debate = cargar_debate(ideaId)
-    if debate.closed == false and ahora >= debate.deadline:
-        debate.closed = true                                       # cierre automático único (RF-24)
-        if debate tiene al menos un mensaje:
-            CERRAR_CON_RESUMEN(ideaId, debate)
-        persistir(debate)
+    if debate NO cerrado: REINTENTAR_ASISTENTE_PENDIENTE(debate)   # @asistant (caso 20)
     devolver debate + mensajes ordenados por createdAt
 
-func CERRAR_CON_RESUMEN(ideaId, debate):
-    if ASISTENTE_DISPONIBLE():
+func CERRAR_DEBATE(ideaId, ahora):
+    debate = cargar_debate(ideaId)
+    if debate no existe: lanzar DomainError(404)
+    if debate.closed == false:
+        if ahora < debate.deadline: devolver debate                # aún abierto (sin cambios)
+        debate.closed = true                                       # cierre automático único (RF-24)
+    REINTENTAR_RESUMEN(debate)                                     # solo si tiene mensajes (caso 21)
+    GENERAR_EVALUACION(debate.ideaId)                              # RF-26, caso 22 (idempotente; ver 4.8)
+    persistir(debate)
+
+func REINTENTAR_RESUMEN(debate):
+    if debate.summary: devolver                                    # ya generado
+    if debate tiene al menos un mensaje and ASISTENTE_DISPONIBLE():
         debate.summary = IA.resumen_debate(idea, mensajes, contexto_empresa)   # RF-22, RF-24
-    si no:
-        debate.summary = null                       # se reintenta en la siguiente verificación (RNF-1)
+    si no: debate.summary = null                # se reintenta en la siguiente verificación (RNF-1)
 
 func PUBLICAR_MENSAJE(ideaId, usuario, texto, linkedMessageId):
     debate = LEER_DEBATE(ideaId)                    # cierra si llegó el deadline
@@ -1089,26 +1096,30 @@ func AJUSTAR_DEADLINE(ideaId, admin, nuevaFecha):
     persistir(debate)                                  # el ajuste queda registrado (quién y cuándo)
 ```
 
-### 4.8 Evaluación de la IA al publicar + decisión del especialista (RF-26)
+### 4.8 Evaluación de la IA al cerrarse el debate + decisión del especialista (RF-26)
 
 ```
 const CRITERIOS = [claridadDelProblema, factibilidad, impactoEsperado,
                    alineacionEstrategica, gradoDeInnovacion]      # fijos (RF-26, D15 spec)
 
-func GENERAR_EVALUACION(idea):
+func GENERAR_EVALUACION(ideaId):                        # se dispara al CERRARSE el debate (RF-26, 4.7)
+    idea = cargar(ideaId)
+    if idea.evaluation?.status in [GENERADA, ACEPTADA, SUSTITUIDA]: devolver   # guarda: nunca sobreescribe (idempotente)
     if NO ASISTENTE_DISPONIBLE():
-        idea.evaluation = { status: PENDING }           # la publicación NO se bloquea (caso 22)
-        devolver                                          # se genera en la siguiente verificación (RNF-1)
+        idea.evaluation = { status: PENDING }           # el cierre NO se bloquea (caso 22)
+        persistir(idea)
+        devolver                                        # se genera en la siguiente verificación (RNF-1)
     criterios = IA.evaluar_idea(contexto_empresa, idea)  # RF-22: 5 criterios, score 1–10 + justificación
+    if criterios no interpretable: idea.evaluation = { status: PENDING }; persistir(idea); devolver   # caso 22
     idea.evaluation = IdeaEvaluation(criteria=criterios,
                                       author="Asistente (IA)", createdAt=now,
                                       status=GENERADA, decidedBy=null, decidedAt=null)
+    idea.aiEvaluation = idea.evaluation.copy()          # instantánea inmutable (visible en el detalle)
     persistir(idea)
 
-func REINTENTAR_EVALUACION_PENDIENTE(ideaId):          # llamada en cada verificación de disponibilidad (RF-11 triggers)
-    idea = cargar(ideaId)
-    if idea.evaluation?.status == PENDING and ASISTENTE_DISPONIBLE():
-        GENERAR_EVALUACION(idea)
+func REINTENTAR_EVALUACIONES_PENDIENTES():              # cada verificación de disponibilidad (RF-11 triggers) + cada lectura de debate cerrado
+    for ideaId in ideas con evaluation?.status == PENDING:
+        if ASISTENTE_DISPONIBLE(): GENERAR_EVALUACION(ideaId)
 
 func ACEPTAR_EVALUACION_IA(ideaId, especialista):
     idea = cargar(ideaId)
@@ -1120,12 +1131,12 @@ func ACEPTAR_EVALUACION_IA(ideaId, especialista):
     persistir(idea)                                                # RNF-8, RNF-11
 
 func SUSTITUIR_EVALUACION(ideaId, especialista, criterios):
-    validar que criterios == los 5 fijos y score en 1–10                          # 422 si no (RNF-5)
+    validar que criterios == los 5 fijos y score en 1–10                          # 422 EVALUATION_INVALID + details.problems (RNF-5)
     idea = cargar(ideaId)
     idea.evaluation = IdeaEvaluation(criteria=criterios, author=especialista.nombre,
                                       createdAt=now, status=SUSTITUIDA,
                                       decidedBy=especialista.id, decidedAt=now)
-    persistir(idea)                                                # juicio final = última acción (caso 23)
+    persistir(idea)                                                # juicio final = última acción (caso 23); la instantánea aiEvaluation NO se toca
 ```
 
 **Trazabilidad RF — Lógica de orquestación**
@@ -1137,8 +1148,8 @@ func SUSTITUIR_EVALUACION(ideaId, especialista, criterios):
 | 4.3 sugerencia de título | RF-4 |
 | 4.4 detección de caídas / manual | RF-7 (RNF-1, RNF-3) |
 | 4.5 clarificación posterior | RF-11, RF-12, RF-13, RF-8 |
-| 4.6 transiciones de idea | RF-10, RF-15, RF-16 (RNF-8, RNF-9) + RF-24, RF-26 (disparo) |
-| 4.7 debate de la idea publicada | RF-24, RF-25 (RNF-1, RNF-11, RNF-3) |
+| 4.6 transiciones de idea | RF-10, RF-15, RF-16 (RNF-8, RNF-9) + RF-24 (apertura del debate) |
+| 4.7 debate de la idea publicada | RF-24, RF-25 (RNF-1, RNF-11, RNF-3) + RF-26 (disparo de la evaluación al cerrarse) |
 | 4.8 evaluación IA + decisión especialista | RF-26 (RNF-1, RNF-5, RNF-8, RNF-11) |
 
 **Trazabilidad RF — Lógica de orquestación**
@@ -1174,7 +1185,7 @@ func SUSTITUIR_EVALUACION(ideaId, especialista, criterios):
 | D14 | **Subida de contexto como JSON** (el frontend lee el archivo y envía `content` en el cuerpo) | `multipart/form-data` con `python-multipart` | Constitución §6.1: las dependencias permitidas no incluyen `python-multipart`; un campo JSON evita añadir un paquete y es suficiente para texto. |
 | D15 | **Cierre automático del debate en la primera lectura tras el deadline** (no hay worker ni programador); el ajuste de fecha por idea es el único control, auditable (RNF-11). | Tiempo de cierre por cron/worker; debate sin cierre | Sin dependencias de programación (C5) y el estado siempre es coherente al ser leído (RNF-9). |
 | D16 | **Catálogo compacto + vista de detalle:** `GET /catalog/public` expone solo título, fecha de publicación y descripción; `GET /catalog/{ideaId}` entrega los 6 campos, el debate y la evaluación (decisiones 16/23 de la spec). | Catálogo completo (todos los datos) | El propietario pidió una listado ligero y el detalle completo; la segregación de datos no cambia (sin contacto en ninguno). |
-| D17 | **Evaluación única por idea con juicio final alterable:** la IA genera 5 criterios al publicar (o queda `PENDING` si la IA cae; la validación no se bloquea); el especialista **acepta** (vuelve a poner la de la IA como juicio final) o **sustituye** (nueva sobre los mismos 5 criterios) en cualquier orden, cada acción auditada (caso 23). | Solo aceptación (sin sustitución); scoring global 0–100 | Cumple RF-26 y el caso 23 de la spec; el scoring global está explícitamente fuera (spec §8.2). |
+| D17 | **Evaluación única por idea con juicio final alterable:** la IA genera 5 criterios **al cerrarse el debate** (o queda `PENDING` si la IA cae; el cierre no se bloquea); el especialista **acepta** (vuelve a poner la de la IA como juicio final) o **sustituye** (nueva sobre los mismos 5 criterios, sin tocar la instantánea `aiEvaluation`) en cualquier orden, cada acción auditada (caso 23). | Generación al publicar (descartada: la evaluación se alinea con el cierre del debate, momento en que ya hay discusión de la que dar cuenta); solo aceptación (sin sustitución); scoring global 0–100 | Cumple RF-26 y el caso 23 de la spec; el scoring global está explícitamente fuera (spec §8.2). |
 
 **Trazabilidad RF — Decisiones**
 
@@ -1232,7 +1243,7 @@ backend/tests/
 │   ├── use_cases/
 │   │   ├── test_capture_flow.py    # RF-2..RF-7: orden (6 campos), chips, título, resumen, manual
 │   │   ├── test_refinement.py      # RF-8, RF-11, RF-12, RF-13
-│   │   ├── test_publication.py     # RF-10, RF-15, RF-16 + apertura de debate y evaluación (RF-24/RF-26)
+│   │   ├── test_publication.py     # RF-10, RF-15, RF-16 (la evaluación NO se dispara aquí; se genera al cerrarse el debate, RF-26)
 │   │   ├── test_evaluation.py      # PENDING → reintento, aceptar/sustituir en cualquier orden (caso 23)
 │   │   └── test_users_roles.py     # RF-17, caso 16
 │   └── infra/
@@ -1243,7 +1254,7 @@ backend/tests/
     ├── test_capture_api.py         # RF-2..RF-7: flujo chat (6 preguntas) + fallback 503 con prellenado
     ├── test_ideas_api.py           # RF-8, RF-9, RF-10, RF-19
     ├── test_validation_api.py      # RF-14..RF-16: cola, aprobar, rechazar (sin comentario → 400)
-    ├── test_evaluation_api.py      # RF-26: /evaluation/accept y /evaluation (403/422/409)
+    ├── test_evaluation_api.py      # RF-26: generación al cierre (PENDING caso 22), reintento, /evaluation/accept (404/409) y /evaluation (403/422)
     ├── test_debate_api.py          # RF-24/RF-25: leer/publicar, @asistant, cierre 409, resumen,
     │                               #     PUT deadline admin (reapertura), casos 18-21
     ├── test_org_context_api.py     # RF-21/RF-22: plantilla, GET/PUT, subida, 403 sin admin,
@@ -1270,7 +1281,7 @@ backend/tests/
 | 19. `@asistant` sin enlazar | `test_debate_api::test_asistant_without_link_treated_as_user` |
 | 20. `@asistant` con IA caída | `test_debate_api::test_asistant_ai_down_keeps_unprocessed` (reintento tras recuperación) |
 | 21. Cierre sin mensajes | `test_debate_rules::test_close_without_messages_no_summary` |
-| 22. IA caída al publicar | `test_evaluation::test_publish_keeps_pending` + `test_evaluation_api::test_pending_generated_on_retry` |
+| 22. IA caída al cerrarse el debate | `test_evaluation::test_generation_down_keeps_the_idea_pending` + `test_evaluation_api::test_closing_with_the_assistant_down_keeps_it_pending_case_22` + `test_evaluation_api::test_pending_evaluation_is_retried_at_the_next_assistant_check` |
 | 23. Aceptar/sustituir alternados | `test_evaluation::test_alternate_accept_replace_last_wins` |
 | 24. Contexto vacío | `test_org_context_api::test_empty_context_warning` + `test_prompts::test_empty_context_note` |
 | 25. Subida sin texto / corrupta | `test_org_context_api::test_upload_empty_rejected` (el vigente no se modifica) |
@@ -1331,7 +1342,7 @@ backend/tests/
 | RF-23 | catalog (detail) | Idea, Debate, IdeaEvaluation | GET /catalog/{ideaId} | — | D12, D16 | api/catalog |
 | RF-24 | debate | Debate, DebateMessage | GET/POST /catalog/{ideaId}/debate, PUT deadline | 4.6 (apertura), 4.7 | D12, D15 | unit/features/debate, api/debate |
 | RF-25 | debate, assistant | DebateMessage | POST /catalog/{ideaId}/debate | 4.7 | D2, D12 | api/debate, casos 19, 20 |
-| RF-26 | validation, ideas, assistant | IdeaEvaluation | /validation/{id}/evaluation* | 4.6 (disparo), 4.8 | D2, D12, D17 | api/evaluation, unit/use_cases, casos 22, 23 |
+| RF-26 | validation, debate, assistant | IdeaEvaluation | /validation/{id}/evaluation* | 4.7 (disparo al cierre), 4.8 | D2, D12, D17 | api/evaluation, unit/assistant, casos 22, 23 |
 
 **Cobertura:** los 26 RF (RF-1 a RF-26) están cubiertos en todas las 6 secciones del plan; RF-21…RF-26 son de la ampliación v2.1.
 

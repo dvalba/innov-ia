@@ -101,6 +101,10 @@ export interface Idea extends IdeaFields {
   generando: boolean;
   /** A pending AI improvement request when the IA was unavailable (case 10, RF-8). */
   improvementRequest: SolicitudMejora | null;
+  /** The final judgment (RF-26); present once the evaluation exists (T-077). */
+  evaluation?: Evaluacion | null;
+  /** The immutable evaluation snapshot produced by the AI (RF-26, T-077). */
+  aiEvaluation?: Evaluacion | null;
 }
 
 /** `GET /ideas/me` entry (RF-19): the "Mis ideas" summary. */
@@ -193,6 +197,86 @@ export interface IdeaCatalogo {
   createdAt: string;
   publishedAt: string | null;
   fields: IdeaFieldsPublica;
+}
+
+/** Evaluation lifecycle state (`evaluation.status`, plan §2.2, RF-26). */
+export type EvaluacionEstado = 'PENDING' | 'GENERADA' | 'ACEPTADA' | 'SUSTITUIDA';
+
+/** One of the 5 fixed criteria of the final judgment (RF-26, RNF-5). */
+export interface CriterioEvaluacion {
+  criterion: string;
+  score: number;
+  justification: string;
+}
+
+/**
+ * An idea evaluation (plan §2.2): the final judgment `evaluation` and the
+ * immutable AI snapshot `aiEvaluation` share this shape. `PENDING` (case 22)
+ * carries only `status` — the AI could not generate it yet.
+ */
+export interface Evaluacion {
+  status: EvaluacionEstado;
+  criteria?: CriterioEvaluacion[];
+  author?: string;
+  createdAt?: string;
+  decidedBy?: string | null;
+  decidedAt?: string | null;
+}
+
+/** `GET /catalog/{ideaId}` payload (T-077, RF-23): the public detail. */
+export interface IdeaDetallePublica {
+  id: string;
+  fields: IdeaFieldsPublica;
+  origin: IdeaOrigin;
+  createdAt: string;
+  publishedAt: string | null;
+  evaluation: Evaluacion | null;
+  aiEvaluation: Evaluacion | null;
+}
+
+/** One message of the published-idea debate (plan §2.8, RF-24/RF-25). */
+export interface MensajeDebate {
+  id: string;
+  ideaId: string;
+  authorId: string;
+  authorName: string;
+  text: string;
+  createdAt: string;
+  linkedMessageId: string | null;
+  isAssistant: boolean;
+  processed: boolean;
+}
+
+/** A pending `@asistant` request the assistant could not process (case 20). */
+export interface SolicitudPendienteAsistente {
+  messageId: string;
+  request: string;
+  at: string;
+}
+
+/** One admin adjustment of the debate deadline (audit, RNF-11). */
+export interface AjusteFechaLimite {
+  by: string;
+  byName: string;
+  at: string;
+  before: string;
+  after: string;
+}
+
+/** The debate of a published idea (plan §2.8, RF-24). */
+export interface Debate {
+  id: string;
+  ideaId: string;
+  deadline: string;
+  open: boolean;
+  closed: boolean;
+  closedAt: string | null;
+  closedBy: string | null;
+  summary: string | null;
+  summaryAt: string | null;
+  pendingAssistant: SolicitudPendienteAsistente | null;
+  deadlineHistory: AjusteFechaLimite[];
+  messages: MensajeDebate[];
 }
 
 /** `GET /notifications` payload (RF-18): the list + the unread counter. */

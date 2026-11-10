@@ -3,10 +3,11 @@
 Endpoints, all guarded to an active session (401 without one) except the admin
 deadline (403 for non-admins):
   GET  /catalog/{idea_id}/debate     -> 200 the debate (messages, deadline,
-                                        closure, summary, trace); the first read
-                                        at/after the deadline closes it once,
-                                        generates the summary and retried a
-                                        pending `@asistant` request (cases 18-21)
+                                         closure, summary, trace); the first read
+                                         at/after the deadline closes it once,
+                                         generates the summary, generates the
+                                         AI evaluation (RF-26) and retries a
+                                         pending `@asistant` request (cases 18-21)
   POST /catalog/{idea_id}/debate     -> 201 the posted message (and the
                                         assistant's reply, when it is a valid
                                         `@asistant` invocation); 409 when the
@@ -16,10 +17,11 @@ deadline (403 for non-admins):
                                         (admin only; audited; a future date
                                         re-opens a closed debate)
 
-The AI pieces (the `@asistant` reply, the closure summary) and the company
-context / idea fields are read at request time and injected into the use
-cases (RF-22); a down assistant degrades the operation gracefully (RNF-1,
-cases 20-21). Pydantic schemas live in this layer only (plan D8).
+The AI pieces (the `@asistant` reply, the closure summary, the closure
+evaluation) and the company context / idea fields are read at request time
+and injected into the use cases (RF-22); a down assistant degrades the
+operation gracefully (RNF-1, cases 20-22). Pydantic schemas live in this
+layer only (plan D8).
 """
 
 from datetime import datetime
@@ -37,7 +39,7 @@ from app.deps import (
     role_dependency,
 )
 from features.debate.use_cases.adjust_deadline import adjust_deadline
-from features.debate.use_cases.assist import make_summarize
+from features.debate.use_cases.assist import make_evaluate, make_summarize
 from features.debate.use_cases.post_debate import post_debate_message
 from features.debate.use_cases.read_debate import read_debate
 from features.org.use_cases.get_context import get_context
@@ -76,15 +78,18 @@ def read_debate_endpoint(idea_id: str, session: SessionDep, store: DebateStoreDe
                          ledger: IdeaLedgerDep, assistant: AssistantClientDep,
                          org_store: OrgStoreDep) -> dict:
     """Returns the debate of a published idea after the read-time rules run
-    (closure at the deadline, summary, pending `@asistant` retry)."""
+    (closure at the deadline, summary, evaluation at closure, pending
+    `@asistant` retry)."""
     idea_payload = ledger.get(idea_id) or {}
+    context = get_context(org_store)
     return read_debate(
         store,
         idea_id=idea_id,
-        summary=make_summarize(assistant, idea_payload, get_context(org_store)),
+        summary=make_summarize(assistant, idea_payload, context),
         assistant=assistant,
         idea_fields=idea_payload,
-        company_context=get_context(org_store),
+        company_context=context,
+        evaluate=make_evaluate(assistant, ledger, context, idea_id),
         now=_now(),
     )
 
@@ -110,6 +115,7 @@ def post_debate_endpoint(idea_id: str, payload: DebateMessageRequest, session: S
         assistant=assistant,
         idea_fields=idea_payload,
         company_context=context,
+        evaluate=make_evaluate(assistant, ledger, context, idea_id),
         now=_now(),
     )
 

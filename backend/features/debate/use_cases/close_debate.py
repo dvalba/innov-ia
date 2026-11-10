@@ -1,4 +1,4 @@
-"""Close a debate at its deadline, generating the summary (RF-24, cases 18/21).
+"""Close a debate at its deadline, generating the summary and the evaluation.
 
 The closure rule (RF-24): when the deadline is reached, the debate closes
 *definitively and only once* — no new messages and the UI shows the summary.
@@ -7,13 +7,15 @@ closed. The summary is the AI's recap of the main points of the conversation,
 generated **only when the debate had at least one message** (case 21: no
 messages, no summary — the UI says "there was no debate").
 
-The AI call is injected as `summarize` (bound to the prompt + company context
-in T-073, RF-22): `close_debate` owns the *rule* (close once, only with
-messages, retryable summary) and stays pure. When the assistant is down
-(`summarize` returns `None`), the closure still happens and the summary
-stays `None` (pending) until the next interaction (case 21 / RF-1). The retry
-also runs on an *already closed* debate whose summary is still missing (case
-20/21): every read (or write) gives it one more chance.
+Both AI calls are injected (bound in the router per RF-22): `summarize` for
+the closure summary and `evaluate` for the AI evaluation of the idea, which
+is generated *at the closure* (RF-26, case 22: the platform is never blocked
+by a down assistant). `close_debate` owns the *rule* (close once, only with
+messages, retryable summary, evaluation at closure) and stays pure. When the
+assistant is down the closure still happens and the summary stays `None`
+(pending) and the evaluation stays `PENDING` until the next interaction.
+The retries also run on an *already closed* debate: every read (or write)
+gives the missing summary and the pending evaluation one more chance.
 """
 
 from collections.abc import Callable
@@ -31,15 +33,29 @@ def _try_summary(debate, now: str, summarize: Callable[[list], str | None] | Non
         debate.set_summary(text, now)
 
 
+def _try_evaluation(debate, evaluate: Callable[[str], None] | None) -> None:
+    """Runs the AI evaluation once the debate is closed (RF-26, case 22).
+
+    The evaluation is generated at the closure and retried at every later
+    read (or write) while it stays `PENDING`; an already-generated or
+    decided evaluation is a no-op (the guard in `generate_evaluation`), so
+    calling it on every closed read is safe and idempotent.
+    """
+    if not debate.closed or evaluate is None:
+        return
+    evaluate(debate.ideaId)
+
+
 def close_debate(
     store: DebateStore,
     *,
     idea_id: str,
     now: str,
     summarize: Callable[[list], str | None] | None = None,
+    evaluate: Callable[[str], None] | None = None,
 ) -> dict:
-    """Closes the debate if its deadline has been reached, once, and stores the
-    AI summary when the debate had messages.
+    """Closes the debate if its deadline has been reached, once, stores the AI
+    summary when the debate had messages and generates the AI evaluation.
 
     Returns the updated debate payload. A debate with no record is a 404.
     The closure is idempotent: closing an already-closed debate is a no-op
@@ -47,7 +63,9 @@ def close_debate(
     The summary is generated only the first time the debate closes and only
     when there is at least one message; a `None` summary (assistant down) is
     kept pending and retried at every later read (or write) until it lands
-    (case 21 / RF-1).
+    (case 21 / RF-1). The evaluation is generated at the closure (RF-26);
+    a down assistant keeps it `PENDING` and it is retried the same way
+    (case 22).
     """
     debate = store.get_debate(idea_id)
     if debate is None:
@@ -57,4 +75,5 @@ def close_debate(
             return store.get(idea_id)  # type: ignore[return-value]
         debate.close(now)
     _try_summary(debate, now, summarize)
+    _try_evaluation(debate, evaluate)
     return store.set(debate)

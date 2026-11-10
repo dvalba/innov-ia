@@ -47,6 +47,7 @@ def post_debate_message(
     assistant: AssistantClient | None,
     idea_fields: dict | None,
     company_context: dict | None,
+    evaluate: Callable[[str], None] | None = None,
     now: str | None = None,
 ) -> dict:
     """Registers a message in the open debate and, when it is a valid
@@ -64,8 +65,9 @@ def post_debate_message(
         linked_message_id = None
     # The deadline closure runs at write time (case 18): a missing debate is a
     # 404 (close_debate) and, if the deadline was reached, the debate closes
-    # now (and its summary is generated) before we reject the post.
-    close_debate(store, idea_id=idea_id, now=moment, summarize=summary)
+    # now (its summary is generated and the AI evaluation is generated at the
+    # closure) before we reject the post.
+    close_debate(store, idea_id=idea_id, now=moment, summarize=summary, evaluate=evaluate)
     debate = store.get_debate(idea_id)
     assert debate is not None  # close_debate guarantees a record from here on
     if debate.closed:

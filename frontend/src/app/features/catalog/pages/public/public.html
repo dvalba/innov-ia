@@ -27,17 +27,19 @@
         Aún no hay iniciativas publicadas.
       </p>
     } @else {
-      <div class="space-y-4">
+      <ul class="space-y-3">
         @for (idea of ideas; track idea.id) {
-          <app-idea-card
-            variant="full"
-            [titulo]="idea.fields.title"
-            [meta]="meta(idea)"
-            [proponente]="idea.fields.proponent"
-            [campos]="idea.fields"
-          />
+          <li>
+            <a [routerLink]="['/catalogo/publico', idea.id]">
+              <app-idea-card
+                variant="compact"
+                [titulo]="idea.fields.title"
+                [metaCompacta]="meta(idea)"
+              />
+            </a>
+          </li>
         }
-      </div>
+      </ul>
     }
   }
 </div>

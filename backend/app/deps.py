@@ -27,10 +27,7 @@ from typing import Annotated
 
 from fastapi import Depends, Request
 
-from features.assistant.domain.evaluation import (
-    generate_evaluation,
-    retry_pending_evaluations,
-)
+from features.assistant.domain.evaluation import retry_pending_evaluations
 from features.assistant.infrastructure.ollama_client import OllamaClient
 from features.assistant.use_cases.run_refinement_queue import run_refinement_queue
 from features.auth.domain.session import Session
@@ -233,10 +230,10 @@ def get_assistant_check(ledger: IdeaLedgerDep, assistant: AssistantClientDep,
             company_context=context,
         )
         if summary["status"] == "OK":
-            # Case 22 (RF-26): an idea published while the assistant was down
-            # keeps its `PENDING` evaluation; this pass retries it. The summary
-            # stays the 4-key refinement summary — the evaluation state is
-            # visible on the idea itself (T-074).
+            # Case 22 (RF-26): the AI evaluation is generated at the debate's
+            # closure; a down assistant leaves it `PENDING` and this pass
+            # retries it. The summary stays the 4-key refinement summary —
+            # the evaluation state is visible on the idea itself (T-074).
             retry_pending_evaluations(ledger, assistant,
                                       now=datetime.now().isoformat(),
                                       company_context=context)
@@ -273,36 +270,6 @@ def get_debate_opener(store: DebateStoreDep) -> Callable[[dict], None]:
 
 
 DebateOpenDep = Annotated[Callable[[dict], None], Depends(get_debate_opener)]
-
-
-def get_evaluations_seeder(ledger: IdeaLedgerDep, assistant: AssistantClientDep,
-                           org_store: OrgStoreDep) -> Callable[[dict], None]:
-    """Builds the on-publish AI-evaluation seeder (T-074, RF-26, case 22).
-
-    Publishing an idea (`approve_idea`) attempts to generate its evaluation on
-    the 5 fixed criteria: `GENERADA` when the assistant answers in time, or
-    `PENDING` when it is down — the publication is NEVER blocked, and the
-    `PENDING` evaluation is regenerated at the next assistant verification
-    (plan §4.8 `GENERAR_EVALUACION` + `REINTENTAR_EVALUACION_PENDIENTE`). The
-    seeder is wired here at the composition root (exactly how the debate
-    opener is wired, T-073) so `validation` keeps importing only `ideas`:
-    the `assistant` domain and the `org` context stay in `app`. The returned
-    callable takes the `VALIDADA_PUBLICA` payload produced by the approve use
-    case; the context document is re-read at call time (RF-22).
-    """
-
-    def _seed(payload: dict) -> None:
-        generate_evaluation(
-            ledger, assistant,
-            idea_id=str(payload["id"]),
-            company_context=get_context(org_store),
-            now=datetime.now().isoformat(),
-        )
-
-    return _seed
-
-
-EvaluationSeedDep = Annotated[Callable[[dict], None], Depends(get_evaluations_seeder)]
 
 
 def _extract_token(request: Request) -> str | None:

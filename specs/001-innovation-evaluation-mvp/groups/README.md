@@ -29,7 +29,7 @@ extremo a extremo.
 | 15 | [`15-e2e-ollama-real.md`](15-e2e-ollama-real.md) | E2E con Ollama real: captura, contingencia, clarificación, validación | T-063, T-064, T-065, T-066 | 4 | 4/4 | ✅ |
 | 16 | [`16-accesibilidad-build-cierre.md`](16-accesibilidad-build-cierre.md) | Accesibilidad + build/guías + verificación spec §9 | T-057, T-058, T-068 | 3 | 3/3 | ✅ |
 | 17 | [`17-contexto-recursos.md`](17-contexto-recursos.md) | Contexto de empresa administrable + inyección en todos los prompts + retirada de *Recursos estimados* (6 campos, D11) | T-069, T-070, T-071, T-075, T-076 | 5 | 5/5 | ✅ |
-| 18 | [`18-debate-evaluacion-catalogo.md`](18-debate-evaluacion-catalogo.md) | Debate (30 días, @asistant, cierre+resumen) + evaluación IA 5 criterios + catálogo compacto con detalle | T-072, T-073, T-074, T-077, T-078 | 5 | 3/5 | ⏳ |
+| 18 | [`18-debate-evaluacion-catalogo.md`](18-debate-evaluacion-catalogo.md) | Debate (30 días, @asistant, cierre+resumen) + evaluación IA 5 criterios al cerrarse el debate + catálogo compacto con detalle | T-072, T-073, T-074, T-077, T-078 | 5 | 4/5 | ⏳ |
 
 **Total: 4+4+3+2+3+5+5+5+3+4+5+3+2+2+4+3+5+5 = 67 tareas** (57 del v2.0 + 10 de la ampliación
 v2.1). ✓ (una por grupo, sin huecos ni

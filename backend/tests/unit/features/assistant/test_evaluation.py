@@ -2,10 +2,12 @@
 
 Covers: the interpretation of the assistant reply (a strict JSON object with
 the 5 fixed criteria; fences/prose tolerated, case-14 failures), the
-generation of the evaluation at publication (`GENERADA` with the immutable
-`aiEvaluation` snapshot, `PENDING` when the assistant is down or the reply is
-uninterpretable — the publication is never blocked, case 22), and the retry of
-the `PENDING` evaluations at the next assistant verification.
+generation of the evaluation at the debate's closure (`GENERADA` with the
+immutable `aiEvaluation` snapshot, `PENDING` when the assistant is down or the
+reply is uninterpretable — the platform is never blocked, case 22), the
+clobber guard (a decided or already-generated evaluation is never overwritten
+by a later generation attempt) and the retry of the `PENDING` evaluations at
+the next assistant verification.
 """
 
 import json
@@ -129,7 +131,7 @@ def test_non_json_reply_fails() -> None:
     assert interpret_evaluation("no hay JSON aquí") is None
 
 
-# -- generation at publication (case 22: the publication is never blocked) -------------
+# -- generation at the debate's closure (case 22: the platform is never blocked) -------
 
 
 def test_generation_writes_evaluation_and_snapshot() -> None:
@@ -171,6 +173,27 @@ def test_generation_with_uninterpretable_reply_keeps_pending() -> None:
     assert generate_evaluation(ledger, assistant, idea_id="idea_pub",
                                company_context=None, now="2026-01-01T00:00:00") == STATE_PENDING
     assert ledger.get("idea_pub")["evaluation"] == {"status": STATE_PENDING}
+
+
+def test_generation_never_clobbers_a_decided_evaluation() -> None:
+    # A re-opened-and-reclosed debate must not erase the specialist's decision:
+    # an evaluation that is not PENDING is left untouched (no AI call, no write).
+    decided = {
+        "status": STATE_ACEPTADA,
+        "criteria": [],
+        "author": EVALUATION_AI_AUTHOR,
+        "createdAt": "2026-01-01T00:00:00",
+        "decidedBy": "u_solo",
+        "decidedAt": "2026-01-02T00:00:00",
+    }
+    ledger = FakeLedger({"idea_pub": _published_idea(evaluation=dict(decided))})
+    assistant = FakeAssistant()
+
+    assert generate_evaluation(ledger, assistant, idea_id="idea_pub",
+                               company_context=None, now="2026-01-03T00:00:00") == STATE_ACEPTADA
+    assert ledger.get("idea_pub")["evaluation"] == decided
+    assert "aiEvaluation" not in ledger.get("idea_pub")
+    assert assistant.prompts == []
 
 
 # -- retry of the pending evaluations (case 22, at every verification) -----------------

@@ -18,7 +18,7 @@
 
 Innov-IA es una plataforma corporativa de gestión de iniciativas de innovación. El MVP entrega la **captura asistida de ideas**: un asistente conversacional con IA actúa como formulario dinámico que recolecta progresivamente 6 datos por idea, con **contingencia manual** cuando la IA no está disponible o falla (el formulario manual se despliega automáticamente, prellenado con lo ya capturado), **flujo de clarificación posterior** de las ideas manuales, y **validación por un especialista** antes de publicarla.
 
-Al publicarse, cada idea abre un **debate** de 30 días (todos los usuarios con sesión; el asistente interviene bajo invocación `@asistant`; al cierre, la IA genera un resumen de los puntos principales) y una **evaluación de la IA sobre 5 criterios fijos**, que el especialista **acepta o sustituye** por su propia evaluación. Todo lo anterior opera guiado por un **contexto de empresa** gestionado por el administrador (RF-21/RF-22).
+Al publicarse, cada idea abre un **debate** de 30 días (todos los usuarios con sesión; el asistente interviene bajo invocación `@asistant`); al **cerrarse** el debate, la IA genera un **resumen de los puntos principales** y la **evaluación de la IA sobre 5 criterios fijos**, que el especialista **acepta o sustituye** por su propia evaluación. Todo lo anterior opera guiado por un **contexto de empresa** gestionado por el administrador (RF-21/RF-22).
 
 ### 1.1 Datos requeridos por idea (los 6 campos)
 
@@ -270,7 +270,7 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 
 **RF-26 — Evaluación de la IA y criterio del especialista**
 
-* Criterio de aceptación: Cuando una idea pasa a **VALIDADA_PUBLICA** (RF-15), el sistema debe generar automáticamente la **evaluación de la IA sobre 5 criterios fijos**: *claridad del problema*, *factibilidad*, *impacto esperado*, *alineación estratégica* y *grado de innovación*, cada uno con **puntuación 1–10 y justificación breve**.
+* Criterio de aceptación: Al **cerrarse el debate** de una idea en **VALIDADA_PUBLICA** (RF-24), el sistema debe generar automáticamente la **evaluación de la IA sobre 5 criterios fijos**: *claridad del problema*, *factibilidad*, *impacto esperado*, *alineación estratégica* y *grado de innovación*, cada uno con **puntuación 1–10 y justificación breve** (si la IA no está disponible la evaluación queda pendiente y se reintenta, sin bloquear nada).
 * Criterio de aceptación: La evaluación se muestra en la vista de detalle como **evaluación de la IA** con su autor y fecha, visible para todo usuario con sesión.
 * Criterio de aceptación: El rol **especialista de desarrollo** puede **aceptar** la evaluación de la IA (queda como el juicio final de la idea) o **sustituirla** por una nueva evaluación propia sobre los mismos 5 criterios (puntuación 1–10 y justificación por criterio); el sustituto se registra con autor y fecha y es revisable solo mientras la evaluación de la IA no haya sido aceptada.
 * Criterio de aceptación: El juicio final de la idea es único en todo momento: la evaluación de la IA (mientras no haya decisión del especialista), la evaluación de la IA aceptada o la evaluación sustitutiva del especialista.
@@ -323,7 +323,7 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 | 19 | `@asistant` sin mensaje enlazado o sin petición | Se trata como mensaje de usuario corriente; no se invoca al asistente. |
 | 20 | Invocación `@asistant` con la IA caída | La petición queda visible como mensaje no procesado con aviso; se reintenta en la siguiente interacción con la IA disponible (RNF-1, RF-25). |
 | 21 | Cierre del debate sin mensajes | No hay resumen generado; la interfaz indica que no hubo debate. |
-| 22 | IA caída al momento de publicarse una idea (evaluación pendiente) | La idea se publica normalmente (la validación no depende de la IA); la evaluación se genera en la siguiente verificación de disponibilidad (RNF-1, RF-26). |
+| 22 | IA caída al momento de cerrarse el debate (evaluación pendiente) | El debate se cierra normalmente (el cierre no depende de la IA); la evaluación queda pendiente y se genera en la siguiente verificación de disponibilidad (RNF-1, RF-26). |
 | 23 | Sustitución de la evaluación por el especialista y luego el especialista acepta la de la IA (o al revés) | Cada acción es sobre el estado previo; el juicio final siempre es el resultado de la última acción del especialista. |
 | 24 | Contexto de empresa vacío o solo plantilla sin contenido | La IA opera sin contexto; se muestra aviso al administrador en la sección de contexto (RF-22). |
 | 25 | Subida de archivo de contexto sin texto o corrupto | Se rechaza el guardado con aviso; el contexto vigente no se modifica. |
@@ -357,7 +357,7 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 9. **Notificaciones:** solo los 4 eventos de RF-18; contador, navegación y leídas.
 10. **Catálogo público:** solo VALIDADA_PUBLICA, en vista compacta (título, fecha de publicación, descripción); al abrir, la vista de detalle muestra los 6 campos, el debate y la evaluación; de solo lectura, sin datos de contacto.
 11. **Debate:** mensajes de cualquier usuario con sesión; cierre automático a 30 días; ajuste de fecha por idea del administrador; `@asistant` responde con el mensaje enlazado; al cierre, resumen de la IA visible.
-12. **Evaluación:** generada al publicarse sobre 5 criterios (1–10 + justificación); aceptación o sustitución por el especialista dejan un único juicio final auditado.
+12. **Evaluación:** generada al cerrarse el debate sobre 5 criterios (1–10 + justificación; pendiente si la IA cae, con reintento); aceptación o sustitución por el especialista dejan un único juicio final auditado.
 13. **Contexto de empresa:** plantilla descargable, edición en línea y subida de archivo; vacío detectado con aviso; inyectado en captura, título, mejoras, debate y evaluación.
 14. **Presentación:** tema claro/oscuro persistido, vista de ajustes, maquetación responsive.
 15. **Casos límite:** verificados 1, 2, 5, 6, 7, 13, 16, 17, 18, 20, 22.
@@ -384,6 +384,6 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 | 12 | **Debate y evaluación son atributos de la idea publicada, no estados:** el debate se cierra por fecha límite (30 días por defecto, ajustable idea por idea por el administrador) y la evaluación es única (IA o del especialista). No se introducen los estados formales *En debate*/*En evaluación* de la v1.0. | RF-24, RF-26, §5.10 |
 | 13 | **Contexto de empresa:** se gestiona como un único documento (plantilla + edición en línea + subida de archivo) y se inyecta en TODAS las operaciones de la IA. Sustituye/expande el perfil de organización de la v2.0 (D7): el perfil queda dentro del documento. | RF-21, RF-22, RNF-12 |
 | 14 | **@asistant en el debate:** la intervención del asistente es bajo invocación explícita citando un mensaje concreto; el resumen final del debate lo genera la IA al cerrarse (si hubo mensajes). El debate no es un chat asistido continuo. | RF-24, RF-25 |
-| 15 | **Evaluación IA:** 5 criterios fijos (*claridad del problema, factibilidad, impacto esperado, alineación estratégica, grado de innovación*), puntuación 1–10 + justificación por criterio; se genera al publicarse; el especialista la acepta o la sustituye por su propia sobre los mismos criterios. No hay scoring global 0–100. | RF-26 |
+| 15 | **Evaluación IA:** 5 criterios fijos (*claridad del problema, factibilidad, impacto esperado, alineación estratégica, grado de innovación*), puntuación 1–10 + justificación por criterio; se genera al cerrarse el debate; el especialista la acepta o la sustituye por su propia sobre los mismos criterios. No hay scoring global 0–100. | RF-26 |
 | 16 | **Catálogo en vista compacta:** el listado muestra solo título, fecha de publicación y descripción; el resto (6 campos, debate, evaluación) se ve en la vista de detalle de la idea. | RF-20, RF-23 |
 | 17 | **Preferencia de presentación:** tema claro/oscuro elegible por el usuario, persistido entre sesiones, con vista de ajustes accesible del menú y maquetación responsive. | RNF-13 |

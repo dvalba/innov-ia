@@ -21,7 +21,9 @@ and the idea fields are injected by the caller — the composition root, RF-22).
 """
 
 from collections.abc import Callable
+from datetime import datetime
 
+from features.assistant.domain.evaluation import generate_evaluation
 from features.assistant.domain.prompts import debate_assistant_prompt, debate_summary_prompt
 from features.debate.domain.debate import (
     ASSISTANT_AUTHOR,
@@ -66,6 +68,36 @@ def make_summarize(
         return text or None
 
     return _summarize
+
+
+def make_evaluate(
+    assistant: AssistantClient | None,
+    ledger,
+    company_context: dict | None,
+    idea_id: str,
+) -> Callable[[str], None] | None:
+    """Builds the `evaluate` binding for `close_debate` (RF-26, case 22).
+
+    Returns `None` when there is no assistant (the evaluation then stays
+    `PENDING` on a down assistant — the debate still closes). The returned
+    callable runs `generate_evaluation` for the idea once, at the debate's
+    closure and again at every later read (or write) while the evaluation
+    stays `PENDING`; the final status is read back from the ledger (a decided
+    evaluation is never clobbered, the retry belongs to
+    `retry_pending_evaluations`).
+    """
+    if assistant is None:
+        return None
+
+    def _evaluate(target_idea_id: str) -> None:
+        generate_evaluation(
+            ledger, assistant,
+            idea_id=target_idea_id or idea_id,
+            company_context=company_context,
+            now=datetime.now().isoformat(),
+        )
+
+    return _evaluate
 
 
 def is_assistant_invocation(text: str) -> bool:

@@ -1,11 +1,11 @@
-"""Read a published-idea debate (RF-24, RF-25).
+"""Read a published-idea debate (RF-24, RF-25, RF-26).
 
 Reading is where the time-driven rules run (plan §4.7 `LEER_DEBATE`): the first
 read after the deadline closes the debate exactly once and generates the
-summary (when there were messages), and a pending `@asistant` request is
-retried when the assistant is back (case 20). The read is read-only for the
-participant view: it never mutates the thread except through those automatic
-rules.
+summary (when there were messages) and the AI evaluation (RF-26, at closure),
+and a pending `@asistant` request is retried when the assistant is back
+(case 20). The read is read-only for the participant view: it never mutates
+the thread except through those automatic rules.
 
 The idea fields (for the AI prompts) and the company context are read by the
 caller at read time (RF-22: the document in force then is the one injected);
@@ -29,13 +29,15 @@ def read_debate(
     assistant: AssistantClient | None,
     idea_fields: dict | None,
     company_context: dict | None,
+    evaluate: Callable[[str], None] | None = None,
     now: str | None = None,
 ) -> dict:
     """Returns the debate payload after applying the read-time rules.
 
     A debate with no record is a 404 (the idea was not published / the debate
     was not opened). When the deadline was reached the debate closes once and
-    the summary is generated (or kept pending), and a pending `@asistant`
+    the summary is generated (or kept pending) and the AI evaluation is
+    generated at the closure (or kept `PENDING`), and a pending `@asistant`
     request is retried. The returned payload carries the messages ordered by
     creation, the deadline, the closed flag and the summary (RF-24).
     """
@@ -44,7 +46,7 @@ def read_debate(
 
         raise DomainError("DEBATE_NOT_FOUND", "La idea aún no tiene debate abierto.", status_code=404)
     moment = now or datetime.now().isoformat()
-    close_debate(store, idea_id=idea_id, now=moment, summarize=summary)
+    close_debate(store, idea_id=idea_id, now=moment, summarize=summary, evaluate=evaluate)
     debate = store.get_debate(idea_id)
     assert debate is not None  # just closed, it always exists from here on
     # The pending `@asistant` retry only runs while the debate is open: a closed

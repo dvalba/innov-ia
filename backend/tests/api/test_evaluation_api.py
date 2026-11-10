@@ -1,14 +1,15 @@
 """Evaluation router API tests (T-074, RF-26, plan §4.8, cases 22-23).
 
-Covers the final-judgment surface end to end with in-memory stores: the AI
-evaluation generated on publication (`GENERADA` when the assistant answers in
-the contract shape, `PENDING` — case 22 — when it is down or its reply is
-uninterpretable, the publication never blocked), the retry of the `PENDING`
-evaluations at the next assistant verification, the specialist's acceptance
-(409 without an `aiEvaluation` snapshot) and replacement (the same 5 fixed
-criteria, 422 with the problems otherwise), and the "last action wins" rule
-in both orders (case 23) with the immutable `aiEvaluation` snapshot kept
-untouched throughout (RNF-8/RF-26).
+Covers the final-judgment surface end to end with in-memory stores: the
+publication runs no AI call (the evaluation is generated at the debate's
+closure, RF-26), the AI evaluation generated at the closure (`GENERADA` when
+the assistant answers in the contract shape, `PENDING` — case 22 — when it is
+down or its reply is uninterpretable, the platform never blocked), the retry
+of the `PENDING` evaluations at the next assistant verification, the
+specialist's acceptance (409 without an `aiEvaluation` snapshot) and
+replacement (the same 5 fixed criteria, 422 with the problems otherwise), and
+the "last action wins" rule in both orders (case 23) with the immutable
+`aiEvaluation` snapshot kept untouched throughout (RNF-8/RF-26).
 """
 
 import json
@@ -28,6 +29,9 @@ from tests.conftest import InMemoryDirectory, InMemoryStore, OllamaMock
 
 PROPOSER = "u_ana"
 SPECIALIST = "u_solo"
+ADMIN = "u_admin"
+
+PAST_DEADLINE = "2020-01-01T00:00:00"
 
 CRITERIA: list[dict] = [
     {"criterion": key, "score": 10 - index, "justification": f"Juicio sobre {key}."}
@@ -48,7 +52,7 @@ def _fields(**overrides: object) -> dict:
     base: dict = {
         "title": "Panel de indicadores de compra",
         "proponent": {"name": "Ana Torres", "area": "Compras",
-                      "contact": "ana.torres@innov-ia.local"},
+                       "contact": "ana.torres@innov-ia.local"},
         "description": "Consolidar los indicadores de compra en un panel.",
         "problem": "Indicadores dispersos en hojas de cálculo.",
         "expectedBenefit": "Tres horas semanales menos de consolidación.",
@@ -71,6 +75,12 @@ def directory() -> InMemoryDirectory:
         "id": SPECIALIST, "username": "solo", "name": "Solo Esp.",
         "area": "Calidad", "contact": "solo@innov-ia.local",
         "roles": ["especialista"], "active": True,
+        "passwordHash": hash_password("clave123"), "shouldChangePassword": False,
+    })
+    store.create({
+        "id": ADMIN, "username": "admin", "name": "Admin",
+        "area": "Dirección", "contact": "admin@innov-ia.local",
+        "roles": ["admin"], "active": True,
         "passwordHash": hash_password("clave123"), "shouldChangePassword": False,
     })
     return store
@@ -108,7 +118,11 @@ def auth(directory, mock, idea_ledger):
 
 
 def _publish(auth, mock, *, available: bool, respond=None, **field_overrides) -> dict:
-    """Creates + requests + approves an idea; returns the approve response body."""
+    """Creates + requests + approves an idea; returns the approve response body.
+
+    The publication never runs the AI evaluation: it is generated at the
+    debate's closure (RF-26).
+    """
     mock.available = available
     if respond is not None:
         mock.respond = respond
@@ -119,14 +133,38 @@ def _publish(auth, mock, *, available: bool, respond=None, **field_overrides) ->
     return response.json()
 
 
-# -- publication: AI evaluation (RF-26, case 22) -----------------------------------
+def _close(auth, idea_id: str) -> dict:
+    """Closes the debate through the real admin path: the deadline moves into
+    the past and the next read runs the closure (summary + AI evaluation,
+    RF-26). Returns the debate payload."""
+    auth(ADMIN).put(f"/admin/ideas/{idea_id}/debate/deadline",
+                    json={"deadline": PAST_DEADLINE})
+    return auth(SPECIALIST).get(f"/catalog/{idea_id}/debate").json()
 
 
-def test_approve_with_a_contract_reply_generates_the_evaluation(auth, mock) -> None:
+# -- publication: no AI call (the evaluation is born at the closure) ---------------
+
+
+def test_publishing_no_longer_runs_the_ai_evaluation(auth, mock) -> None:
     body = _publish(auth, mock, available=True, respond=lambda _p: evaluation_json())
 
     assert body["state"] == "VALIDADA_PUBLICA"
-    evaluation = body["evaluation"]
+    assert body.get("evaluation") is None
+    assert body.get("aiEvaluation") is None
+    # No AI call at publication: the evaluation is generated at the debate's
+    # closure (RF-26).
+    assert mock.prompts == []
+
+
+def test_closing_the_debate_generates_the_evaluation(auth, mock) -> None:
+    body = _publish(auth, mock, available=True, respond=lambda _p: evaluation_json())
+    idea_id = body["id"]
+
+    debate = _close(auth, idea_id)
+    assert debate["closed"] is True
+
+    stored = auth(PROPOSER).get(f"/ideas/{idea_id}").json()["idea"]
+    evaluation = stored["evaluation"]
     assert evaluation["status"] == "GENERADA"
     assert evaluation["author"] == "Asistente (IA)"
     assert evaluation["createdAt"]
@@ -137,38 +175,53 @@ def test_approve_with_a_contract_reply_generates_the_evaluation(auth, mock) -> N
         assert 1 <= criterion["score"] <= 10
         assert criterion["justification"]
     # The immutable snapshot is stored together with the evaluation ...
-    assert body["aiEvaluation"]["criteria"] == evaluation["criteria"]
-    assert body["aiEvaluation"]["author"] == "Asistente (IA)"
-    assert body["aiEvaluation"]["status"] == "GENERADA"
+    assert stored["aiEvaluation"]["criteria"] == evaluation["criteria"]
+    assert stored["aiEvaluation"]["author"] == "Asistente (IA)"
+    assert stored["aiEvaluation"]["status"] == "GENERADA"
     # ... and only the evaluation prompt went through the assistant.
     assert len(mock.prompts) == 1
 
 
-def test_approve_wins_when_the_assistant_is_down_case_22(auth, mock) -> None:
+def test_closing_with_the_assistant_down_keeps_it_pending_case_22(auth, mock) -> None:
     body = _publish(auth, mock, available=False)
 
     assert body["state"] == "VALIDADA_PUBLICA"
     assert body["publishedBy"] == SPECIALIST
     assert body["publishedAt"]
-    assert body["evaluation"] == {"status": "PENDING"}
-    assert body["aiEvaluation"] is None
-    # The publication was not blocked: the idea is already public (RF-26).
+    assert body.get("evaluation") is None
+
+    _close(auth, body["id"])
+
     stored = auth(PROPOSER).get(f"/ideas/{body['id']}").json()["idea"]
     assert stored["state"] == "VALIDADA_PUBLICA"
     assert stored["evaluation"] == {"status": "PENDING"}
+    assert stored.get("aiEvaluation") is None
+    # The platform was not blocked: the idea is public and the debate closed
+    # (RF-26, case 22); the assistant was never reached.
+    assert mock.prompts == []
 
 
-def test_an_uninterpretable_reply_keeps_the_evaluation_pending(auth, mock) -> None:
+def test_an_uninterpretable_reply_at_the_closure_keeps_the_evaluation_pending(auth, mock) -> None:
     body = _publish(auth, mock, available=True, respond=lambda _p: "no JSON aquí")
 
-    assert body["state"] == "VALIDADA_PUBLICA"
-    assert body["evaluation"] == {"status": "PENDING"}
-    assert body["aiEvaluation"] is None
+    _close(auth, body["id"])
+
+    stored = auth(PROPOSER).get(f"/ideas/{body['id']}").json()["idea"]
+    assert stored["evaluation"] == {"status": "PENDING"}
+    assert stored.get("aiEvaluation") is None
+    # The prompt ran at the closure (case 14: an uninterpretable reply is a
+    # failure that keeps the evaluation PENDING).
+    assert len(mock.prompts) == 1
+
+
+# -- retry of the pending evaluations (case 22, at every verification) --------------
 
 
 def test_pending_evaluation_is_retried_at_the_next_assistant_check(auth, mock) -> None:
     body = _publish(auth, mock, available=False)
-    assert body["evaluation"] == {"status": "PENDING"}
+    _close(auth, body["id"])
+    stored = auth(PROPOSER).get(f"/ideas/{body['id']}").json()["idea"]
+    assert stored["evaluation"] == {"status": "PENDING"}
 
     # The assistant recovers (with a contract reply): the proponent triggers
     # the verification that retries the PENDING evaluation (case 22).
@@ -191,16 +244,14 @@ def test_pending_evaluation_is_retried_at_the_next_assistant_check(auth, mock) -
 
 def test_the_check_does_not_rebuild_a_decided_evaluation(auth, mock) -> None:
     """A decided (accepted/replaced) evaluation never returns to PENDING."""
-    body = _publish(auth, mock, available=False)
-    mock.available = True
-    mock.respond = lambda _prompt: evaluation_json()
-    # The retry turns it into GENERADA first ...
-    auth(PROPOSER).post("/assistant/check")
+    body = _publish(auth, mock, available=True, respond=lambda _p: evaluation_json())
     idea_id = body["id"]
+    _close(auth, idea_id)
     accept = auth(SPECIALIST).post(f"/validation/{idea_id}/evaluation/accept")
     assert accept.status_code == 200
     assert accept.json()["evaluation"]["status"] == "ACEPTADA"
-    # ... and a second verification must not touch it.
+    # A later verification must not touch it (the guard in
+    # `generate_evaluation` never clobbers a decided judgment).
     check = auth(PROPOSER).post("/assistant/check")
     assert check.status_code == 200
     stored = auth(PROPOSER).get(f"/ideas/{idea_id}").json()["idea"]
@@ -226,13 +277,14 @@ def test_evaluation_endpoints_require_session_and_specialist_role(auth) -> None:
 def test_accept_makes_the_ai_evaluation_the_final_judgment(auth, mock) -> None:
     body = _publish(auth, mock, available=True, respond=lambda _p: evaluation_json())
     idea_id = body["id"]
+    _close(auth, idea_id)
 
     response = auth(SPECIALIST).post(f"/validation/{idea_id}/evaluation/accept")
     assert response.status_code == 200
     evaluation = response.json()["evaluation"]
     assert evaluation["status"] == "ACEPTADA"
     assert evaluation["author"] == "Asistente (IA)"
-    assert evaluation["criteria"] == body["aiEvaluation"]["criteria"]
+    assert evaluation["criteria"] == response.json()["aiEvaluation"]["criteria"]
     assert evaluation["decidedBy"] == SPECIALIST
     assert evaluation["decidedAt"]
     # The immutable snapshot is untouched (its audit stays empty).
@@ -244,6 +296,9 @@ def test_accept_makes_the_ai_evaluation_the_final_judgment(auth, mock) -> None:
 
 def test_accept_without_an_ai_evaluation_is_a_409(auth, mock) -> None:
     body = _publish(auth, mock, available=False)
+    # The debate closes with the assistant down: the evaluation stays PENDING
+    # and there is no snapshot to accept (case 22).
+    _close(auth, body["id"])
     response = auth(SPECIALIST).post(f"/validation/{body['id']}/evaluation/accept")
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "EVALUATION_MISSING"
@@ -259,6 +314,7 @@ def test_accept_404_for_an_unknown_idea(auth) -> None:
 def test_replaces_the_final_judgment_with_the_specialist_own(auth, mock) -> None:
     body = _publish(auth, mock, available=True, respond=lambda _p: evaluation_json())
     idea_id = body["id"]
+    _close(auth, idea_id)
 
     response = auth(SPECIALIST).post(f"/validation/{idea_id}/evaluation",
                                      json={"criteria": CRITERIA})
@@ -271,7 +327,7 @@ def test_replaces_the_final_judgment_with_the_specialist_own(auth, mock) -> None
     assert evaluation["decidedAt"]
     # The AI's snapshot stays visible and untouched (RF-26).
     snapshot = response.json()["aiEvaluation"]
-    assert snapshot["criteria"] == body["aiEvaluation"]["criteria"]
+    assert [c["criterion"] for c in snapshot["criteria"]] == list(EVALUATION_CRITERIA)
     assert snapshot["author"] == "Asistente (IA)"
     assert snapshot["status"] == "GENERADA"
 
@@ -280,6 +336,7 @@ def test_last_action_wins_in_both_orders_case_23(auth, mock) -> None:
     # Order A: replace first, then accept (the acceptance re-applies the AI's).
     body = _publish(auth, mock, available=True, respond=lambda _p: evaluation_json())
     idea_id = body["id"]
+    _close(auth, idea_id)
     replace = auth(SPECIALIST).post(f"/validation/{idea_id}/evaluation",
                                     json={"criteria": CRITERIA})
     assert replace.status_code == 200
@@ -295,6 +352,7 @@ def test_last_action_wins_in_both_orders_case_23(auth, mock) -> None:
     body2 = _publish(auth, mock, available=True, respond=lambda _p: evaluation_json(),
                      title="Segunda iniciativa")
     idea_id2 = body2["id"]
+    _close(auth, idea_id2)
     accept2 = auth(SPECIALIST).post(f"/validation/{idea_id2}/evaluation/accept")
     assert accept2.status_code == 200
     assert accept2.json()["evaluation"]["status"] == "ACEPTADA"

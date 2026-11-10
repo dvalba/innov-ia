@@ -107,10 +107,27 @@ export const routes: Routes = [
       },
       {
         path: 'catalogo',
-        loadComponent: () =>
-          import('./features/catalog/pages/public/public').then(
-            (m) => m.PublicCatalog,
-          ),
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            redirectTo: 'publico',
+          },
+          {
+            path: 'publico',
+            loadComponent: () =>
+              import('./features/catalog/pages/public/public').then(
+                (m) => m.PublicCatalog,
+              ),
+          },
+          {
+            path: 'publico/:id',
+            loadComponent: () =>
+              import('./features/catalog/pages/detail/detail').then(
+                (m) => m.CatalogDetail,
+              ),
+          },
+        ],
       },
       {
         path: 'admin',

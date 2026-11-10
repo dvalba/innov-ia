@@ -46,6 +46,7 @@ def directory() -> InMemoryDirectory:
         ("u_ana", "Ana", ["proponente"]),
         ("u_beto", "Beto", ["proponente"]),
         ("u_solo", "Solo Esp.", ["especialista"]),
+        ("u_admin", "Admin", ["admin"]),
     ):
         store.create({
             "id": user_id,
@@ -177,6 +178,18 @@ def _publish(auth, mock, *, available: bool, respond=None, **field_overrides) ->
     return idea
 
 
+PAST_DEADLINE = "2020-01-01T00:00:00"
+
+
+def _close(auth, idea_id: str) -> dict:
+    """Closes the idea's debate through the real admin path: the deadline
+    moves into the past and the next read runs the closure (the AI evaluation
+    is generated at the debate's closure, RF-26)."""
+    auth("u_admin").put(f"/admin/ideas/{idea_id}/debate/deadline",
+                        json={"deadline": PAST_DEADLINE})
+    return auth("u_solo").get(f"/catalog/{idea_id}/debate").json()
+
+
 def test_detail_requires_an_active_session_401(auth) -> None:
     assert auth(token=False).get("/catalog/u_ana_1").status_code == 401
 
@@ -203,9 +216,10 @@ def test_detail_of_an_unpublished_idea_is_a_404(auth, mock) -> None:
     assert auth("u_solo").get(f"/catalog/{solicitado['id']}").status_code == 404
 
 
-def test_detail_holds_the_fields_and_the_pending_evaluation(auth, mock) -> None:
-    # The assistant is down on publication (case 22): the evaluation stays PENDING.
-    idea = _publish(auth, mock, available=False)
+def test_detail_holds_the_fields_before_the_debate_closes(auth, mock) -> None:
+    # No AI runs at publication: the evaluation is generated at the debate's
+    # closure (RF-26), so before that there is none yet (no PENDING seed).
+    idea = _publish(auth, mock, available=True)
     detail = auth("u_ana").get(f"/catalog/{idea['id']}").json()
     assert set(detail) == {
         "id", "fields", "origin", "createdAt", "publishedAt", "evaluation", "aiEvaluation",
@@ -217,13 +231,16 @@ def test_detail_holds_the_fields_and_the_pending_evaluation(auth, mock) -> None:
     assert "contact" not in str(detail)
     assert detail["origin"] == "manual"
     assert detail["createdAt"] and detail["publishedAt"]
-    # Nothing generated yet: PENDING, no snapshot.
-    assert detail["evaluation"] == {"status": "PENDING"}
+    # Nothing generated yet: the closure has not run.
+    assert detail["evaluation"] is None
     assert detail["aiEvaluation"] is None
 
 
 def test_detail_exposes_the_generated_evaluation_and_its_snapshot(auth, mock) -> None:
     idea = _publish(auth, mock, available=True, respond=lambda _p: evaluation_json())
+    # The closure of the debate is what generates the AI evaluation (RF-26).
+    debate = _close(auth, idea["id"])
+    assert debate["closed"] is True
     detail = auth("u_ana").get(f"/catalog/{idea['id']}").json()
     evaluation = detail["evaluation"]
     assert evaluation["status"] == "GENERADA"
@@ -238,6 +255,7 @@ def test_detail_exposes_the_generated_evaluation_and_its_snapshot(auth, mock) ->
 
 def test_detail_reflects_the_specialists_last_decision(auth, mock) -> None:
     idea = _publish(auth, mock, available=True, respond=lambda _p: evaluation_json())
+    _close(auth, idea["id"])
     # The specialist accepts the AI evaluation (T-074); the detail is read-only
     # and simply reflects the final judgment (case 23).
     accepted = auth("u_solo").post(f"/validation/{idea['id']}/evaluation/accept").json()

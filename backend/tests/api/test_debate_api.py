@@ -276,9 +276,10 @@ def test_asistant_without_a_link_is_a_plain_message(auth, mock) -> None:
     )
     assert body.status_code == 201
     assert body.json()["assistantReply"] is None
-    # only the on-publish AI evaluation ran (RF-26); the debate assistant
-    # was never invoked (case 19).
-    assert len(mock.prompts) == 1 and "comité de evaluación" in mock.prompts[0]
+    # No AI call at all: the publication runs none (the AI evaluation is
+    # generated at the debate's closure, RF-26 — the deadline is 30 days out)
+    # and the debate assistant was never invoked (case 19).
+    assert mock.prompts == []
     messages = body.json()["debate"]["messages"]
     assert len(messages) == 1
     assert messages[0]["text"] == "@asistant"
@@ -436,8 +437,9 @@ def test_a_debate_closed_without_messages_has_no_summary(auth, mock, debate_stor
     body = auth.client().get(f"/catalog/{idea['id']}/debate").json()
     assert body["closed"] is True
     assert body["summary"] is None
-    # no message: the summary prompt never ran (case 21); only the on-publish
-    # AI evaluation (RF-26) produced a prompt.
+    # No message: the summary prompt never ran (case 21); the only prompt is
+    # the AI evaluation generated at the debate's closure (RF-26), whose
+    # uninterpretable reply ("Resumen imposible.") keeps it PENDING.
     assert len(mock.prompts) == 1 and "comité de evaluación" in mock.prompts[0]
 
 
