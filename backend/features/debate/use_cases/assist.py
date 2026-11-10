@@ -75,6 +75,7 @@ def make_evaluate(
     ledger,
     company_context: dict | None,
     idea_id: str,
+    on_generated: Callable[[str], None] | None = None,
 ) -> Callable[[str], None] | None:
     """Builds the `evaluate` binding for `close_debate` (RF-26, case 22).
 
@@ -85,6 +86,10 @@ def make_evaluate(
     stays `PENDING`; the final status is read back from the ledger (a decided
     evaluation is never clobbered, the retry belongs to
     `retry_pending_evaluations`).
+
+    `on_generated` (T-083) is forwarded to `generate_evaluation`, so the first
+    time the evaluation reaches `GENERADA` through this binding the caller's
+    fanout fires exactly once per idea (RNF-9).
     """
     if assistant is None:
         return None
@@ -95,6 +100,7 @@ def make_evaluate(
             idea_id=target_idea_id or idea_id,
             company_context=company_context,
             now=datetime.now().isoformat(),
+            on_generated=on_generated,
         )
 
     return _evaluate

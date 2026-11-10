@@ -12,13 +12,15 @@ Typed dependency aliases:
     DI providers (override in tests).
   - `RefinedEmitterDep` / `PublishedEmitterDep` / `RejectedEmitterDep` /
     `RequestedEmitterDep` (G10/T-033) plus `DecisionEmitterDep` /
-    `ReevaluatedEmitterDep` (T-082): emitters for the RF-18 notification
-    events. Each takes the updated `Idea` produced by the use cases;
-    `Requested` fans out to every active specialist, `Decision` emits the
-    final-decision event to the creator (reading `idea.decision`) and
-    `Reevaluated` emits `IDEA_REEVALUATED` to the creator. They wire the
-    shared `notifications` use cases from the composition root so
-    `ideas`/`assistant` never import `notifications`.
+    `ReevaluatedEmitterDep` (T-082) and `CalibrationEmitterDep` (T-083):
+    emitters for the RF-18 notification events. Each takes the updated `Idea`
+    produced by the use cases — `Calibration` takes the idea id, since it is
+    invoked by the evaluation generation hook; `Requested` and `Calibration`
+    fan out to every active specialist, `Decision` emits the final-decision
+    event to the creator (reading `idea.decision`) and `Reevaluated` emits
+    `IDEA_REEVALUATED` to the creator. They wire the shared `notifications`
+    use cases from the composition root so `ideas`/`assistant` never import
+    `notifications`.
   - `SessionDep`: active bearer `Session` (401 when absent/expired or when the
     account is deactivated; roles are re-read live on every request).
   - `role_dependency(roles)`: `Session` plus a required role subset (403).
@@ -43,6 +45,7 @@ from features.ideas.infrastructure.idea_store import IdeaStore
 from features.notifications.infrastructure.notification_store import NotificationStore
 from features.notifications.use_cases.create_notification import (
     create_notification,
+    fanout_calibration,
     fanout_requested,
     message_for,
 )
@@ -243,6 +246,20 @@ def _reevaluated_emitter(store):
     return _emit
 
 
+def _calibration_emitter(store, directory):
+    """IDEA_CALIBRATION_PENDING: fanned out to every active specialist (T-083).
+
+    Takes the idea id (not the `Idea`): it is invoked by the generation hook,
+    which only carries the id. The fanout to the specialists is performed here
+    so `assistant`/`debate` never import `notifications` (RF-18, RF-20).
+    """
+
+    def _emit(idea_id: str) -> None:
+        fanout_calibration(store, directory, idea_id=idea_id)
+
+    return _emit
+
+
 def get_refined_emitter(store: NotificationStoreDep, directory: UserDirectoryDep):
     """Builds the IDEA_REFINED emitter (bound to the shared notification store)."""
     return _refined_emitter(store, directory)
@@ -273,16 +290,23 @@ def get_reevaluated_emitter(store: NotificationStoreDep):
     return _reevaluated_emitter(store)
 
 
+def get_calibration_emitter(store: NotificationStoreDep, directory: UserDirectoryDep):
+    """Builds the IDEA_CALIBRATION_PENDING fanout emitter (T-083, RF-18/RF-20)."""
+    return _calibration_emitter(store, directory)
+
+
 RefinedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_refined_emitter)]
 PublishedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_published_emitter)]
 RejectedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_rejected_emitter)]
 RequestedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_requested_emitter)]
 DecisionEmitterDep = Annotated[Callable[[Idea], None], Depends(get_decision_emitter)]
 ReevaluatedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_reevaluated_emitter)]
+CalibrationEmitterDep = Annotated[Callable[[str], None], Depends(get_calibration_emitter)]
 
 
 def get_assistant_check(ledger: IdeaLedgerDep, assistant: AssistantClientDep,
-                        emit: RefinedEmitterDep, org_store: OrgStoreDep) -> Callable[[], dict]:
+                        emit: RefinedEmitterDep, org_store: OrgStoreDep,
+                        calibration: CalibrationEmitterDep) -> Callable[[], dict]:
     """Builds the on-demand assistant check (T-062, RF-11).
 
     Wraps `run_refinement_queue` bound to the ledger, the assistant, the
@@ -304,10 +328,13 @@ def get_assistant_check(ledger: IdeaLedgerDep, assistant: AssistantClientDep,
             # Case 22 (RF-26): the AI evaluation is generated at the debate's
             # closure; a down assistant leaves it `PENDING` and this pass
             # retries it. The summary stays the 4-key refinement summary —
-            # the evaluation state is visible on the idea itself (T-074).
+            # the evaluation state is visible on the idea itself (T-074). The
+            # calibration fanout (T-083, RF-18/RF-20) fires for each evaluation
+            # that reaches GENERADA on this retry.
             retry_pending_evaluations(ledger, assistant,
                                       now=datetime.now().isoformat(),
-                                      company_context=context)
+                                      company_context=context,
+                                      on_generated=calibration)
         return summary
 
     return _check

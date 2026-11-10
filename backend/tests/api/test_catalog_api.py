@@ -1,12 +1,17 @@
-"""Catalog router API tests (T-035, T-077, RF-20, RF-23, RNF-7, plan §3.1).
+"""Catalog router API tests (T-035, T-077, T-083, RF-20/RF-23/RF-27, RNF-7, plan §3.1).
 
-Covers the public catalog: `GET /catalog/public` is read-only for any active
-session (401 without one) and returns only `VALIDADA_PUBLICA` ideas — with the
-6 fields (proponent reduced to name/area, never contact), the origin and the
-registration/publication dates. Ideas in any other state are absent. And the
-public detail (`GET /catalog/{ideaId}`, RF-23): the same fields plus the final
-`evaluation` and the immutable `aiEvaluation` snapshot, only for published
-ideas — an unknown id or an unpublished idea is a 404.
+Covers the public catalog by zones (RF-20/D16/D21): `GET /catalog/public` is
+read-only for any active session (401 without one) and returns the four zones
+(`en-proceso`, `aceptadas`, `rechazadas`, `archivadas`), each a projection of
+one idea state, each with the compact item (`id`, `title`, `publishedAt`,
+`description` — never the 6 fields, the origin or the proponent's contact).
+`?zone=<zone>` returns a single zone and an unknown zone is a 422
+(`CATALOG_ZONE_INVALID`). And the public detail (`GET /catalog/{ideaId}`,
+RF-23/D21): the 6 fields (proponent reduced to name/area, never contact), the
+origin and the registration/publication dates, the `state` and the `decision`
+(`None` while the idea is still in calibration) plus the final `evaluation` and
+the immutable `aiEvaluation` snapshot — only for the four catalog states, an
+unknown id or an out-of-catalog state is a 404.
 """
 
 import json
@@ -19,6 +24,9 @@ from app import deps as deps_module
 from app.main import app as main_app
 from features.auth.infrastructure.token_store import TokenStore
 from features.ideas.infrastructure.idea_store import IdeaStore
+from features.notifications.infrastructure.notification_store import NotificationStore
+from features.org.infrastructure.org_store import OrgStore
+from features.validation.infrastructure.threshold_store import ThresholdStore
 from shared.contracts.evaluation import EVALUATION_CRITERIA
 from shared.contracts.idea_ledger import IDEA_FIELDS
 from shared.utils.password import hash_password
@@ -73,12 +81,30 @@ def mock() -> OllamaMock:
 
 
 @pytest.fixture()
-def auth(directory, idea_ledger, mock):
+def notify_store() -> NotificationStore:
+    return NotificationStore(InMemoryStore())
+
+
+@pytest.fixture()
+def threshold_store() -> ThresholdStore:
+    return ThresholdStore(InMemoryStore())
+
+
+@pytest.fixture()
+def org_store() -> OrgStore:
+    return OrgStore(InMemoryStore())
+
+
+@pytest.fixture()
+def auth(directory, idea_ledger, mock, notify_store, threshold_store, org_store):
     token_store = TokenStore(InMemoryStore(), ttl_minutes=480, now_factory=datetime.now)
     main_app.dependency_overrides[deps_module.get_user_directory] = lambda: directory
     main_app.dependency_overrides[deps_module.get_token_store] = lambda: token_store
     main_app.dependency_overrides[deps_module.get_idea_ledger] = lambda: idea_ledger
     main_app.dependency_overrides[deps_module.get_assistant_client] = lambda: mock
+    main_app.dependency_overrides[deps_module.get_notification_store] = lambda: notify_store
+    main_app.dependency_overrides[deps_module.get_threshold_store] = lambda: threshold_store
+    main_app.dependency_overrides[deps_module.get_org_store] = lambda: org_store
 
     def _client(user_id: str = "u_solo", token: bool = True) -> TestClient:
         if not token:
@@ -104,40 +130,43 @@ def test_public_catalog_is_open_to_any_active_role(auth) -> None:
     assert auth("u_ana").get("/catalog/public").status_code == 200
 
 
-# -- content contract (RF-20, decision #2, RNF-7) -------------------------------------
+# -- content contract (RF-20, D16/D21, RNF-7) ------------------------------------------
 
 
-def test_public_catalog_lists_only_validada_publica(auth) -> None:
-    # Approved -> in the catalog.
+def test_public_catalog_returns_the_four_zones_with_only_their_states(auth) -> None:
+    # Approved -> in the en-proceso zone.
     approved = auth("u_ana").post("/ideas", json=_fields()).json()
     auth("u_ana").post(f"/ideas/{approved['id']}/request-publication")
     auth("u_solo").post(f"/validation/{approved['id']}/approve")
     # In development -> out of the catalog.
     auth("u_beto").post("/ideas", json=_fields(title="Otra, en desarrollo")).json()
-    # Waiting for review -> out of the catalog (decision #2: only published).
+    # Waiting for review -> out of the catalog (only the catalog states).
     solicitado = auth("u_beto").post("/ideas", json=_fields(title="Solicitando")).json()
     auth("u_beto").post(f"/ideas/{solicitado['id']}/request-publication")
 
-    catalog = auth("u_solo").get("/catalog/public").json()
-    assert [entry["id"] for entry in catalog] == [approved["id"]]
+    body = auth("u_solo").get("/catalog/public").json()
+    assert set(body) == {"zones"}
+    assert set(body["zones"]) == {"en-proceso", "aceptadas", "rechazadas", "archivadas"}
+    assert [entry["id"] for entry in body["zones"]["en-proceso"]] == [approved["id"]]
+    for zone in ("aceptadas", "rechazadas", "archivadas"):
+        assert body["zones"][zone] == []
 
 
-def test_catalog_entry_holds_the_fields_without_contact_and_with_dates(auth) -> None:
+def test_catalog_compact_entry_holds_the_four_keys_without_contact(auth) -> None:
     approved = auth("u_ana").post("/ideas", json=_fields()).json()
     auth("u_ana").post(f"/ideas/{approved['id']}/request-publication")
     auth("u_solo").post(f"/validation/{approved['id']}/approve")
 
-    entry = auth("u_solo").get("/catalog/public").json()[0]
-    assert set(entry) == {"id", "fields", "origin", "createdAt", "publishedAt"}
-    assert set(entry["fields"]) == set(IDEA_FIELDS)
-    # The proponent is reduced to name/area; the contact is never exposed (RNF-7).
-    assert entry["fields"]["proponent"] == {"name": "Ana Torres", "area": "Compras"}
-    assert "contact" not in entry["fields"]["proponent"]
-    assert entry["origin"] == "manual"
-    assert entry["createdAt"]
+    entry = auth("u_solo").get("/catalog/public").json()["zones"]["en-proceso"][0]
+    assert set(entry) == {"id", "title", "publishedAt", "description"}
+    assert entry["id"] == approved["id"]
+    assert entry["title"] == "Optimización de la aprobación de proveedores"
+    assert entry["description"] == "Digitalizar la validación de proveedores."
     assert entry["publishedAt"]
-    # The full idea payload (contact included) is not leaked through the catalog.
-    assert "contact" not in str(entry)
+    # The compact item carries no fields, no origin, no dates beyond the
+    # publication, no proponent data: the contact is never exposed (RNF-7).
+    for absent in ("fields", "origin", "createdAt", "proponent", "contact"):
+        assert absent not in entry
 
 
 def test_public_catalog_never_leaks_another_users_contact(auth) -> None:
@@ -146,12 +175,35 @@ def test_public_catalog_never_leaks_another_users_contact(auth) -> None:
     )).json()
     auth("u_beto").post(f"/ideas/{idea['id']}/request-publication")
     auth("u_solo").post(f"/validation/{idea['id']}/approve")
-    entry = auth("u_ana").get("/catalog/public").json()[0]
-    assert entry["fields"]["proponent"]["name"] == "Beto"
+    entry = auth("u_ana").get("/catalog/public").json()["zones"]["en-proceso"][0]
+    assert entry["id"] == idea["id"]
     assert "beto@corp.com" not in str(entry)
+    assert "contact" not in str(entry)
 
 
-# -- public detail (T-077, RF-23, plan line 708) -------------------------------------
+def test_single_zone_returns_only_that_zone(auth) -> None:
+    approved = auth("u_ana").post("/ideas", json=_fields()).json()
+    auth("u_ana").post(f"/ideas/{approved['id']}/request-publication")
+    auth("u_solo").post(f"/validation/{approved['id']}/approve")
+
+    body = auth("u_solo").get("/catalog/public", params={"zone": "en-proceso"}).json()
+    assert set(body) == {"zone", "items"}
+    assert body["zone"] == "en-proceso"
+    assert [entry["id"] for entry in body["items"]] == [approved["id"]]
+    for entry in body["items"]:
+        assert set(entry) == {"id", "title", "publishedAt", "description"}
+
+    empty = auth("u_solo").get("/catalog/public", params={"zone": "aceptadas"}).json()
+    assert empty == {"zone": "aceptadas", "items": []}
+
+
+def test_an_unknown_zone_is_a_422(auth) -> None:
+    response = auth("u_solo").get("/catalog/public", params={"zone": "todas"})
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "CATALOG_ZONE_INVALID"
+
+
+# -- public detail (T-077, T-083, RF-23/D21) --------------------------------------------
 
 
 def evaluation_json() -> str:
@@ -190,6 +242,13 @@ def _close(auth, idea_id: str) -> dict:
     return auth("u_solo").get(f"/catalog/{idea_id}/debate").json()
 
 
+def _decide(auth, idea_id: str, outcome: str, reason: str | None = None) -> dict:
+    response = auth("u_solo").post(f"/validation/{idea_id}/decision",
+                                   json={"outcome": outcome, "reason": reason})
+    assert response.status_code == 200
+    return response.json()
+
+
 def test_detail_requires_an_active_session_401(auth) -> None:
     assert auth(token=False).get("/catalog/u_ana_1").status_code == 401
 
@@ -216,13 +275,14 @@ def test_detail_of_an_unpublished_idea_is_a_404(auth, mock) -> None:
     assert auth("u_solo").get(f"/catalog/{solicitado['id']}").status_code == 404
 
 
-def test_detail_holds_the_fields_before_the_debate_closes(auth, mock) -> None:
+def test_detail_holds_the_fields_and_no_decision_before_the_debate_closes(auth, mock) -> None:
     # No AI runs at publication: the evaluation is generated at the debate's
     # closure (RF-26), so before that there is none yet (no PENDING seed).
     idea = _publish(auth, mock, available=True)
     detail = auth("u_ana").get(f"/catalog/{idea['id']}").json()
     assert set(detail) == {
-        "id", "fields", "origin", "createdAt", "publishedAt", "evaluation", "aiEvaluation",
+        "id", "fields", "origin", "createdAt", "publishedAt", "state",
+        "decision", "evaluation", "aiEvaluation",
     }
     assert detail["id"] == idea["id"]
     assert set(detail["fields"]) == set(IDEA_FIELDS)
@@ -231,6 +291,9 @@ def test_detail_holds_the_fields_before_the_debate_closes(auth, mock) -> None:
     assert "contact" not in str(detail)
     assert detail["origin"] == "manual"
     assert detail["createdAt"] and detail["publishedAt"]
+    # In the calibration stage: the en-proceso zone's state, no decision yet.
+    assert detail["state"] == "VALIDADA_PUBLICA"
+    assert detail["decision"] is None
     # Nothing generated yet: the closure has not run.
     assert detail["evaluation"] is None
     assert detail["aiEvaluation"] is None
@@ -251,6 +314,9 @@ def test_detail_exposes_the_generated_evaluation_and_its_snapshot(auth, mock) ->
     assert evaluation["decidedBy"] is None and evaluation["decidedAt"] is None
     # The immutable snapshot mirrors the generated evaluation (RF-26).
     assert detail["aiEvaluation"] == evaluation
+    # The idea is still in calibration: the state and the decision are unchanged.
+    assert detail["state"] == "VALIDADA_PUBLICA"
+    assert detail["decision"] is None
 
 
 def test_detail_reflects_the_specialists_last_decision(auth, mock) -> None:
@@ -264,6 +330,30 @@ def test_detail_reflects_the_specialists_last_decision(auth, mock) -> None:
     assert detail["evaluation"]["status"] == "ACEPTADA"
     assert detail["evaluation"]["decidedBy"] == "u_solo"
     assert detail["evaluation"]["decidedAt"]
+    # Accepting the AI evaluation does not decide the idea: it stays in the
+    # calibration stage (en-proceso) with no decision yet (T-083, D21).
+    assert detail["state"] == "VALIDADA_PUBLICA"
+    assert detail["decision"] is None
     # The AI snapshot is kept untouched by the acceptance (RF-26, RNF-8).
     assert detail["aiEvaluation"]["status"] == "GENERADA"
     assert detail["aiEvaluation"]["decidedBy"] is None
+
+
+def test_detail_after_the_final_decision_shows_the_state_and_the_decision(auth, mock) -> None:
+    idea = _publish(auth, mock, available=True, respond=lambda _p: evaluation_json())
+    _close(auth, idea["id"])
+    # Average 7.0 == acceptanceThreshold -> band ACEPTADA (case 26).
+    decision = _decide(auth, idea["id"], "ACEPTADA")
+    assert decision["state"] == "ACEPTADA"
+    detail = auth("u_ana").get(f"/catalog/{idea['id']}").json()
+    assert detail["state"] == "ACEPTADA"
+    assert detail["decision"]["outcome"] == "ACEPTADA"
+    assert detail["decision"]["decidedBy"] == "u_solo"
+    assert detail["decision"]["decidedAt"]
+    # The idea left the en-proceso zone for the aceptadas one (D21).
+    zones = auth("u_solo").get("/catalog/public").json()["zones"]
+    assert [entry["id"] for entry in zones["aceptadas"]] == [idea["id"]]
+    assert [entry["id"] for entry in zones["en-proceso"]] == []
+    # The evaluation judgment is kept in the detail of the final state.
+    assert detail["evaluation"]["status"] == "GENERADA"
+    assert detail["aiEvaluation"] is not None

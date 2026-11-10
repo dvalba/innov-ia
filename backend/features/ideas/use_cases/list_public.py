@@ -1,41 +1,30 @@
-"""List public catalog use case (T-022, RF-20, RNF-7).
+"""List public catalog use case (T-022, RF-20, RNF-7; T-083, RF-20/D16/D21).
 
-The public catalog exposes only `VALIDADA_PUBLICA` ideas — nothing less
-(spec §5.9/RF-20, decision #2) — with the 6 idea fields and the
-proponent's name and area, the registration date and the publication
-date. The proponent's `contact` is never included (read-only catalog,
-RNF-7: no proponent data beyond name/area).
+The public catalog is organized in four zones (RF-20): En proceso
+(`VALIDADA_PUBLICA`), Aceptadas, Rechazadas y Archivadas — each a projection of
+one idea state (D21: derived from `state`, never stored). A zone is read as a
+compact list (D16: title, publication date and description only); the 6 fields,
+the debate and the evaluation live in the detail view (RF-23). Read-only, no
+proponent contact data (RNF-7).
+
+The shape depends on the requested zone:
+  - `zone=None`  -> `{"zones": {name: [items]}}` (all four zones);
+  - `zone=<name>` -> `{"zone": name, "items": [items]}` (one zone).
+An unknown zone is a 422 (`CATALOG_ZONE_INVALID`, D21).
 """
 
-from features.ideas.domain.idea import Idea
+from features.ideas.domain.catalog_zones import catalog_payloads
 from features.ideas.infrastructure.idea_store import IdeaStore
-from shared.contracts.idea_ledger import STATE_VALIDADA_PUBLICA
 
 
-def list_public(ledger: IdeaStore) -> list[dict]:
-    """Lists the public catalog: every `VALIDADA_PUBLICA` idea, any owner, newest first.
+def list_public(ledger: IdeaStore, zone: str | None = None) -> dict:
+    """Returns the public catalog for one zone, or all zones (RF-20).
 
-    Each entry holds `id`, the 6 fields (with the proponent reduced to
-    `name`/`area`, no `contact`), `origin`, `createdAt` and `publishedAt`.
-    Ideas in any other state (or of any user) are excluded from the result
-    (RF-20).
+    With `zone=None` the four zones are returned as a map; with a known `zone`
+    that zone's compact items are returned. The compact item holds `id`,
+    `title`, `publishedAt` and `description` only (D16).
     """
-    entries: list[dict] = []
-    for payload in ledger.list_by_state(STATE_VALIDADA_PUBLICA):
-        idea = Idea.from_payload(payload)
-        fields = idea.fields()
-        fields["proponent"] = {
-            "name": idea.proponent.get("name", ""),
-            "area": idea.proponent.get("area", ""),
-        }
-        entries.append(
-            {
-                "id": idea.id,
-                "fields": fields,
-                "origin": idea.origin,
-                "createdAt": idea.createdAt,
-                "publishedAt": idea.publishedAt,
-            }
-        )
-    entries.sort(key=lambda entry: (entry["createdAt"], entry["id"]), reverse=True)
-    return entries
+    zones = catalog_payloads(ledger, zone)
+    if zone is None:
+        return {"zones": zones}
+    return {"zone": zone, "items": zones[zone]}

@@ -1,11 +1,13 @@
-"""Notifications router API tests (T-033, RF-18, plan §3.1).
+"""Notifications router API tests (T-033, RF-18, plan §3.1; T-083).
 
 Covers the active-session surface of `/notifications`: `GET /notifications`
 (listing + unread counter) and `POST /notifications/{id}/read` (only the
 recipient: 404 unknown, 403 otherwise). It also pins the emission contracts —
-the four RF-18 events and only them — through the real flows: `IDEA_REQUESTED`
+the eight RF-18 events and only them — through the real flows: `IDEA_REQUESTED`
 fanned out to every active specialist on `request-publication`, `IDEA_PUBLISHED`
-on `approve`, and `IDEA_REJECTED` on `reject`.
+on `approve`, `IDEA_REJECTED` on `reject`, and `IDEA_CALIBRATION_PENDING`
+fanned out to every active specialist the first time the AI evaluation is
+generated at the debate's closure (T-083).
 
 The fixtures inject an in-memory `NotificationStore` (and a live directory)
 through `app.dependency_overrides`, so the emitters bound in the composition
@@ -14,6 +16,7 @@ root write to the in-memory store that the assertions read from. `features.ideas
 store is only observed, never produced by a test directly.
 """
 
+import json
 from datetime import datetime
 
 import pytest
@@ -25,8 +28,21 @@ from features.auth.infrastructure.token_store import TokenStore
 from features.ideas.infrastructure.idea_store import IdeaStore
 from features.notifications.domain.notification import EVENT_TYPES
 from features.notifications.infrastructure.notification_store import NotificationStore
+from features.org.infrastructure.org_store import OrgStore
+from shared.contracts.evaluation import EVALUATION_CRITERIA
 from shared.utils.password import hash_password
 from tests.conftest import InMemoryDirectory, InMemoryStore, OllamaMock
+
+PAST_DEADLINE = "2020-01-01T00:00:00"
+
+
+def evaluation_json() -> str:
+    """A contract-shaped AI evaluation reply: the 5 criteria, score + reason."""
+    return json.dumps(
+        {key: {"score": 7, "justification": f"Valoración IA de {key}."}
+         for key in EVALUATION_CRITERIA},
+        ensure_ascii=False,
+    )
 
 
 def _fields(**overrides: object) -> dict:
@@ -83,6 +99,19 @@ def directory() -> InMemoryDirectory:
         "passwordHash": hash_password("clave123"),
         "shouldChangePassword": False,
     })
+    # An administrator: closes the debate at its deadline (the calibration
+    # fanout fires at the closure, T-083).
+    store.create({
+        "id": "u_admin",
+        "username": "admin",
+        "name": "Admin",
+        "area": "Dirección",
+        "contact": "admin@corp.com",
+        "roles": ["admin"],
+        "active": True,
+        "passwordHash": hash_password("clave123"),
+        "shouldChangePassword": False,
+    })
     return store
 
 
@@ -132,10 +161,10 @@ def test_endpoints_require_an_active_session_401(auth) -> None:
     assert auth(token=False).post("/notifications/notif_any/read").status_code == 401
 
 
-# -- the four and only the four RF-18 events ---------------------------------------
+# -- the eight and only the eight RF-18 events --------------------------------------
 
 
-def test_every_stored_notification_uses_one_of_the_four_types(auth, notify_store) -> None:
+def test_every_stored_notification_uses_one_of_the_eight_types(auth, notify_store) -> None:
     """Invariant: no notification of any other type is ever persisted (RF-18)."""
     idea = auth().post("/ideas", json=_fields()).json()
     auth().post(f"/ideas/{idea['id']}/request-publication")  # IDEA_REQUESTED fanout
@@ -259,3 +288,46 @@ def test_reject_emits_idea_rejected_to_the_proponent(auth, notify_store) -> None
     proponent = notify_store.list_for_user("u_ana")
     assert [record["type"] for record in proponent] == ["IDEA_REJECTED"]
     assert proponent[0]["ideaId"] == idea["id"]
+
+
+# -- the calibration fanout (T-083, RF-18/RF-20) -----------------------------------
+
+
+def test_calibration_fans_pending_out_to_active_specialists_at_closure(
+        auth, notify_store) -> None:
+    """When the AI evaluation is first generated at the debate's closure, every
+    active specialist is invited to calibrate it (`IDEA_CALIBRATION_PENDING`).
+    The fanout fires once, only to active specialists, and never to the proponent
+    or the deactivated one."""
+    mock = OllamaMock(available=True)
+    mock.respond = lambda _prompt: evaluation_json()
+    main_app.dependency_overrides[deps_module.get_assistant_client] = lambda: mock
+    main_app.dependency_overrides[deps_module.get_org_store] = lambda: OrgStore(InMemoryStore())
+
+    idea = auth().post("/ideas", json=_fields()).json()
+    auth().post(f"/ideas/{idea['id']}/request-publication")  # IDEA_REQUESTED fanout
+    assert auth("u_solo").post(f"/validation/{idea['id']}/approve").status_code == 200
+
+    # The debate is still open (30-day deadline): no evaluation, no calibration.
+    assert [record["type"] for record in notify_store.list_for_user("u_solo")] == ["IDEA_REQUESTED"]
+    assert [record["type"] for record in notify_store.list_for_user("u_dos")] == ["IDEA_REQUESTED"]
+
+    # The deadline moves into the past and the next read closes the debate: the
+    # AI evaluation is generated and the calibration fanout fires (T-083).
+    auth("u_admin").put(f"/admin/ideas/{idea['id']}/debate/deadline",
+                        json={"deadline": PAST_DEADLINE})
+    assert auth("u_solo").get(f"/catalog/{idea['id']}/debate").status_code == 200
+
+    # Both active specialists got one calibration-pending notification (newest
+    # first: the fanout fired after the request-publication fanout).
+    for specialist in ("u_solo", "u_dos"):
+        records = notify_store.list_for_user(specialist)
+        assert [record["type"] for record in records] == [
+            "IDEA_CALIBRATION_PENDING", "IDEA_REQUESTED"]
+        pending = records[0]
+        assert pending["ideaId"] == idea["id"]
+        assert pending["read"] is False
+        assert idea["id"] in pending["message"]
+    # The proponent never receives a calibration; the deactivated one, either.
+    assert [record["type"] for record in notify_store.list_for_user("u_ana")] == ["IDEA_PUBLISHED"]
+    assert notify_store.list_for_user("u_baja") == []

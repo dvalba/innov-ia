@@ -578,16 +578,16 @@ def test_t066_validation_end_to_end(env, api_client: TestClient) -> None:
     assert [n["ideaId"] for n in published] == [idea_a["id"]]
     assert published[0]["message"] == f"Tu idea ({idea_a['id']}) fue publicada."
 
-    # Catalog (RF-20): the published idea is visible; the contact is never
-    # exposed. The other ideas (EN_DESARROLLO) are NOT in the catalog.
+    # Catalog (RF-20/D16): the published idea is visible in the en-proceso
+    # zone as a compact item; the contact is never exposed. The other ideas
+    # (EN_DESARROLLO) are NOT in the catalog.
     catalog = api_client.get("/catalog/public", headers=esp)
     assert catalog.status_code == 200
     entries = catalog.json()
-    assert [entry["id"] for entry in entries] == [idea_a["id"]]
-    assert "contact" not in entries[0]["fields"]["proponent"]
-    assert entries[0]["fields"]["title"] == "Aprobar y publicar"
-    assert entries[0]["fields"]["proponent"]["name"] == ana["name"]
-    assert entries[0]["publishedAt"] == approved["publishedAt"]
+    assert [entry["id"] for entry in entries["zones"]["en-proceso"]] == [idea_a["id"]]
+    assert entries["zones"]["en-proceso"][0]["title"] == "Aprobar y publicar"
+    assert entries["zones"]["en-proceso"][0]["publishedAt"] == approved["publishedAt"]
+    assert "contact" not in str(entries)
 
     # Reject: the request → the mandatory comment (case 13) → EN_DESARROLLO
     # with the issuer's identity + IDEA_REJECTED.
@@ -634,8 +634,10 @@ def test_t066_validation_end_to_end(env, api_client: TestClient) -> None:
         idea_c["id"], idea_c["id"], idea_b["id"], idea_a["id"]]
 
     # Catalog with the self-published idea; the rejected one still excluded.
+    # Newest first: idea C was published after idea A.
     final_catalog = api_client.get("/catalog/public", headers=esp).json()
-    assert [entry["id"] for entry in final_catalog] == [idea_c["id"], idea_a["id"]]
+    assert [entry["id"] for entry in final_catalog["zones"]["en-proceso"]] == [
+        idea_c["id"], idea_a["id"]]
 
     # Bell (RF-18): each event and ONLY those — Ana: published + rejected;
     # dual: requested + published. Unread markers move only by read actions.

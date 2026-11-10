@@ -1,8 +1,9 @@
-"""Ideas listings tests (T-022, RF-19/RF-20, RNF-7).
+"""Ideas listings tests (T-022, RF-19/RF-20, RNF-7; T-083, RF-20/D16/D21).
 
 Covers the owner filter of "Mis ideas" (only the user's ideas, any state,
-RF-19 summary), the public catalog state filter (only `VALIDADA_PUBLICA`,
-any owner, RF-20/decision #2) and the suppression of the proponent's
+RF-19 summary), the public catalog zones (four zones, each a projection of one
+idea state, RF-20/D21), the compact item shape (D16: `id`, `title`,
+`publishedAt`, `description`) and the suppression of the proponent's
 `contact` in the catalog (RNF-7, spec §5.9).
 """
 
@@ -14,7 +15,6 @@ from features.ideas.infrastructure.idea_store import IdeaStore
 from features.ideas.use_cases.create_idea import create_idea
 from features.ideas.use_cases.list_my_ideas import list_my_ideas
 from features.ideas.use_cases.list_public import list_public
-from shared.contracts.idea_ledger import IDEA_FIELDS
 from shared.utils.persistence import JsonStore
 
 SUMMARY_KEYS = {"id", "title", "createdAt", "origin", "state"}
@@ -98,10 +98,14 @@ def test_list_my_ideas_is_empty_for_a_user_without_ideas(store: IdeaStore) -> No
     assert list_my_ideas(store, owner_id="u_sin_ideas") == []
 
 
-# -- Catálogo público (RF-20, RNF-7) ----------------------------------------------
+# -- Catálogo público (RF-20, RNF-7, D16/D21) ---------------------------------------
 
 
-def test_list_public_returns_only_validada_publica_of_any_owner(store: IdeaStore) -> None:
+def _zones(ledger: IdeaStore) -> dict:
+    return list_public(ledger)["zones"]
+
+
+def test_list_public_returns_the_four_zones_and_only_their_states(store: IdeaStore) -> None:
     in_dev = _idea(store, owner_id="u_ana", title="Borrador visible")
     requesting = _idea(store, owner_id="u_carlos", title="En cola")
     published_a = _idea(store, owner_id="u_ana", title="Publicada A")
@@ -110,25 +114,49 @@ def test_list_public_returns_only_validada_publica_of_any_owner(store: IdeaStore
     store.update(published_a["id"], {"state": "VALIDADA_PUBLICA", "publishedAt": "2026-10-01T09:00:00", "publishedBy": "u_exp"})
     store.update(published_b["id"], {"state": "VALIDADA_PUBLICA", "publishedAt": "2026-10-01T10:00:00", "publishedBy": "u_exp"})
 
-    entries = list_public(store)
-    assert {entry["id"] for entry in entries} == {published_a["id"], published_b["id"]}
+    body = list_public(store)
+    assert set(body) == {"zones"}
+    zones = body["zones"]
+    assert set(zones) == {"en-proceso", "aceptadas", "rechazadas", "archivadas"}
+    assert {entry["id"] for entry in zones["en-proceso"]} == {published_a["id"], published_b["id"]}
+    for zone in ("aceptadas", "rechazadas", "archivadas"):
+        assert zones[zone] == []
+    listed_ids = {entry["id"] for entries in zones.values() for entry in entries}
     for excluded in (in_dev["id"], requesting["id"]):
-        assert excluded not in {entry["id"] for entry in entries}
+        assert excluded not in listed_ids
 
 
-def test_list_public_exposes_the_7_fields_without_the_proponent_contact(store: IdeaStore) -> None:
-    published = _idea(store, owner_id="u_ana")
+def test_list_public_compact_item_holds_only_the_four_keys_without_contact(store: IdeaStore) -> None:
+    published = _idea(store, owner_id="u_ana", title="Idea compacta")
     store.update(published["id"], {"state": "VALIDADA_PUBLICA", "publishedAt": "2026-10-01T09:00:00"})
 
-    (entry,) = list_public(store)
-    assert set(entry["fields"]) == set(IDEA_FIELDS)
-    proponent = entry["fields"]["proponent"]
-    assert set(proponent) == {"name", "area"}  # contact suppressed (RF-20/RNF-7)
-    assert "contact" not in str(entry)
-    assert "publishedAt" in entry and "createdAt" in entry
+    (entry,) = list_public(store)["zones"]["en-proceso"]
+    assert set(entry) == {"id", "title", "publishedAt", "description"}
+    assert entry["id"] == published["id"]
+    assert entry["title"] == "Idea compacta"
+    assert entry["publishedAt"] == "2026-10-01T09:00:00"
+    assert entry["description"]
+    assert "contact" not in str(entry)  # proponent contact suppressed (RNF-7)
 
 
-def test_list_public_is_sorted_newest_to_oldest(store: IdeaStore) -> None:
+def test_list_public_single_zone_shape_lists_only_that_zone(store: IdeaStore) -> None:
+    published = _idea(store, owner_id="u_ana", title="Publicada")
+    store.update(published["id"], {"state": "VALIDADA_PUBLICA", "publishedAt": "2026-10-01T09:00:00"})
+    accepted = _idea(store, owner_id="u_carlos", title="Aceptada")
+    store.update(accepted["id"], {"state": "ACEPTADA", "publishedAt": "2026-10-02T09:00:00"})
+
+    body = list_public(store, zone="en-proceso")
+    assert set(body) == {"zone", "items"}
+    assert body["zone"] == "en-proceso"
+    assert [entry["id"] for entry in body["items"]] == [published["id"]]
+    for entry in body["items"]:
+        assert set(entry) == {"id", "title", "publishedAt", "description"}
+
+    others = list_public(store, zone="aceptadas")
+    assert [entry["id"] for entry in others["items"]] == [accepted["id"]]
+
+
+def test_list_public_zone_is_sorted_newest_to_oldest(store: IdeaStore) -> None:
     old = _idea(store, title="A")
     recent = _idea(store, title="B")
     _dated(store, old, "2026-09-01T08:00:00")
@@ -136,12 +164,13 @@ def test_list_public_is_sorted_newest_to_oldest(store: IdeaStore) -> None:
     store.update(old["id"], {"state": "VALIDADA_PUBLICA", "publishedAt": "2026-09-01T09:00:00"})
     store.update(recent["id"], {"state": "VALIDADA_PUBLICA", "publishedAt": "2026-09-30T09:00:00"})
 
-    entries = list_public(store)
-    assert [entry["fields"]["title"] for entry in entries] == ["B", "A"]
+    entries = list_public(store, zone="en-proceso")["items"]
+    assert [entry["title"] for entry in entries] == ["B", "A"]
 
 
-def test_list_public_is_empty_when_nothing_is_published(store: IdeaStore) -> None:
+def test_list_public_zones_are_empty_when_nothing_is_published(store: IdeaStore) -> None:
     _idea(store, owner_id="u_ana")
     requesting = _idea(store, owner_id="u_carlos")
     store.update(requesting["id"], {"state": "SOLICITANDO_PUBLICACION", "requestDate": "2026-10-01T00:00:00"})
-    assert list_public(store) == []
+    body = list_public(store)
+    assert body == {"zones": {"en-proceso": [], "aceptadas": [], "rechazadas": [], "archivadas": []}}

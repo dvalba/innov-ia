@@ -1,11 +1,12 @@
-"""Create-notification use case (T-033, RF-18).
+"""Create-notification use case (T-033, RF-18; T-083, RF-18/RF-20).
 
-Creates the in-app notifications for the RF-18 events (the original four plus
-the three final-decision events of v2.2) and performs the `IDEA_REQUESTED`
-fanout to every specialist. Emission is bound in the composition root
-(`app/deps`), so this feature is the only place that knows how to create a
-notification; `ideas`/`assistant` never import it. The 6-field `ideaId` gives
-the recipient direct access to the object (RF-12/RF-18).
+Creates the in-app notifications for the eight RF-18 events and performs the
+fanouts to every specialist: `IDEA_REQUESTED` (publication request) and
+`IDEA_CALIBRATION_PENDING` (a published idea whose AI evaluation is ready to be
+calibrated). Emission is bound in the composition root (`app/deps`), so this
+feature is the only place that knows how to create a notification;
+`ideas`/`assistant` never import it. The 6-field `ideaId` gives the recipient
+direct access to the object (RF-12/RF-18).
 """
 
 from features.notifications.infrastructure.notification_store import NotificationStore
@@ -13,7 +14,7 @@ from shared.contracts.roles import list_specialists
 
 
 def message_for(event_type: str, idea_id: str) -> str:
-    """The Spanish base message (RNF-4) for each RF-18 event.
+    """The Spanish base message (RNF-4) for each of the eight RF-18 events.
 
     The final-decision events may carry an extra detail (the decision note or
     reason): callers pass the full text through `create_notification`'s
@@ -34,6 +35,8 @@ def message_for(event_type: str, idea_id: str) -> str:
         return f"Tu idea ({idea_id}) fue archivada."
     if event_type == "IDEA_REEVALUATED":
         return f"Tu idea ({idea_id}) vuelve a la cola de calibración."
+    if event_type == "IDEA_CALIBRATION_PENDING":
+        return f"La evaluación de la IA de tu idea ({idea_id}) está lista para calibración."
     raise ValueError(f"Evento de notificación desconocido: {event_type!r}")
 
 
@@ -68,6 +71,27 @@ def fanout_requested(
     for specialist_id in list_specialists(directory):
         created.append(
             create_notification(store, user_id=specialist_id, event_type="IDEA_REQUESTED",
+                                idea_id=idea_id, message=message)
+        )
+    return created
+
+
+def fanout_calibration(
+    store: NotificationStore, directory, *, idea_id: str, message: str | None = None,
+) -> list[dict]:
+    """Fans `IDEA_CALIBRATION_PENDING` out to every active specialist (T-083, RF-18).
+
+    A published idea's AI evaluation is ready: every specialist is invited to
+    calibrate it (RF-20). Same fanout contract as `fanout_requested` — one
+    notification per active specialist, empty when none exists — but the caller
+    guarantees it fires at most once per idea (the generation hook is
+    idempotent, RNF-9).
+    """
+    created: list[dict] = []
+    for specialist_id in list_specialists(directory):
+        created.append(
+            create_notification(store, user_id=specialist_id,
+                                event_type="IDEA_CALIBRATION_PENDING",
                                 idea_id=idea_id, message=message)
         )
     return created

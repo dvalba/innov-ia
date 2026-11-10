@@ -31,6 +31,7 @@ from pydantic import BaseModel
 
 from app.deps import (
     AssistantClientDep,
+    CalibrationEmitterDep,
     DebateStoreDep,
     IdeaLedgerDep,
     OrgStoreDep,
@@ -75,8 +76,8 @@ def _now() -> str:
 
 @debate_router.get("/catalog/{idea_id}/debate")
 def read_debate_endpoint(idea_id: str, session: SessionDep, store: DebateStoreDep,
-                         ledger: IdeaLedgerDep, assistant: AssistantClientDep,
-                         org_store: OrgStoreDep) -> dict:
+                          ledger: IdeaLedgerDep, assistant: AssistantClientDep,
+                          org_store: OrgStoreDep, calibration: CalibrationEmitterDep) -> dict:
     """Returns the debate of a published idea after the read-time rules run
     (closure at the deadline, summary, evaluation at closure, pending
     `@asistant` retry)."""
@@ -89,16 +90,17 @@ def read_debate_endpoint(idea_id: str, session: SessionDep, store: DebateStoreDe
         assistant=assistant,
         idea_fields=idea_payload,
         company_context=context,
-        evaluate=make_evaluate(assistant, ledger, context, idea_id),
+        evaluate=make_evaluate(assistant, ledger, context, idea_id,
+                               on_generated=calibration),
         now=_now(),
     )
 
 
 @debate_router.post("/catalog/{idea_id}/debate", status_code=201)
 def post_debate_endpoint(idea_id: str, payload: DebateMessageRequest, session: SessionDep,
-                         store: DebateStoreDep, ledger: IdeaLedgerDep,
-                         assistant: AssistantClientDep, org_store: OrgStoreDep,
-                         directory: UserDirectoryDep) -> dict:
+                          store: DebateStoreDep, ledger: IdeaLedgerDep,
+                          assistant: AssistantClientDep, org_store: OrgStoreDep,
+                          directory: UserDirectoryDep, calibration: CalibrationEmitterDep) -> dict:
     """Posts a message in the open debate (201); a valid `@asistant` invocation
     also returns the assistant's reply; a closed debate is a 409 and a dangling
     link a 400 (cases 18-20)."""
@@ -115,7 +117,8 @@ def post_debate_endpoint(idea_id: str, payload: DebateMessageRequest, session: S
         assistant=assistant,
         idea_fields=idea_payload,
         company_context=context,
-        evaluate=make_evaluate(assistant, ledger, context, idea_id),
+        evaluate=make_evaluate(assistant, ledger, context, idea_id,
+                               on_generated=calibration),
         now=_now(),
     )
 

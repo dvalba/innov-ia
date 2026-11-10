@@ -2,8 +2,9 @@
 
 The `NotificationStore` persists `Notification` payloads through a `JsonStore`
 (its in-memory twin here). It is per user and tracks read/unread. Only the
-RF-18 events (the original four plus the three final-decision events of v2.2)
-are the representable types.
+RF-18 events — the original four, the three final-decision events of v2.2 and
+the calibration-pending fanout of T-083 (eight in total) — are the
+representable types.
 """
 
 import pytest
@@ -48,7 +49,7 @@ def test_all_rf18_events_are_storable(event_type: str) -> None:
     assert record["type"] == event_type
 
 
-@pytest.mark.parametrize("event_type", ["IDEA_CALIBRATION_PENDING", "LOGIN", "", "IDEA_NEW"])
+@pytest.mark.parametrize("event_type", ["LOGIN", "", "IDEA_NEW"])
 def test_an_unknown_event_type_is_rejected(event_type: str) -> None:
     store = _store()
     with pytest.raises(NotificationError):

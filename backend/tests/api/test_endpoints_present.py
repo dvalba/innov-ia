@@ -472,13 +472,13 @@ def test_approve_publishes_and_the_catalog_shows_it_without_contact(env) -> None
     assert approved.json()["publishedAt"]
 
     catalog = env.client(OTHER).get("/catalog/public").json()
-    entries = {entry["id"]: entry for entry in catalog}
+    entries = {entry["id"]: entry for entry in catalog["zones"]["en-proceso"]}
     assert idea["id"] in entries
     entry = entries[idea["id"]]
-    assert entry["fields"]["proponent"] == {"name": "Ana Torres", "area": "Compras"}
-    assert "contact" not in entry["fields"]["proponent"]
+    assert set(entry) == {"id", "title", "publishedAt", "description"}
+    assert entry["title"] == "Optimización de los tiempos de compra"
     assert entry["publishedAt"]
-    assert entry["origin"] == "manual"
+    assert "contact" not in str(entry)
 
 
 def test_reject_without_a_comment_is_a_400(env) -> None:

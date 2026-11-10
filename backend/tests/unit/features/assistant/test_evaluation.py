@@ -196,6 +196,46 @@ def test_generation_never_clobbers_a_decided_evaluation() -> None:
     assert assistant.prompts == []
 
 
+# -- the one-time generation hook (T-083: the calibration fanout fires once) -----------
+
+
+def test_on_generated_fires_exactly_once_on_a_fresh_generation() -> None:
+    ledger = FakeLedger({"idea_pub": _published_idea()})
+    fired: list[str] = []
+
+    status = generate_evaluation(ledger, assistant=FakeAssistant(), idea_id="idea_pub",
+                                 company_context=None, now="2026-01-01T00:00:00",
+                                 on_generated=fired.append)
+
+    assert status == STATE_GENERADA
+    assert fired == ["idea_pub"]
+    # A second generation attempt (already GENERATED) is a no-op: no new hook.
+    assert generate_evaluation(ledger, assistant=FakeAssistant(), idea_id="idea_pub",
+                               company_context=None, now="2026-01-02T00:00:00",
+                               on_generated=fired.append) == STATE_GENERADA
+    assert fired == ["idea_pub"]
+
+
+def test_on_generated_is_not_invoked_when_the_generation_stays_pending() -> None:
+    # Assistant down ...
+    fired_down: list[str] = []
+    ledger_down = FakeLedger({"idea_pub": _published_idea()})
+    assert generate_evaluation(ledger_down, assistant=FakeAssistant(available=False),
+                               idea_id="idea_pub", company_context=None,
+                               now="2026-01-01T00:00:00",
+                               on_generated=fired_down.append) == STATE_PENDING
+    assert fired_down == []
+    # ... or uninterpretable reply: the fanout must not invite specialists to
+    # calibrate an evaluation that does not exist yet.
+    fired_bad: list[str] = []
+    ledger_bad = FakeLedger({"idea_pub": _published_idea()})
+    assert generate_evaluation(ledger_bad, assistant=FakeAssistant(reply="prosa sin JSON"),
+                               idea_id="idea_pub", company_context=None,
+                               now="2026-01-01T00:00:00",
+                               on_generated=fired_bad.append) == STATE_PENDING
+    assert fired_bad == []
+
+
 # -- retry of the pending evaluations (case 22, at every verification) -----------------
 
 
@@ -242,3 +282,22 @@ def test_retry_is_a_no_op_when_the_assistant_is_down() -> None:
 
     assert retry_pending_evaluations(ledger, assistant, now="2026-01-02T00:00:00") == 0
     assert ledger.get("idea_a")["evaluation"] == {"status": STATE_PENDING}
+
+
+def test_retry_forwards_on_generated_for_each_fresh_generation() -> None:
+    # T-083: the first evaluation that succeeds on a retry triggers the same
+    # one-time fanout as a generation at the debate's closure.
+    ledger = FakeLedger({
+        "idea_a": _published_idea("idea_a", {"status": STATE_PENDING}),
+        "idea_b": _published_idea("idea_b", {"status": STATE_PENDING}),
+        "idea_c": _published_idea("idea_c", {"status": STATE_ACEPTADA, "criteria": []}),
+    })
+    fired: list[str] = []
+
+    generated = retry_pending_evaluations(ledger, assistant=FakeAssistant(),
+                                          now="2026-01-02T00:00:00",
+                                          on_generated=fired.append)
+
+    assert generated == 2
+    assert sorted(fired) == ["idea_a", "idea_b"]
+    assert "idea_c" not in fired  # a decided evaluation never re-enters the fanout

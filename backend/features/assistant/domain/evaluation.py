@@ -13,6 +13,7 @@ idea at the debate's closure and `retry_pending_evaluations` re-attempts the
 22: the platform is never blocked by a down assistant).
 """
 
+from collections.abc import Callable
 from typing import Any
 
 from features.assistant.domain.prompts import evaluate_idea_prompt
@@ -68,6 +69,7 @@ def generate_evaluation(
     idea_id: str,
     company_context: dict | None,
     now: str,
+    on_generated: Callable[[str], None] | None = None,
 ) -> str:
     """Generates the AI evaluation of a published idea at its debate closure
     (plan §4.8 `GENERAR_EVALUACION`).
@@ -87,6 +89,13 @@ def generate_evaluation(
         generation date and the `decidedBy`/`decidedAt` audit fields still
         `None` (RF-26, RNF-8). The immutable `aiEvaluation` snapshot is
         stored together with the evaluation.
+
+    When a fresh `GENERADA` result is written, `on_generated` (bound in the
+    composition root, T-083) is invoked once with the idea id — the single
+    point where an evaluation first exists, so the caller's fanout (the
+    `IDEA_CALIBRATION_PENDING` notification to the specialists) fires exactly
+    once per idea (RNF-9). A no-op (and `None` default) when the evaluation is
+    already present or the generation did not succeed.
     """
     def persist(changes: dict[str, Any]) -> None:
         ledger.update(idea_id, changes)
@@ -120,6 +129,8 @@ def generate_evaluation(
         "decidedAt": None,
     }
     persist({"evaluation": evaluation, "aiEvaluation": dict(evaluation)})
+    if on_generated is not None:
+        on_generated(idea_id)
     return STATE_GENERADA
 
 
@@ -128,6 +139,7 @@ def retry_pending_evaluations(
     assistant,
     now: str,
     company_context: dict | None = None,
+    on_generated: Callable[[str], None] | None = None,
 ) -> int:
     """Retries the `PENDING` evaluations of the published ideas (case 22, RF-11).
 
@@ -138,6 +150,10 @@ def retry_pending_evaluations(
     returns to `PENDING`, so its snapshot is never overwritten. Returns the
     number of evaluations that reached `GENERADA`; the assistant down
     short-circuits to `0` without touching any idea (RNF-1).
+
+    `on_generated` (T-083) is forwarded to each generation attempt, so the
+    first evaluation that succeeds on this retry triggers the same one-time
+    fanout as a generation at debate closure.
     """
     if not assistant.ping():
         return 0
@@ -149,6 +165,7 @@ def retry_pending_evaluations(
         if generate_evaluation(
             ledger, assistant,
             idea_id=str(payload["id"]), company_context=company_context, now=now,
+            on_generated=on_generated,
         ) == STATE_GENERADA:
             generated += 1
     return generated
