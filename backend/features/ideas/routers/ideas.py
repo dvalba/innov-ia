@@ -16,7 +16,10 @@ Endpoints (plan §3.1), all guarded to an active `proponente` session
   POST  /ideas/{id}/versions/{vid}/decide   -> 200 payload after
                                                  accept (`VIGENTE`) / discard
   POST  /ideas/{id}/request-publication     -> 200 payload in
-                                                 SOLICITANDO_PUBLICACION
+                                                  SOLICITANDO_PUBLICACION
+  POST  /ideas/{id}/request-reevaluation    -> 200 {state, decision, note}
+                                                  (ARCHIVADA back to the
+                                                  calibration queue, RF-29)
 
 Pydantic schemas live in this layer only (plan D8, Constitution §4.2). The
 field schemas are deliberately permissive (empty/omitted allowed): the single
@@ -36,6 +39,7 @@ from app.deps import (
     AssistantClientDep,
     IdeaLedgerDep,
     OrgStoreDep,
+    ReevaluatedEmitterDep,
     RequestedEmitterDep,
     role_dependency,
 )
@@ -47,6 +51,7 @@ from features.ideas.use_cases.edit_idea import edit_idea
 from features.ideas.use_cases.improve_idea import improve_idea
 from features.ideas.use_cases.list_my_ideas import list_my_ideas
 from features.ideas.use_cases.request_publication import request_publication
+from features.ideas.use_cases.request_reevaluation import request_reevaluation
 from features.org.use_cases.get_context import get_context
 from shared.contracts.idea_ledger import ORIGIN_MANUAL
 from shared.exceptions.handlers import DomainError
@@ -167,4 +172,20 @@ def request_publication_endpoint(idea_id: str, session: ProponentDep,
     is injected from the composition root (G10/T-033).
     """
     return request_publication(ledger, idea_id=idea_id, user_id=session.user_id,
-                               emit_notification=emit)
+                                emit_notification=emit)
+
+
+@ideas_router.post("/{idea_id}/request-reevaluation")
+def request_reevaluation_endpoint(idea_id: str, session: ProponentDep,
+                                  ledger: IdeaLedgerDep,
+                                  emit: ReevaluatedEmitterDep) -> dict:
+    """Requests the re-evaluation of an ARCHIVADA idea (RF-29, case 30).
+
+    The idea goes back to the calibration queue (`VALIDADA_PUBLICA`) keeping
+    the closed debate and the AI evaluation, and its previous final decision is
+    cleared. Only the owner may request it (403 otherwise) and only an
+    `ARCHIVADA` idea admits it (409, case 29: ACEPTADA/RECHAZADA are terminal).
+    The owner is notified with `IDEA_REEVALUATED` (RF-18).
+    """
+    return request_reevaluation(ledger, idea_id=idea_id, owner_id=session.user_id,
+                                emit_notification=emit)

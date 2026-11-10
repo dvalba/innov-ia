@@ -11,11 +11,14 @@ Typed dependency aliases:
     `NotificationStoreDep` / `OrgStoreDep` / `DebateStoreDep`:
     DI providers (override in tests).
   - `RefinedEmitterDep` / `PublishedEmitterDep` / `RejectedEmitterDep` /
-    `RequestedEmitterDep` (G10/T-033): emitters for the four RF-18
-    notification events. Each takes the updated `Idea` produced by the
-    `ideas` use cases; `Requested` fans out to every active specialist.
-    They wire the shared `notifications` use cases from the composition
-    root so `ideas`/`assistant` never import `notifications`.
+    `RequestedEmitterDep` (G10/T-033) plus `DecisionEmitterDep` /
+    `ReevaluatedEmitterDep` (T-082): emitters for the RF-18 notification
+    events. Each takes the updated `Idea` produced by the use cases;
+    `Requested` fans out to every active specialist, `Decision` emits the
+    final-decision event to the creator (reading `idea.decision`) and
+    `Reevaluated` emits `IDEA_REEVALUATED` to the creator. They wire the
+    shared `notifications` use cases from the composition root so
+    `ideas`/`assistant` never import `notifications`.
   - `SessionDep`: active bearer `Session` (401 when absent/expired or when the
     account is deactivated; roles are re-read live on every request).
   - `role_dependency(roles)`: `Session` plus a required role subset (403).
@@ -41,6 +44,7 @@ from features.notifications.infrastructure.notification_store import Notificatio
 from features.notifications.use_cases.create_notification import (
     create_notification,
     fanout_requested,
+    message_for,
 )
 from features.org.infrastructure.org_store import OrgStore
 from features.org.use_cases.get_context import get_context
@@ -195,6 +199,50 @@ def _requested_emitter(store, directory):
     return _emit
 
 
+def _decision_emitter(store):
+    """Final calibration decision (RF-18/RF-27), emitted to the creator.
+
+    Reads the `decision` recorded on the idea and emits the matching event with
+    the stage-specific text: `IDEA_ACCEPTED` (optional note), `IDEA_ARCHIVED`
+    (reason) or `IDEA_REJECTED` reusing the event with a calibration-stage text
+    (reason, RF-27).
+    """
+
+    def _emit(idea) -> None:
+        decision = idea.decision or {}
+        outcome = decision.get("outcome")
+        reason = decision.get("reason")
+        if outcome == "ACEPTADA":
+            message = message_for("IDEA_ACCEPTED", idea.id)
+            if reason and reason.strip():
+                message = f"{message} Nota: {reason}"
+            create_notification(store, user_id=idea.ownerId, event_type="IDEA_ACCEPTED",
+                                idea_id=idea.id, message=message)
+        elif outcome == "ARCHIVADA":
+            message = f"{message_for('IDEA_ARCHIVED', idea.id)} Motivo: {reason or ''}"
+            create_notification(store, user_id=idea.ownerId, event_type="IDEA_ARCHIVED",
+                                idea_id=idea.id, message=message)
+        elif outcome == "RECHAZADA":
+            message = f"Tu idea ({idea.id}) fue rechazada en la etapa de calificación."
+            if reason:
+                message = f"{message} Motivo: {reason}"
+            create_notification(store, user_id=idea.ownerId, event_type="IDEA_REJECTED",
+                                idea_id=idea.id, message=message)
+
+    return _emit
+
+
+def _reevaluated_emitter(store):
+    """IDEA_REEVALUATED: the archived idea is back in the calibration queue (RF-18)."""
+
+    def _emit(idea) -> None:
+        create_notification(
+            store, user_id=idea.ownerId, event_type="IDEA_REEVALUATED", idea_id=idea.id
+        )
+
+    return _emit
+
+
 def get_refined_emitter(store: NotificationStoreDep, directory: UserDirectoryDep):
     """Builds the IDEA_REFINED emitter (bound to the shared notification store)."""
     return _refined_emitter(store, directory)
@@ -215,10 +263,22 @@ def get_requested_emitter(store: NotificationStoreDep, directory: UserDirectoryD
     return _requested_emitter(store, directory)
 
 
+def get_decision_emitter(store: NotificationStoreDep):
+    """Builds the final-decision emitter (RF-27), bound to the notification store."""
+    return _decision_emitter(store)
+
+
+def get_reevaluated_emitter(store: NotificationStoreDep):
+    """Builds the IDEA_REEVALUATED emitter (RF-29), bound to the notification store."""
+    return _reevaluated_emitter(store)
+
+
 RefinedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_refined_emitter)]
 PublishedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_published_emitter)]
 RejectedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_rejected_emitter)]
 RequestedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_requested_emitter)]
+DecisionEmitterDep = Annotated[Callable[[Idea], None], Depends(get_decision_emitter)]
+ReevaluatedEmitterDep = Annotated[Callable[[Idea], None], Depends(get_reevaluated_emitter)]
 
 
 def get_assistant_check(ledger: IdeaLedgerDep, assistant: AssistantClientDep,

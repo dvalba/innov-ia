@@ -42,6 +42,15 @@ from shared.exceptions.handlers import DomainError, ValidationFailed
 # are the target states of the `decide-*` transitions (plan §4.6).
 OUTCOMES: tuple[str, ...] = (STATE_ACEPTADA, STATE_ARCHIVADA, STATE_RECHAZADA)
 
+# The `decide-*` action of the state machine each outcome maps to (plan §4.6).
+# The outcomes are Spanish states while the actions are English, so the mapping
+# is explicit — never derived by name (decision T-082).
+OUTCOME_TO_ACTION: dict[str, str] = {
+    STATE_ACEPTADA: "decide-accepted",
+    STATE_ARCHIVADA: "decide-archived",
+    STATE_RECHAZADA: "decide-rejected",
+}
+
 
 class DecisionError(DomainError):
     """The idea is not in a situation that admits this final decision (409/400)."""

@@ -1,8 +1,9 @@
-"""Notification store tests (T-032, RF-18, plan D1).
+"""Notification store tests (T-032, RF-18, plan D1; T-082, RF-18 v2.2).
 
 The `NotificationStore` persists `Notification` payloads through a `JsonStore`
-(its in-memory twin here). It is per user and tracks read/unread. The four —
-and only four — RF-18 events are the representable types.
+(its in-memory twin here). It is per user and tracks read/unread. Only the
+RF-18 events (the original four plus the three final-decision events of v2.2)
+are the representable types.
 """
 
 import pytest
@@ -41,14 +42,14 @@ def test_add_generates_unique_ids() -> None:
 
 
 @pytest.mark.parametrize("event_type", EVENT_TYPES)
-def test_all_four_events_are_storable(event_type: str) -> None:
+def test_all_rf18_events_are_storable(event_type: str) -> None:
     store = _store()
     record = store.add(user_id="u_ana", event_type=event_type, idea_id="idea_1", message="m")
     assert record["type"] == event_type
 
 
-@pytest.mark.parametrize("event_type", ["IDEA_ARCHIVED", "LOGIN", "", "IDEA_NEW"])
-def test_a_fifth_event_type_is_rejected(event_type: str) -> None:
+@pytest.mark.parametrize("event_type", ["IDEA_CALIBRATION_PENDING", "LOGIN", "", "IDEA_NEW"])
+def test_an_unknown_event_type_is_rejected(event_type: str) -> None:
     store = _store()
     with pytest.raises(NotificationError):
         store.add(user_id="u_ana", event_type=event_type, idea_id="idea_1", message="m")

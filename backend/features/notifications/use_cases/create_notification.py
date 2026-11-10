@@ -1,10 +1,11 @@
 """Create-notification use case (T-033, RF-18).
 
-Creates the in-app notifications for the four RF-18 events and performs the
-`IDEA_REQUESTED` fanout to every specialist. Emission is bound in the
-composition root (`app/deps`), so this feature is the only place that knows
-how to create a notification; `ideas`/`assistant` never import it. The 6-field
-`ideaId` gives the recipient direct access to the object (RF-12/RF-18).
+Creates the in-app notifications for the RF-18 events (the original four plus
+the three final-decision events of v2.2) and performs the `IDEA_REQUESTED`
+fanout to every specialist. Emission is bound in the composition root
+(`app/deps`), so this feature is the only place that knows how to create a
+notification; `ideas`/`assistant` never import it. The 6-field `ideaId` gives
+the recipient direct access to the object (RF-12/RF-18).
 """
 
 from features.notifications.infrastructure.notification_store import NotificationStore
@@ -12,7 +13,13 @@ from shared.contracts.roles import list_specialists
 
 
 def message_for(event_type: str, idea_id: str) -> str:
-    """The Spanish message (RNF-4) for each of the four RF-18 events."""
+    """The Spanish base message (RNF-4) for each RF-18 event.
+
+    The final-decision events may carry an extra detail (the decision note or
+    reason): callers pass the full text through `create_notification`'s
+    `message` override (the calibration-stage rejection reuses `IDEA_REJECTED`
+    with a stage-specific text, RF-27).
+    """
     if event_type == "IDEA_REFINED":
         return f"La IA refinó tu idea ({idea_id})."
     if event_type == "IDEA_PUBLISHED":
@@ -21,6 +28,12 @@ def message_for(event_type: str, idea_id: str) -> str:
         return f"Tu idea ({idea_id}) fue rechazada."
     if event_type == "IDEA_REQUESTED":
         return f"El proponente solicitó publicar la idea {idea_id}."
+    if event_type == "IDEA_ACCEPTED":
+        return f"Tu idea ({idea_id}) fue aceptada."
+    if event_type == "IDEA_ARCHIVED":
+        return f"Tu idea ({idea_id}) fue archivada."
+    if event_type == "IDEA_REEVALUATED":
+        return f"Tu idea ({idea_id}) vuelve a la cola de calibración."
     raise ValueError(f"Evento de notificación desconocido: {event_type!r}")
 
 
@@ -30,7 +43,7 @@ def create_notification(
 ) -> dict:
     """Creates and returns a single (unread) notification for `user_id`.
 
-    `event_type` must be one of the four RF-18 events; anything else raises
+    `event_type` must be one of the RF-18 events; anything else raises
     (spec: "estos eventos y solo estos"). When `message` is omitted the
     canonical Spanish wording for the event is used.
     """

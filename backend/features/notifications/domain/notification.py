@@ -1,9 +1,10 @@
 """Notifications domain: the in-app `Notification` entity (T-032, RF-18, schema §2.7).
 
-Pure domain: no FastAPI/Pydantic (decision D8). Only the four events of RF-18
-are representable — `IDEA_REFINED`, `IDEA_PUBLISHED`, `IDEA_REJECTED`,
-`IDEA_REQUESTED` — and any other type is rejected (spec: "se notifican estos
-eventos y solo estos").
+Pure domain: no FastAPI/Pydantic (decision D8). Only the events of RF-18 are
+representable — the original four (`IDEA_REFINED`, `IDEA_PUBLISHED`,
+`IDEA_REJECTED`, `IDEA_REQUESTED`) plus the three added by v2.2 (`IDEA_ACCEPTED`,
+`IDEA_ARCHIVED`, `IDEA_REEVALUATED`) — and any other type is rejected (spec:
+"se notifican estos eventos y solo estos").
 """
 
 import uuid
@@ -12,12 +13,17 @@ from datetime import datetime
 
 from shared.exceptions.handlers import DomainError
 
-# The four, and only four, in-app events (RF-18, schema §2.7 `type` enum).
+# The in-app events (RF-18, schema §2.7 `type` enum): the original four plus
+# the three final-decision events of v2.2 (T-082). `IDEA_CALIBRATION_PENDING`
+# joins them at T-083.
 EVENT_TYPES: tuple[str, ...] = (
     "IDEA_REFINED",
     "IDEA_PUBLISHED",
     "IDEA_REJECTED",
     "IDEA_REQUESTED",
+    "IDEA_ACCEPTED",
+    "IDEA_ARCHIVED",
+    "IDEA_REEVALUATED",
 )
 
 
