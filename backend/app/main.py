@@ -22,6 +22,7 @@ from features.ideas.routers.ideas import ideas_router
 from features.notifications.routers.notifications import notifications_router
 from features.org.routers.org import org_router
 from features.users.routers.users import users_router
+from features.validation.routers.admin import admin_thresholds_router
 from features.validation.routers.validation import validation_router
 from shared.config.settings import settings
 from shared.exceptions.handlers import register_exception_handlers
@@ -82,6 +83,7 @@ app.include_router(validation_router)
 app.include_router(catalog_router)
 app.include_router(debate_router)
 app.include_router(org_router)
+app.include_router(admin_thresholds_router)
 
 if settings.cors_origins:
     app.add_middleware(

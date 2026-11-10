@@ -1,7 +1,7 @@
 # Especificación Funcional — Innov-IA MVP
 
 **Documento:** specs/001-innovation-evaluation-mvp/spec.md
-**Versión:** 2.1 — Revisión de alcance del propietario del producto (debate, evaluación IA, contexto de empresa, campo *Recursos estimados*, preferencias de presentación). Supera a la v2.0.
+**Versión:** 2.2 — Revisión de alcance del propietario del producto (debate, evaluación IA, contexto de empresa, campo *Recursos estimados*, preferencias de presentación, **decisión final de la calificación y estados finales**). Supera a la v2.1.
 **Estado:** Aprobada por el propietario del producto. Fuente única del alcance del MVP.
 **Fuente de verdad:** Este documento precede a cualquier código (enfoque Spec-First, Constitución §2.4 y §5).
 
@@ -12,13 +12,22 @@
 3. Se incorpora el **contexto de empresa** gestionable por el administrador (plantilla, edición en línea, subida de archivo), inyectado en **todas** las operaciones de la IA (RF-21, RF-22).
 4. Se plasman las preferencias de presentación ya implementadas: **tema claro/oscuro persistente con vista de Ajustes y maquetación responsive** (RNF-13).
 
+**Cambio de alcance v2.2 (solicitud expresa del propietario del producto):**
+
+1. Tras cerrarse el debate y generarse la calificación de la IA, la idea **vuelve a aparecer en la cola de validación** (etapa de calificación) y el especialista toma la **decisión final** sobre la ficha completa: el resultado (aceptada/archivada/rechazada) se deduce **automáticamente del promedio de los 5 criterios comparado con umbrales configurables por el administrador** (por defecto: < 4 rechazada, 4–< 7 archivada, ≥ 7 aceptada), se muestra en vivo mientras se puntúa, y la decisión **debe coincidir con el promedio** (si no coincide, el especialista debe ajustar la puntuación, no forzar el resultado).
+2. La decisión final conlleva **confiración explícita** con aviso de la consecuencia ("según nuestra evaluación esta idea será rechazada/aceptada/archivada… si quieres cambiar, este es el momento") y **motivo obligatorio** para rechazar y archivar; toda decisión queda auditada (RNF-8) y el creador es notificado (aceptada, rechazada con motivo, archivada con motivo).
+3. Nuevos **estados finales**: `ACEPTADA`, `RECHAZADA` (terminal, sin reevaluación) y `ARCHIVADA` (el creador puede **solicitar reevaluación**: la idea vuelve a la cola de calificación conservando el debate cerrado y la evaluación de la IA). `VALIDADA_PUBLICA` deja de ser terminal.
+4. El **catálogo público se organiza en 4 zonas** (pestañas): *En proceso* (`VALIDADA_PUBLICA`), *Aceptadas*, *Rechazadas* y *Archivadas*; la vista de detalle opera para las 4 zonas.
+5. En la ficha, el debate **cerrado se compacta**: solo se ve el resumen de la IA (o el aviso de que no hubo debate) y un enlace para ver el chat completo en otra vista de solo lectura.
+6. Nuevos **eventos de notificación** (RF-18): idea aceptada, idea rechazada (etapa de calificación, con motivo) e idea archivada (con motivo).
+
 ---
 
 ## 1. Contexto y objetivo
 
 Innov-IA es una plataforma corporativa de gestión de iniciativas de innovación. El MVP entrega la **captura asistida de ideas**: un asistente conversacional con IA actúa como formulario dinámico que recolecta progresivamente 6 datos por idea, con **contingencia manual** cuando la IA no está disponible o falla (el formulario manual se despliega automáticamente, prellenado con lo ya capturado), **flujo de clarificación posterior** de las ideas manuales, y **validación por un especialista** antes de publicarla.
 
-Al publicarse, cada idea abre un **debate** de 30 días (todos los usuarios con sesión; el asistente interviene bajo invocación `@asistant`); al **cerrarse** el debate, la IA genera un **resumen de los puntos principales** y la **evaluación de la IA sobre 5 criterios fijos**, que el especialista **acepta o sustituye** por su propia evaluación. Todo lo anterior opera guiado por un **contexto de empresa** gestionado por el administrador (RF-21/RF-22).
+Al publicarse, cada idea abre un **debate** de 30 días (todos los usuarios con sesión; el asistente interviene bajo invocación `@asistant`); al **cerrarse** el debate, la IA genera un **resumen de los puntos principales** y la **evaluación de la IA sobre 5 criterios fijos** (RF-24/RF-25/RF-26). La idea **vuelve entonces a la cola de validación** (etapa de calificación, RF-27): el especialista puntúa los 5 criterios (aceptando la de la IA o escribiendo la suya), el **promedio** determina el resultado (aceptada/archivada/rechazada según umbrales configurables, RF-28) y, tras la **confirmación explícita**, la idea queda en su **estado final** (`ACEPTADA`, `ARCHIVADA` o `RECHAZADA`) y se ubica en la zona correspondiente del **catálogo por zonas** (RF-20/RF-29); la decisión se audita (RNF-8) y el creador es notificado (RF-18). Todo lo anterior opera guiado por un **contexto de empresa** gestionado por el administrador (RF-21/RF-22).
 
 ### 1.1 Datos requeridos por idea (los 6 campos)
 
@@ -178,10 +187,11 @@ El asistente recorre un orden fijo de campos, aceptando también narrativa libre
 
 ### 5.6 Validación por el especialista
 
-**RF-14 — Cola de validación**
+**RF-14 — Cola de validación (dos etapas)**
 
-* Criterio de aceptación: La pantalla de validación (rol especialista) muestra únicamente las ideas en **SOLICITANDO_PUBLICACIÓN**, con los 6 campos, proponente (nombre y área) y fecha de solicitud.
+* Criterio de aceptación: La pantalla de validación (rol especialista) muestra las ideas pendientes de decisión, en dos etapas: **publicación** (ideas en **SOLICITANDO_PUBLICACIÓN**) y **calificación** (ideas en **VALIDADA_PUBLICA** cuyo debate está cerrado y aún no tienen decisión final). Cada entrada muestra su etapa, los 6 campos, el proponente (nombre y área) y la fecha de solicitud o de cierre del debate, según corresponda.
 * Criterio de aceptación: La cola no expone los datos de contacto del proponente (solo nombre y área).
+* Criterio de aceptación: Al abrir una entrada de la etapa de calificación, el especialista accede a la **ficha completa** (RF-23): 6 campos, debate compactado (RF-24), calificación de la IA (RF-26) y el formulario de decisión final (RF-27/RF-28).
 
 **RF-15 — Validación (publicación)**
 
@@ -207,8 +217,8 @@ El asistente recorre un orden fijo de campos, aceptando también narrativa libre
 Notificaciones únicamente in-app, con punto de acceso visible, contador de no leídas, navegación al objeto y marcado de leída al consultar.
 
 * Criterio de aceptación: Se notifican estos eventos y solo estos:
-  * al proponente: idea refinada (RF-12); validada/publicada (RF-15); rechazada, con comentario (RF-16).
-  * a **todos** los especialistas: idea nueva en **SOLICITANDO_PUBLICACIÓN**.
+  * al proponente: idea refinada (RF-12); validada/publicada (RF-15); rechazada, con comentario (RF-16) —en la etapa de publicación— o con motivo (RF-27) —en la etapa de calificación; **aceptada, con la nota de la decisión final (RF-27)**; **archivada, con el motivo (RF-27)**; **reevaluación atendida: su idea vuelve a la cola de calificación (RF-29)**.
+  * a **todos** los especialistas: idea nueva en **SOLICITANDO_PUBLICACIÓN**; **idea pendiente de calificación** (debate cerrado y evaluación de la IA generada, RF-27).
 
 ### 5.9 Mis ideas y catálogo público
 
@@ -216,11 +226,11 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 
 * Criterio de aceptación: El proponente consulta sus ideas (título, fecha de registro, origen, estado) y puede abrir cualquiera para ejecutar las acciones de su estado (RF-8, RF-9, RF-10, RF-13).
 
-**RF-20 — Catálogo público (vista compacta)**
+**RF-20 — Catálogo público por zonas (vista compacta)**
 
-* Criterio de aceptación: Para todo usuario con sesión activa, el sistema muestra las ideas **VALIDADA_PUBLICA** (propias o de terceros) como una **lista compacta: título, fecha de publicación y descripción**; **solo de lectura** y sin datos de contacto.
-* Criterio de aceptación: Nada menos que **VALIDADA_PUBLICA** aparece en el catálogo.
-* Criterio de aceptación: Al seleccionar una idea, el sistema debe abrirla en su **vista de detalle** (RF-23) con sus 6 campos, el debate (RF-24) y la evaluación (RF-26).
+* Criterio de aceptación: Para todo usuario con sesión activa, el catálogo se organiza en **cuatro zonas** (pestañas): **En proceso** (ideas **VALIDADA_PUBLICA** sin decisión final), **Aceptadas** (ACEPTADA), **Rechazadas** (RECHAZADA) y **Archivadas** (ARCHIVADA). Cada zona muestra sus ideas como **lista compacta: título, fecha de publicación y descripción**; **solo de lectura** y sin datos de contacto.
+* Criterio de aceptación: Nada menos que **VALIDADA_PUBLICA** (o su estado final) aparece en el catálogo.
+* Criterio de aceptación: Al seleccionar una idea, el sistema debe abrirla en su **vista de detalle** (RF-23) con sus 6 campos, el debate (RF-24) y la evaluación (RF-26), y el estado final visible cuando corresponda.
 
 ### 5.10 Máquina de estados (MVP)
 
@@ -228,10 +238,14 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 |--------|-------------|--------------|
 | **EN_DESARROLLO** | Creada, aún no autorizada para publicar. Atributos: origen (*asistida*/*manual*), *revisada por IA*, versión vigente, fecha de registro. | → SOLICITANDO_PUBLICACIÓN (RF-10) |
 | **SOLICITANDO_PUBLICACIÓN** | Autorizada por el proponente; espera al especialista. | → VALIDADA_PUBLICA (RF-15); → EN_DESARROLLO (RF-16) |
-| **VALIDADA_PUBLICA** | Publicada; visible en el catálogo con debate (RF-24) y evaluación (RF-26). Atributos nuevos: fecha de publicación, fecha límite del debate, debate cerrado, resumen del debate, evaluación vigente. | Terminal en el MVP |
+| **VALIDADA_PUBLICA** | Publicada; visible en el catálogo (zona *En proceso*) con debate (RF-24) y evaluación de la IA (RF-26). Atributos nuevos: fecha de publicación, fecha límite del debate, debate cerrado, resumen del debate, evaluación de la IA. | → ACEPTADA / ARCHIVADA / RECHAZADA (decisión final del especialista, RF-27/RF-28); → VALIDADA_PUBLICA (reevaluación de una ARCHIVADA, RF-29) |
+| **ACEPTADA** | Decisión final: el promedio de la calificación quedó en la banda de aceptación (RF-28). Zona *Aceptadas* del catálogo. Atributos: nota de decisión, motivo, decisor y fecha (RNF-8). | Terminal (no admite reevaluación) |
+| **ARCHIVADA** | Decisión final: el promedio quedó en la banda media o el especialista la archivó, con motivo (RF-27/RF-28). Zona *Archivadas* del catálogo. | → VALIDADA_PUBLICA (solicitud de reevaluación del creador, RF-29) |
+| **RECHAZADA** | Decisión final en la etapa de calificación: el promedio quedó en la banda de rechazo (RF-28), con motivo obligatorio (RF-27). Zona *Rechazadas* del catálogo. | Terminal (la reevaluación de rechazadas queda fuera del MVP; decisión reversible para el futuro) |
 
 * No existe borrador: la idea existe solo a partir de su registro (RF-6/RF-7).
 * El debate y la evaluación son **atributos de la idea publicada**, no estados propios (D12).
+* Los estados finales registran quién decidió y cuándo (RNF-8); el motivo es obligatorio para ARCHIVADA y RECHAZADA (RF-27).
 
 ### 5.11 Contexto de empresa (administrador)
 
@@ -261,6 +275,7 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 * Criterio de aceptación: Al llegar la fecha límite, el debate se **cierra de forma automática y definitiva**: no se admiten nuevos mensajes y la interfaz lo comunica.
 * Criterio de aceptación: Solo el **administrador** puede ajustar la fecha límite de un debate **idea por idea** (adelantarla o extenderla), incluso sobre debates cerrados (reabrirlos es ajustando la fecha a un futuro; el ajuste queda registrado con quien lo hizo y cuándo).
 * Criterio de aceptación: Al cerrarse el debate, si existió al menos un mensaje, la IA debe generar un **resumen de los puntos principales** de la conversación (el debate, el estado del debate y su resumen son visibles en la vista de detalle).
+* Criterio de aceptación: En la ficha, el debate **cerrado se muestra compactado**: solo se ve el resumen de la IA (o el aviso de que no hubo debate, caso 21) y un **enlace para ver el chat completo en otra vista de solo lectura** (todos los mensajes, autores y fechas); no se admite escribir en ninguna de las dos vistas cuando el debate está cerrado.
 
 **RF-25 — Intervención del asistente en el debate (@asistant)**
 
@@ -276,6 +291,28 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 * Criterio de aceptación: El juicio final de la idea es único en todo momento: la evaluación de la IA (mientras no haya decisión del especialista), la evaluación de la IA aceptada o la evaluación sustitutiva del especialista.
 * Criterio de aceptación: Tanto la aceptación de la evaluación de la IA como la sustitución por la propia quedan **auditadas con quien y cuándo** (RNF-8).
 
+**RF-27 — Decisión final del especialista (etapa de calificación)**
+
+* Criterio de aceptación: Al **cerrarse el debate** de una idea en **VALIDADA_PUBLICA** y generarse su evaluación de la IA (RF-26), la idea **vuelve a la cola de validación** (etapa de calificación, RF-14) y se notifica a todos los especialistas (RF-18).
+* Criterio de aceptación: En la ficha de la idea (RF-23) el especialista puntúa los 5 criterios fijos: puede **aceptar la calificación de la IA** (se replica en la calificación humana) o **escribir la suya** (sustitución, RF-26); el **promedio** (suma de los 5 / 5) y el **resultado derivado** (aceptada/archivada/rechazada según RF-28) se muestran **en vivo** mientras se rellenan los puntos.
+* Criterio de aceptación: Para confirmar, el especialista elige el resultado final entre **aceptar / archivar / rechazar**: cada opción solo se habilita si **coincide con el resultado derivado del promedio**; si el especialista elige un resultado distinto al derivado, el sistema le indica que debe **ajustar la puntuación** para que refleje su intención (nunca se permite forzar un resultado contradictorio con los puntos).
+* Criterio de aceptación: Al elegir, el sistema muestra un **aviso de confirmación** con la consecuencia ("según nuestra evaluación, esta idea será rechazada/aceptada/archivada; si quieres cambiar de decisión o de evaluación, este es el momento") y las opciones de **confirmar** o **volver a ajustar**; al confirmar, la idea pasa a su estado final (RF-28) y la decisión se **audita** con el especialista, el resultado y la fecha (RNF-8).
+* Criterio de aceptación: **Rechazar y archivar exigen motivo obligatorio** (bloqueado sin él); aceptar no exige motivo, aunque el especialista puede escribir una **nota** opcional que queda en el rastro.
+* Criterio de aceptación: Al confirmarse, el **creador es notificado**: idea aceptada; idea rechazada, con el motivo; idea archivada, con el motivo (RF-18).
+
+**RF-28 — Umbral de calificación y resultado automático (solo administrador)**
+
+* Criterio de aceptación: El resultado final se deduce del **promedio simple de los 5 criterios** comparado con **dos umbrales** (enteros 1–10, con `umbralRechazo < umbralAceptacion`): **promedio < umbralRechazo → rechazada**; **umbralRechazo ≤ promedio < umbralAceptacion → archivada**; **promedio ≥ umbralAceptacion → aceptada**. Por defecto: **4 / 7**.
+* Criterio de aceptación: Los umbrales son **configurables por el administrador** (sección de administración) y se aplican a las decisiones desde su cambio; quedan registrados con quien y cuándo (RNF-8).
+* Criterio de aceptación: El promedio y el resultado derivado se calculan siempre sobre la **calificación vigente** (la de la IA aceptada o la sustitutiva del especialista, RF-26) y se muestran en la ficha (RF-23/RF-27); no existe scoring global 0–100 ni ranking (D15).
+
+**RF-29 — Estados finales, catálogo por zonas y reevaluación**
+
+* Criterio de aceptación: La decisión final mueve la idea a **ACEPTADA**, **ARCHIVADA** o **RECHAZADA** (§5.10); la idea deja de estar en la cola de validación y pasa a la **zona correspondiente del catálogo** (RF-20), donde su vista de detalle (RF-23) es idéntica y muestra el estado final.
+* Criterio de aceptación: Solo el **especialista** puede **archivar**; el creador de una idea **ARCHIVADA** puede **solicitar reevaluación**: la idea **vuelve a la cola de la etapa de calificación** (VALIDADA_PUBLICA), **conservando el debate cerrado y la evaluación de la IA**, y se limpia la decisión final (nota, motivo y decisor) para decidir de nuevo; el creador es notificado cuando su solicitud se atiende y de nuevo al confirmarse la nueva decisión (RF-18).
+* Criterio de aceptación: Las ideas **ACEPTADA** y **RECHAZADA** **no admiten reevaluación** en el MVP (decisión reversible para el futuro); su ficha no ofrece esa acción.
+* Criterio de aceptación: En **Mis ideas** (RF-19) el creador ve el estado final de sus ideas y, en las archivadas, la acción de solicitar reevaluación.
+
 ---
 
 ## 6. Requisitos no funcionales
@@ -289,7 +326,7 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 | RNF-5 | **Integridad:** Ninguna idea se registra con los 6 campos vacíos u omitidos (ambos modos). |
 | RNF-6 | **Accesibilidad:** Toda la interfaz (chat, chips, formularios, notificaciones, catálogos) debe poder operarse con teclado y lectores de pantalla. |
 | RNF-7 | **Segregación por rol:** Cada rol solo accede a sus funciones y datos. Excepción explícita: el catálogo público (RF-20) es de solo lectura y visible para todos los usuarios con sesión, independientemente de rol. |
-| RNF-8 | **Auditoría:** Toda transición a VALIDADA_PUBLICA registra quién y cuándo (inclusive autovalidación); todo rechazo conserva el comentario y la identidad de quien lo emitió. |
+| RNF-8 | **Auditoría:** Toda transición a VALIDADA_PUBLICA registra quién y cuándo (inclusive autovalidación); todo rechazo conserva el comentario y la identidad de quien lo emitió; toda decisión final (aceptar/archivar/rechazar, RF-27) y cambio de umbrales (RF-28) registran quién y cuándo. |
 | RNF-9 | **Consistencia:** Solo los roles autorizados provocan transiciones; ante dos acciones simultáneas sobre la misma idea, se aplica la que se ejecute primero y se descarta la otra, sin dejar estado inconsistente. |
 | RNF-10 | **Sin pérdida en contingencia:** Un fallo de la IA nunca borra campos ya capturados (RF-7). |
 | RNF-11 | **Auditoría de debate:** Cada mensaje de debate registra autor, fecha y, cuando corresponda, el mensaje enlazado; el ajuste de fechas de debate y la aceptación/sustitución de la evaluación se auditan (quién y cuándo) (RF-24, RF-26). |
@@ -327,20 +364,27 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 | 23 | Sustitución de la evaluación por el especialista y luego el especialista acepta la de la IA (o al revés) | Cada acción es sobre el estado previo; el juicio final siempre es el resultado de la última acción del especialista. |
 | 24 | Contexto de empresa vacío o solo plantilla sin contenido | La IA opera sin contexto; se muestra aviso al administrador en la sección de contexto (RF-22). |
 | 25 | Subida de archivo de contexto sin texto o corrupto | Se rechaza el guardado con aviso; el contexto vigente no se modifica. |
+| 26 | Promedio exactamente en un umbral | Se aplica la banda cerrada por arriba: promedio = umbralRechazo → archivada; promedio = umbralAceptacion → aceptada (RF-28). |
+| 27 | El especialista intenta forzar un resultado distinto al derivado del promedio | La acción se bloquea con aviso: debe ajustar la puntuación para que refleje su intención (RF-27). |
+| 28 | Rechazo o archivo sin motivo en la etapa de calificación | Bloqueado (motivo obligatorio, RF-27); la idea no cambia de estado. |
+| 29 | Reevaluación de una idea ACEPTADA o RECHAZADA | No existe la acción (fuera del MVP); solo las ARCHIVADAS pueden reevaluarse (RF-29). |
+| 30 | Reevaluación de una ARCHIVADA cuyo debate ya cerró | La idea vuelve a la cola de calificación conservando debate cerrado y evaluación de la IA; se limpia la decisión final previa y el especialista decide de nuevo (RF-29). |
+| 31 | Cambios de umbrales con ideas ya decididas | Solo afectan decisiones posteriores; las ideas en estado final no se recalculan (RF-28). |
 
 ---
 
 ## 8. Fuera de alcance
 
-1. Estados formales **IDEA EN DEBATE** y **IDEA EN EVALUACIÓN** con salidas Aprobada/Archivada/Rechazada (el debate de la plataforma es un atributo de la idea publicada, RF-24, decisión D12), incluidos el comité de evaluación y sus decisiones formales.
-2. **Scoring global** (0–100) y ranking de ideas; la evaluación se expresa solo como los 5 criterios por criterio (RF-26).
-3. Flujos de evaluación formal más allá de la validación del especialista y la evaluación IA/sustitución del especialista (RF-26).
+1. Estados formales **IDEA EN DEBATE** y **IDEA EN EVALUACIÓN** (el debate de la plataforma es un atributo de la idea publicada, RF-24, decisión D12), el comité de evaluación y sus decisiones formales. (v2.2: las **salidas** Aceptada/Archivada/Rechazada **sí están en el alcance**, como estados finales del §5.10 y RF-27/RF-29, sin comité).
+2. **Scoring global** (0–100) y ranking de ideas; la evaluación se expresa solo como los 5 criterios por criterio (RF-26); el resultado final usa el promedio de los 5 criterios (RF-28), no un score propio.
+3. Flujos de evaluación formal más allá de la validación del especialista y la evaluación IA/sustitución del especialista (RF-26/RF-27).
 4. Roles adicionales al MVP (dirección, comité) y su integración al panel.
 5. Borradores de ideas (decisión explícita).
 6. Notificaciones fuera de la aplicación.
-7. Publicación externa (portales, boletines, etc.); "publicada" significa publicada dentro de la plataforma.
-8. Edición de ideas en VALIDADA_PUBLICA (no existe edición de una idea publicada; corresponde a fases futuras).
-9. Reintroducción del campo *Recursos estimados* (decisión D11: fuera del MVP, reversible en el futuro).
+7. **Reevaluación de ideas ACEPTADA o RECHAZADA**: fuera del MVP; solo las ARCHIVADAS se reevalúan (RF-29, decisión reversible).
+8. Publicación externa (portales, boletines, etc.); "publicada" significa publicada dentro de la plataforma.
+9. Edición de ideas en VALIDADA_PUBLICA (no existe edición de una idea publicada; corresponde a fases futuras).
+10. Reintroducción del campo *Recursos estimados* (decisión D11: fuera del MVP, reversible en el futuro).
 
 ---
 
@@ -355,14 +399,15 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 7. **Validación e2e:** validación → VALIDADA_PUBLICA + notificación; rechazo → EN_DESARROLLO + comentario.
 8. **Usuarios/roles:** creación de usuario (contraseña temporal, cambio en primer acceso), asignación, revocación (sin roles = sin acceso, historial intacto), bloqueo del último administrador.
 9. **Notificaciones:** solo los 4 eventos de RF-18; contador, navegación y leídas.
-10. **Catálogo público:** solo VALIDADA_PUBLICA, en vista compacta (título, fecha de publicación, descripción); al abrir, la vista de detalle muestra los 6 campos, el debate y la evaluación; de solo lectura, sin datos de contacto.
-11. **Debate:** mensajes de cualquier usuario con sesión; cierre automático a 30 días; ajuste de fecha por idea del administrador; `@asistant` responde con el mensaje enlazado; al cierre, resumen de la IA visible.
-12. **Evaluación:** generada al cerrarse el debate sobre 5 criterios (1–10 + justificación; pendiente si la IA cae, con reintento); aceptación o sustitución por el especialista dejan un único juicio final auditado.
+10. **Catálogo por zonas:** 4 pestañas (En proceso/Aceptadas/Rechazadas/Archivadas), cada una solo con su estado, en vista compacta (título, fecha de publicación, descripción); al abrir, la vista de detalle muestra los 6 campos, el debate y la evaluación; de solo lectura, sin datos de contacto.
+11. **Debate:** mensajes de cualquier usuario con sesión; cierre automático a 30 días; ajuste de fecha por idea del administrador; `@asistant` responde con el mensaje enlazado; al cierre, resumen de la IA visible y el debate **compactado** con enlace al chat completo en otra vista de solo lectura.
+12. **Evaluación:** generada al cerrarse el debate sobre 5 criterios (1–10 + justificación; pendiente si la IA cae, con reintento); la idea vuelve a la cola de validación (etapa de calificación); el especialista puntúa (aceptando la de la IA o con la suya), el **promedio** muestra el resultado derivado en vivo, la decisión **coincide** con el promedio, se confirma con aviso y deja un único juicio final auditado; el creador es notificado.
 13. **Contexto de empresa:** plantilla descargable, edición en línea y subida de archivo; vacío detectado con aviso; inyectado en captura, título, mejoras, debate y evaluación.
 14. **Presentación:** tema claro/oscuro persistido, vista de ajustes, maquetación responsive.
-15. **Casos límite:** verificados 1, 2, 5, 6, 7, 13, 16, 17, 18, 20, 22.
+15. **Casos límite:** verificados 1, 2, 5, 6, 7, 13, 16, 17, 18, 20, 22, 26, 27, 28, 29, 30.
 16. **Pruebas:** `pytest -q` pasa al completo (backend).
 17. **Conformidad:** estructura por features y capa compartida según Constitución; guías de Angular y Tailwind respetadas.
+18. **Estados finales:** aceptar/archivar/rechazar mueven la idea a su zona del catálogo; motivo obligatorio en rechazo y archivo; solo las ARCHIVADAS se reevalúan (vuelven a la cola conservando debate e IA).
 
 ---
 
@@ -381,9 +426,13 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 | 9 | La revocación de rol/desactivación **conserva cuenta, ideas e historial**; solo se pierde el acceso. | RF-17, §7 cas. 16 |
 | 10 | El **Proponente como campo** se prellena desde la cuenta en los dos modos de captura. | §1.1, RF-6, RF-7 |
 | 11 | **Recursos estimados fuera del MVP:** el campo no se captura, no se valida y no se muestra en ningún lugar (decisión reversible; puede reintroducirse en una versión futura). Sustituye a los "7 campos" de la v2.0: se trabaja con 6. | §1.1, D11, RF-3, RF-7, RF-9 |
-| 12 | **Debate y evaluación son atributos de la idea publicada, no estados:** el debate se cierra por fecha límite (30 días por defecto, ajustable idea por idea por el administrador) y la evaluación es única (IA o del especialista). No se introducen los estados formales *En debate*/*En evaluación* de la v1.0. | RF-24, RF-26, §5.10 |
+| 12 | **Debate y evaluación son atributos de la idea publicada, no estados:** el debate se cierra por fecha límite (30 días por defecto, ajustable idea por idea por el administrador) y la evaluación es única (IA o del especialista). No se introducen los estados formales *En debate*/*En evaluación* de la v1.0 (v2.2: los estados **finales** ACEPTADA/ARCHIVADA/RECHAZADA sí existen como salidas de VALIDADA_PUBLICA, §5.10). | RF-24, RF-26, RF-27, §5.10 |
 | 13 | **Contexto de empresa:** se gestiona como un único documento (plantilla + edición en línea + subida de archivo) y se inyecta en TODAS las operaciones de la IA. Sustituye/expande el perfil de organización de la v2.0 (D7): el perfil queda dentro del documento. | RF-21, RF-22, RNF-12 |
 | 14 | **@asistant en el debate:** la intervención del asistente es bajo invocación explícita citando un mensaje concreto; el resumen final del debate lo genera la IA al cerrarse (si hubo mensajes). El debate no es un chat asistido continuo. | RF-24, RF-25 |
 | 15 | **Evaluación IA:** 5 criterios fijos (*claridad del problema, factibilidad, impacto esperado, alineación estratégica, grado de innovación*), puntuación 1–10 + justificación por criterio; se genera al cerrarse el debate; el especialista la acepta o la sustituye por su propia sobre los mismos criterios. No hay scoring global 0–100. | RF-26 |
 | 16 | **Catálogo en vista compacta:** el listado muestra solo título, fecha de publicación y descripción; el resto (6 campos, debate, evaluación) se ve en la vista de detalle de la idea. | RF-20, RF-23 |
 | 17 | **Preferencia de presentación:** tema claro/oscuro elegible por el usuario, persistido entre sesiones, con vista de ajustes accesible del menú y maquetación responsive. | RNF-13 |
+| 18 | **Decisión final con confirmación:** el especialista puntúa los 5 criterios (aceptando la IA o con la suya); el promedio da el resultado (RF-28) que se muestra en vivo; el resultado final elegido debe coincidir con el promedio (no se fuerza); la confirmación avisa de la consecuencia y da opción de volver; rechazar y archivar exigen motivo; se audita (RNF-8) y se notifica al creador (RF-18). | RF-27, RF-28, RF-18, RNF-8 |
+| 19 | **Umbrales por promedio simple:** promedio = suma de los 5 criterios / 5; bandas: < umbralRechazo → rechazada; umbralRechazo ≤ promedio < umbralAceptacion → archivada; ≥ umbralAceptacion → aceptada; umbrales configurables por el administrador (defecto 4/7, enteros 1–10, rechazo < aceptación); solo afectan decisiones posteriores. | RF-28, §7 caso 26, 31 |
+| 20 | **Estados finales y zonas:** ACEPTADA y RECHAZADA son terminales (sin reevaluación en el MVP); ARCHIVADA admite reevaluación del creador (vuelve a la cola conservando debate cerrado y evaluación IA, limpiando la decisión previa); el catálogo se organiza en 4 zonas (En proceso/Aceptadas/Rechazadas/Archivadas). | RF-29, RF-20, §5.10, §8.7 |
+| 21 | **Compactado del debate cerrado:** en la ficha, el debate cerrado muestra solo el resumen (o el aviso de que no hubo debate) y un enlace al chat completo en otra vista de solo lectura. | RF-24, §7 caso 18, 21 |

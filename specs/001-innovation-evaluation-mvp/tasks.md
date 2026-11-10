@@ -1,7 +1,7 @@
 # Tareas de Implementación — Innov-IA MVP
 
 **Documento:** specs/001-innovation-evaluation-mvp/tasks.md
-**Depende de:** `specs/001-innovation-evaluation-mvp/spec.md` (v2.1 — ampliación de alcance del propietario), `specs/001-innovation-evaluation-mvp/plan.md` (v1.1) y `docs/CONSTITUTION.md`
+**Depende de:** `specs/001-innovation-evaluation-mvp/spec.md` (v2.2 — ampliación de alcance del propietario), `specs/001-innovation-evaluation-mvp/plan.md` (v1.2) y `docs/CONSTITUTION.md`
 **Naturaleza:** Desglose de implementación en tareas atómicas (20–30 min cada una). Una tarea NO se marca como hecha hasta cumplir su criterio "Hecho cuando".
 
 > **Ampliación de alcance (v2.1):** el propietario del producto incorporó al MVP el debate de las
@@ -10,6 +10,14 @@
 > *Recursos estimados* (D11), la vista compacta de catálogo + detalle (RF-20/RF-23) y las
 > preferencias de presentación (RNF-13). Quedan registradas en la **Fase 5 / G17–G18** (T-069 y
 > siguientes).
+
+> **Ampliación de alcance (v2.2):** el propietario del producto incorpora la **decisión final de la
+> calificación**: al cerrarse el debate y generarse la evaluación de la IA, la idea vuelve a la cola de
+> validación (etapa de calificación, RF-27); el especialista decide **aceptada/archivada/rechazada** según
+> el promedio de los 5 criterios y dos **umbrales configurables** (RF-28, defecto 4/7); nacen los estados
+> finales `ACEPTADA`/`ARCHIVADA`/`RECHAZADA`, la **reevaluación** de una `ARCHIVADA` (RF-29), la cola de
+> validación en **dos etapas** (RF-14) y el **catálogo por 4 zonas** (RF-20). Quedan registradas en la
+> **Fase 6 / G19–G20** (T-079 y siguientes).
 
 > **Reglas de ejecución:**
 >
@@ -27,7 +35,8 @@
 | **2** | Backend: FastAPI Clean Architecture (7 features en v2.0; 9 con `org`/`debate` de v2.1) |
 | **3** | Frontend: Angular 20+ features (6 features) |
 | **4** | Integración Ollama, e2e y cierre |
-| **5** | Ampliación de alcance v2.1: contexto de empresa, debate, evaluación IA, catálogo detalle, sin recursos (G17) |
+| **5** | Ampliación de alcance v2.1: contexto de empresa, debate, evaluación IA, catálogo detalle, sin recursos (G17/G18) |
+| **6** | Ampliación de alcance v2.2: decisión final de calificación, umbrales, estados finales, reevaluación, cola en dos etapas, catálogo por zonas (G19/G20) |
 
 ---
 
@@ -479,6 +488,57 @@
 
 ---
 
+## Fase 6 — Ampliación de alcance v2.2 (G19/G20)
+
+> Pendiente: la v2.2 (decisión del propietario) amplía el alcance con la decisión final de la calificación y
+> los estados finales. Ejecutar en orden G19 → G20.
+
+### 6.1 G19 — Decisión final, umbrales y cola de calificación
+
+- [x] **[T-079] Backend: estados finales y máquina de estados (ACEPTADA/ARCHIVADA/RECHAZADA)**
+  - **Covers:** RF-27, RF-29, RNF-9, §5.10, plan §4.6
+  - **Dependencias:** [T-074]
+  - **Hecho cuando:** `Idea.STATES` y el contrato `idea_ledger.py` (constantes) incluyen `ACEPTADA`, `ARCHIVADA` y `RECHAZADA`; la máquina `state_machine.py` admite desde `VALIDADA_PUBLICA` las transiciones `decide-accepted`/`decide-archived`/`decide-rejected` (→ estados finales) y desde `ARCHIVADA` la transición `reevaluate` (→ `VALIDADA_PUBLICA`); `ACEPTADA` y `RECHAZADA` son terminales; al decidir se escribe `idea.decision` (outcome, reason, score, decidedBy, decidedByName, decidedAt) y al reevaluar `decision` vuelve a `null`; transiciones inválidas → `DomainError` 409 (RNF-9); tests unitarios en `tests/unit/domain/test_state_machine.py` (y del contrato) cubren cada transición válida/inválida; `pytest -q` verde.
+
+- [x] **[T-080] Backend: reglas puras de promedio, banda y decisión final**
+  - **Covers:** RF-27, RF-28, RNF-8, RNF-9, casos 26, 27, 28, plan §4.9
+  - **Dependencias:** [T-079]
+  - **Hecho cuando:** Nueva feature `validation/domain/decision_rules.py` (dominio puro, sin FastAPI) con: `PROMEDIO(evaluación)` (suma de los 5 scores / 5, 2 decimales), `BANDA(promedio, umbral)` (`promedio < X` → RECHAZADA; `X ≤ promedio < Z` → ARCHIVADA; `promedio ≥ Z` → ACEPTADA, caso 26: el promedio exacto en el umbral cae en la banda cerrada por arriba) y la validación de decisión (motivo obligatorio para ARCHIVADA/RECHAZADA → 400; `outcome` debe coincidir con la banda → 409 `DECISION_MISMATCH` con `score` y `band` en los detalles; estado debe ser `VALIDADA_PUBLICA` → 409); tests unitarios en `tests/unit/validation/test_decision_rules.py` (`pytest -q` verde).
+
+- [x] **[T-081] Backend: umbrales administrables (documento único, defecto 4/7)**
+  - **Covers:** RF-28, RNF-8, casos 26, 31, plan §2.11/§4.9
+  - **Dependencias:** [T-079]
+  - **Hecho cuando:** Nueva `validation/infrastructure/threshold_store.py` (JSON, un único registro) + use case `admin_thresholds.py` + endpoints (solo admin): `GET /admin/calibration-thresholds` (200, umbrales vigentes; si nunca se guardaron, defecto `{rejectionThreshold:4, acceptanceThreshold:7}`) y `PUT /admin/calibration-thresholds` (200, guarda `{rejectionThreshold, acceptanceThreshold}`; 422 `THRESHOLDS_INVALID` con `details.problems` si no son enteros 1–10 o `rejection >= acceptance`; el cambio queda auditado con `updatedBy`/`updatedAt`, RNF-8); al cargar umbrales no guardados se usa el defecto (caso 31: las decisiones previas no se recalculan); tests en `tests/api/test_admin_thresholds_api.py` y unitarios del store (`pytest -q` verde).
+
+- [ ] **[T-082] Backend: decisión final (endpoint) + reevaluación + cola de calificación**
+  - **Covers:** RF-14, RF-27, RF-28, RF-29, RNF-8, RNF-9, RF-18, casos 27, 28, 29, 30, plan §4.9
+  - **Dependencias:** [T-079], [T-080], [T-081]
+  - **Hecho cuando:** Use case `decide_final.py` + endpoint `POST /validation/{id}/decision` (rol especialista; 200 devuelve `state` + `decision`; 409 `DECISION_MISMATCH` si `outcome` ≠ banda; 400 `DECISION_REASON_REQUIRED` sin motivo en ARCHIVADA/RECHAZADA; 409 si la idea no está en `VALIDADA_PUBLICA` o sin calificación vigente; audita y notifica al creador `IDEA_ACCEPTED`/`IDEA_ARCHIVED`/`IDEA_REJECTED`); use case `reevaluate_idea.py` + endpoint `POST /ideas/{id}/request-reevaluation` (solo dueño; 200 → `state=VALIDADA_PUBLICA`, `decision=null`, conserva debate cerrado + evaluación IA; 403 sin propiedad, 409 si no es `ARCHIVADA` (caso 29); notifica `IDEA_REEVALUATED` al creador); la cola `GET /validation/queue` acepta `?stage=publicacion|calibracion` (sin parámetro = ambas): la etapa de **calibración** lista `VALIDADA_PUBLICA` con debate cerrado, evaluación `status != PENDING` y `decision == null` (RF-14 v2.2); tests en `tests/api/test_decision_api.py` y `test_reevaluation_api.py` (`pytest -q` verde).
+
+- [ ] **[T-083] Backend: notificación de calificación pendiente + catálogo por zonas**
+  - **Covers:** RF-18, RF-20, RF-23, RF-27, RF-29, plan §4.8/§4.9
+  - **Dependencias:** [T-074], [T-082]
+  - **Hecho cuando:** El enum de `EVENT_TYPES` (feature `notifications`) se amplía a los 8 eventos (`IDEA_REFINED`, `IDEA_PUBLISHED`, `IDEA_REJECTED`, `IDEA_REQUESTED`, `IDEA_ACCEPTED`, `IDEA_ARCHIVED`, `IDEA_REEVALUATED`, `IDEA_CALIBRATION_PENDING`); al **cerrarse el debate** y generarse la evaluación de la IA se notifica a **todos los especialistas** `IDEA_CALIBRATION_PENDING` (1 vez, guard idempotente, RNF-9); `IDEA_REJECTED` se reutiliza para el rechazo en calificación (el mensaje distingue la etapa e incluye el motivo); `list_public.py`/`catalog.py` aceptan `?zone=en-proceso|aceptadas|rechazadas|archivadas` (sin parámetro → todas) y el detalle `GET /catalog/{ideaId}` expone `state` + `decision` en los 4 estados; tests en `tests/api/test_catalog_api.py` y `tests/api/test_notifications_api.py` (`pytest -q` verde).
+
+### 6.2 G20 — Frontend: ficha de calificación, decisión y zonas
+
+- [ ] **[T-084] Frontend: ficha de calificación + decisión final + umbrales admin**
+  - **Covers:** RF-14, RF-27, RF-28, RF-23, plan §1.1
+  - **Dependencias:** [T-082], [T-083]
+  - **Hecho cuando:** La cola de validación (`/validacion`) muestra las **dos etapas** (publicación / calificación) con selector de etapa; al abrir una entrada de la etapa de **calificación** el especialista accede a la **ficha completa**: 6 campos, debate compactado (resumen + enlace a solo lectura), calificación de la IA vigente (5 criterios, `GENERADA`/`ACEPTADA`/`SUSTITUIDA`, con aceptar/sustituir) y el **formulario de decisión final** (RF-27): el **promedio** (suma/5) y el **resultado derivado** (banda según umbrales) se calculan y muestran **en vivo** mientras se puntúan los 5 criterios; el resultado elegido debe coincidir con la banda (aviso ante 409 `DECISION_MISMATCH` sin forzar); el motivo es obligatorio para ARCHIVADA/RECHAZADA (aviso ante 400) y opcional para ACEPTADA; antes de confirmar se muestra un **diálogo de confirmación** con el aviso de consecuencia y opción de volver; la sección de administración gana una pestaña **Umbrales de calificación** (RF-28) con los dos enteros 1–10, validación `rechazo < aceptación` (aviso ante 422) y guardado auditado; `ng build` verde.
+
+- [ ] **[T-085] Frontend: catálogo por 4 zonas + debate compactado + reevaluación en Mis ideas**
+  - **Covers:** RF-20, RF-23, RF-24, RF-29, plan §1.1
+  - **Dependencias:** [T-083], [T-084]
+  - **Hecho cuando:** El catálogo público (`/catalogo/publico`) se organiza en **4 pestañas/zonas** (En proceso / Aceptadas / Rechazadas / Archivadas) que consumen `?zone=`; el detalle de una idea en estado final muestra el **estado final** y la **decisión** (resultado, motivo, promedio, especialista, fecha) en solo lectura; el **debate cerrado** se muestra **compactado** (resumen de la IA o aviso de que no hubo debate) con un enlace a una vista **solo lectura** del chat completo (sin input); en **Mis ideas** (`/mias-ideas`) se muestran los estados finales y, para una idea `ARCHIVADA`, la acción **Solicitar reevaluación** (RF-29, llamada a `POST /ideas/{id}/request-reevaluation` con confirmación) que la devuelve a la cola de calificación; para `ACEPTADA`/`RECHAZADA` no se muestra la acción (caso 29); todo responsive y accesible (teclado/aria, RNF-6); `ng build` verde.
+
+- [ ] **[T-086] E2E e integración: verificación de la ampliación v2.2 (spec §9 + casos 26–31)**
+  - **Covers:** RF-14, RF-20, RF-23, RF-27, RF-28, RF-29, RNF-8, RNF-9, casos 26, 27, 28, 29, 30, 31
+  - **Dependencias:** [T-078], [T-079..T-085]
+  - **Hecho cuando:** Se verifica y firma cada criterio nuevo del spec §9 y los casos límite 26–31 con evidencia de tests de API integrados del flujo completo: publicar → debate → cierre → evaluación IA → la idea vuelve a la cola de calificación + notificación a especialistas → calificación (aceptar/sustituir) → promedio/banda en vivo → decisión final (coincidencia 409, motivo 400) → estado final + zona de catálogo + notificación al creador; reevaluación de una ARCHIVADA (conserva debate cerrado + evaluación IA, limpia decision, vuelve a la cola) y no-reevaluación de ACEPTADA/RECHAZADA; umbrales defecto 4/7, cambio auditado, inválidos 422 y no recálculo de decisiones previas; `pytest -q` al completo verde, `ruff check .` limpio y `ng build` verde; el estado de G19/G20 queda firmado en los archivos de grupo.
+
+---
+
 ## Matriz de cobertura RF → tareas
 
 | RF | Tareas |
@@ -496,18 +556,21 @@
 | RF-11 | T-024, T-060, T-061, T-062, T-049, T-065 |
 | RF-12 | T-033, T-061, T-055, T-065 |
 | RF-13 | T-024, T-049, T-065 |
-| RF-14 | T-034, T-051, T-066 |
+| RF-14 | T-034, T-051, T-066, T-082, T-084 |
 | RF-15 | T-021, T-033, T-034, T-051, T-066 |
 | RF-16 | T-021, T-033, T-034, T-050, T-051, T-066 |
 | RF-17 | T-011, T-012, T-014..T-016, T-038, T-053, T-054, T-067 |
-| RF-18 | T-032, T-033, T-055, T-066 |
+| RF-18 | T-032, T-033, T-055, T-066, T-082, T-083 |
 | RF-19 | T-022, T-023, T-046, T-047 |
-| RF-20 | T-022, T-035, T-052, T-068, T-077 |
+| RF-20 | T-022, T-035, T-052, T-068, T-077, T-083, T-085 |
 | RF-21 | T-070, T-076 |
 | RF-22 | T-071, T-076 |
-| RF-23 | T-077 |
-| RF-24 | T-072, T-073, T-077, T-078 |
+| RF-23 | T-077, T-084, T-085 |
+| RF-24 | T-072, T-073, T-077, T-078, T-085 |
 | RF-25 | T-071, T-073, T-077, T-078 |
 | RF-26 | T-071, T-074, T-077, T-078 |
+| RF-27 | T-079, T-080, T-082, T-083, T-084 |
+| RF-28 | T-080, T-081, T-082, T-084 |
+| RF-29 | T-079, T-082, T-085 |
 
-**Cobertura:** los 26 RF (RF-1..RF-26) están cubiertos (RF-21..RF-26 son v2.1). **Total de tareas:** 78 (68 del MVP v2.0 + 10 de la ampliación v2.1: T-069..T-078).
+**Cobertura:** los 29 RF (RF-1..RF-29) están cubiertos (RF-21..RF-26 son v2.1 y RF-27..RF-29 son v2.2). **Total de tareas:** 86 (68 del MVP v2.0 + 10 de la ampliación v2.1: T-069..T-078 + 8 de la ampliación v2.2: T-079..T-086).

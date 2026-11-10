@@ -38,13 +38,35 @@ def test_transition_table_is_exactly_the_spec() -> None:
     assert TRANSITIONS == {
         "EN_DESARROLLO": {"request-publication": "SOLICITANDO_PUBLICACION"},
         "SOLICITANDO_PUBLICACION": {"approve": "VALIDADA_PUBLICA", "reject": "EN_DESARROLLO"},
-        "VALIDADA_PUBLICA": {},
+        "VALIDADA_PUBLICA": {
+            "decide-accepted": "ACEPTADA",
+            "decide-archived": "ARCHIVADA",
+            "decide-rejected": "RECHAZADA",
+        },
+        "ARCHIVADA": {"reevaluate": "VALIDADA_PUBLICA"},
+        "ACEPTADA": {},
+        "RECHAZADA": {},
     }
-    assert ACTIONS == ("request-publication", "approve", "reject")
+    assert ACTIONS == (
+        "request-publication",
+        "approve",
+        "reject",
+        "decide-accepted",
+        "decide-archived",
+        "decide-rejected",
+        "reevaluate",
+    )
 
 
-def test_validada_publica_is_terminal() -> None:
-    assert TRANSITIONS["VALIDADA_PUBLICA"] == {}
+def test_final_states_are_terminal() -> None:
+    assert TRANSITIONS["ACEPTADA"] == {}
+    assert TRANSITIONS["RECHAZADA"] == {}
+
+
+def test_only_archived_allows_reevaluation_case_29() -> None:
+    assert TRANSITIONS["ARCHIVADA"] == {"reevaluate": "VALIDADA_PUBLICA"}
+    assert "reevaluate" not in TRANSITIONS["ACEPTADA"]
+    assert "reevaluate" not in TRANSITIONS["RECHAZADA"]
 
 
 def test_request_publication_is_the_only_entry_to_solicitando() -> None:
@@ -80,7 +102,14 @@ def test_the_same_action_after_it_is_applied_is_rejected(original: str, action: 
 # -- invalid transitions (RNF-9: DomainError 409) ----------------------------------
 
 
-VALID_STATES = ("EN_DESARROLLO", "SOLICITANDO_PUBLICACION", "VALIDADA_PUBLICA")
+VALID_STATES = (
+    "EN_DESARROLLO",
+    "SOLICITANDO_PUBLICACION",
+    "VALIDADA_PUBLICA",
+    "ARCHIVADA",
+    "ACEPTADA",
+    "RECHAZADA",
+)
 ALL_ACTIONS = list(ACTIONS) + ["nonsense"]
 
 
@@ -156,3 +185,80 @@ def test_apply_false_returns_a_copy_without_touching_the_original() -> None:
     assert returned is not original
     assert original.state == "EN_DESARROLLO"
     assert returned.state == "SOLICITANDO_PUBLICACION"
+
+
+# -- v2.2: final decisions and re-evaluation (RF-27/RF-29, plan §4.6) ------------
+
+
+@pytest.mark.parametrize(
+    ("action", "outcome"),
+    [
+        ("decide-accepted", "ACEPTADA"),
+        ("decide-archived", "ARCHIVADA"),
+        ("decide-rejected", "RECHAZADA"),
+    ],
+)
+def test_decide_moves_to_the_final_state_and_writes_the_decision(action: str, outcome: str) -> None:
+    idea = transicionar(
+        _idea("VALIDADA_PUBLICA"),
+        action,
+        by_user="u_experto",
+        by_name="Experto",
+        now=NOW,
+        reason="Promedio dentro de la banda",
+        score=7.5,
+        apply=False,
+    )
+    assert idea.state == outcome
+    assert idea.decision == {
+        "outcome": outcome,
+        "reason": "Promedio dentro de la banda",
+        "score": 7.5,
+        "decidedBy": "u_experto",
+        "decidedByName": "Experto",
+        "decidedAt": NOW,
+    }
+
+
+def test_decide_keeps_the_evaluation_untouched() -> None:
+    idea = _idea("VALIDADA_PUBLICA")
+    idea.evaluation = {"status": "SUSTITUIDA", "criteria": []}
+    idea.aiEvaluation = {"status": "GENERADA", "criteria": []}
+    decided = transicionar(idea, "decide-archived", by_user="u_experto", now=NOW,
+                           reason="Motivo del archivo", score=5.0, apply=False)
+    assert decided.evaluation == idea.evaluation
+    assert decided.aiEvaluation == idea.aiEvaluation
+
+
+def test_reevaluate_returns_archived_to_publication_and_clears_the_decision() -> None:
+    idea = _idea("ARCHIVADA")
+    idea.decision = {"outcome": "ARCHIVADA", "reason": "r", "score": 5.0,
+                     "decidedBy": "u_experto", "decidedByName": "E", "decidedAt": NOW}
+    idea.evaluation = {"status": "SUSTITUIDA", "criteria": []}
+    idea.aiEvaluation = {"status": "GENERADA", "criteria": []}
+    reevaluated = transicionar(idea, "reevaluate", by_user="u_ana", now=NOW, apply=False)
+    assert reevaluated.state == "VALIDADA_PUBLICA"
+    assert reevaluated.decision is None
+    assert reevaluated.evaluation == idea.evaluation      # debate/evaluation kept (RF-29)
+    assert reevaluated.aiEvaluation == idea.aiEvaluation
+
+
+def test_terminal_states_reject_every_action() -> None:
+    for terminal in ("ACEPTADA", "RECHAZADA"):
+        for action in list(ACTIONS):
+            with pytest.raises(InvalidTransition):
+                transicionar(_idea(terminal), action, by_user="u_x", now=NOW, apply=False)
+
+
+def test_reevaluate_is_not_allowed_outside_archived() -> None:
+    for state in ("EN_DESARROLLO", "SOLICITANDO_PUBLICACION", "VALIDADA_PUBLICA",
+                  "ACEPTADA", "RECHAZADA"):
+        with pytest.raises(InvalidTransition):
+            transicionar(_idea(state), "reevaluate", by_user="u_ana", now=NOW, apply=False)
+
+
+def test_decide_is_not_allowed_outside_publication() -> None:
+    for state in ("EN_DESARROLLO", "SOLICITANDO_PUBLICACION", "ARCHIVADA", "ACEPTADA", "RECHAZADA"):
+        for action in ("decide-accepted", "decide-archived", "decide-rejected"):
+            with pytest.raises(InvalidTransition):
+                transicionar(_idea(state), action, by_user="u_x", now=NOW, apply=False)

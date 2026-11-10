@@ -25,10 +25,13 @@ IDEA_FIELDS: tuple[str, ...] = (
     "strategicAlignment",
 )
 
-# State machine states (plan §4.6).
+# State machine states (plan §4.6, v2.2 final states spec §5.10).
 STATE_EN_DESARROLLO = "EN_DESARROLLO"
 STATE_SOLICITANDO_PUBLICACION = "SOLICITANDO_PUBLICACION"
 STATE_VALIDADA_PUBLICA = "VALIDADA_PUBLICA"
+STATE_ACEPTADA = "ACEPTADA"
+STATE_ARCHIVADA = "ARCHIVADA"
+STATE_RECHAZADA = "RECHAZADA"
 
 # Idea origins (spec RF-2/RNF-2).
 ORIGIN_ASISTIDA = "asistida"

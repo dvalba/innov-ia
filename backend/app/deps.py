@@ -44,6 +44,7 @@ from features.notifications.use_cases.create_notification import (
 )
 from features.org.infrastructure.org_store import OrgStore
 from features.org.use_cases.get_context import get_context
+from features.validation.infrastructure.threshold_store import ThresholdStore
 from shared.config.settings import settings
 from shared.contracts.assistant_client import AssistantClient
 from shared.contracts.user_directory import UserDirectory
@@ -123,6 +124,15 @@ def get_org_store() -> OrgStore:
     return _org_store()
 
 
+def _threshold_store() -> ThresholdStore:
+    return ThresholdStore(JsonStore(settings.data_dir / "thresholds.json"))
+
+
+def get_threshold_store() -> ThresholdStore:
+    """DI provider for the calibration-thresholds store (override in tests)."""
+    return _threshold_store()
+
+
 def _debate_store() -> DebateStore:
     return DebateStore(JsonStore(settings.data_dir / "debate.json"))
 
@@ -139,6 +149,7 @@ ConversationStoreDep = Annotated[ConversationStore, Depends(get_conversation_sto
 AssistantClientDep = Annotated[AssistantClient, Depends(get_assistant_client)]
 NotificationStoreDep = Annotated[NotificationStore, Depends(get_notification_store)]
 OrgStoreDep = Annotated[OrgStore, Depends(get_org_store)]
+ThresholdStoreDep = Annotated[ThresholdStore, Depends(get_threshold_store)]
 DebateStoreDep = Annotated[DebateStore, Depends(get_debate_store)]
 
 

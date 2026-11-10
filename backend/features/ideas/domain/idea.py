@@ -14,18 +14,24 @@ from shared.contracts.idea_ledger import (
     IDEA_FIELDS,
     ORIGIN_ASISTIDA,
     ORIGIN_MANUAL,
+    STATE_ACEPTADA,
+    STATE_ARCHIVADA,
     STATE_EN_DESARROLLO,
+    STATE_RECHAZADA,
     STATE_SOLICITANDO_PUBLICACION,
     STATE_VALIDADA_PUBLICA,
 )
 from shared.exceptions.handlers import DomainError
 
-# Spec contracts (spec §5, plan §2.2): allowed origins and states.
+# Spec contracts (spec §5/§5.10, plan §2.2): allowed origins and states.
 ORIGINS: tuple[str, ...] = (ORIGIN_ASISTIDA, ORIGIN_MANUAL)
 STATES: tuple[str, ...] = (
     STATE_EN_DESARROLLO,
     STATE_SOLICITANDO_PUBLICACION,
     STATE_VALIDADA_PUBLICA,
+    STATE_ACEPTADA,
+    STATE_ARCHIVADA,
+    STATE_RECHAZADA,
 )
 
 
@@ -46,7 +52,10 @@ class Idea:
     `state` drive the rest of the platform (RNF-2, plan §4.6);
     `createdAt`/`requestDate`/`publishedAt`/`publishedBy` are the audit trail
     (RNF-8). `evaluation` is the final judgment over the 5 fixed criteria
-    (RF-26) and `aiEvaluation` its immutable AI-generated snapshot.
+    (RF-26) and `aiEvaluation` its immutable AI-generated snapshot. `decision`
+    is the final decision of the calibration stage (RF-27/RF-29, plan §2.2/§4.6):
+    `{outcome, reason, score, decidedBy, decidedByName, decidedAt}`, present only
+    while the idea is in a final state and cleared to `None` on re-evaluation.
     """
 
     id: str
@@ -70,6 +79,7 @@ class Idea:
     improvementRequest: dict | None = None
     evaluation: dict | None = None
     aiEvaluation: dict | None = None
+    decision: dict | None = None
 
     def __post_init__(self) -> None:
         if not self.id or not str(self.id).strip():
@@ -133,6 +143,7 @@ class Idea:
                 "improvementRequest": self.improvementRequest,
                 "evaluation": self.evaluation,
                 "aiEvaluation": self.aiEvaluation,
+                "decision": self.decision,
             }
         )
         return payload
@@ -162,6 +173,7 @@ class Idea:
                 improvementRequest=payload.get("improvementRequest"),
                 evaluation=payload.get("evaluation"),
                 aiEvaluation=payload.get("aiEvaluation"),
+                decision=payload.get("decision"),
             )
         except KeyError as missing:
             raise IdeaError(f"El registro de la idea está incompleto; falta «{missing.args[0]}».") from missing

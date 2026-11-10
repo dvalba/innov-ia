@@ -1,11 +1,11 @@
 # Plan de Implementación Técnico — Innov-IA MVP
 
 **Documento:** specs/001-innovation-evaluation-mvp/plan.md
-**Versión:** 1.1
-**Depende de:** `specs/001-innovation-evaluation-mvp/spec.md` (v2.1, definitiva) y `docs/CONSTITUTION.md`
+**Versión:** 1.2
+**Depende de:** `specs/001-innovation-evaluation-mvp/spec.md` (v2.2, definitiva) y `docs/CONSTITUTION.md`
 **Naturaleza:** Este documento es un plan técnico (arquitectura, contratos y pseudocódigo). No contiene código de implementación y no modifica contratos sin actualizar antes la especificación, conforme a la inmutabilidad de contratos (Constitución §5.2).
 
-Cada sección incluye una **Trazabilidad RF** que asigna explícitamente los requisitos funcionales (RF-1 … RF-26) que cubre.
+Cada sección incluye una **Trazabilidad RF** que asigna explícitamente los requisitos funcionales (RF-1 … RF-29) que cubre.
 
 > **v1.1 (ampliación v2.1):** Incorpora RF-21…RF-26 —contexto de empresa administrable (RF-21) inyectado en
 > todas las operaciones de la IA (RF-22), vista de detalle de la idea publicada (RF-23), debate de 30 días con
@@ -13,6 +13,15 @@ Cada sección incluye una **Trazabilidad RF** que asigna explícitamente los req
 > especialista (RF-26)—, retira *Recursos estimados* del modelo de la idea (6 campos, decisión 11 de la spec)
 > y actualiza secciones 1–7. Los debates y las evaluaciones son **atributos de la idea VALIDADA_PUBLICA, no
 > estados** (decisión 12 de la spec).
+>
+> **v1.2 (ampliación v2.2):** Incorpora RF-27…RF-29 —decisión final de la calificación del especialista con
+> promedio y umbrales configurables (RF-27/RF-28), estados finales `ACEPTADA`/`ARCHIVADA`/`RECHAZADA` como
+> salidas reales de la máquina, reevaluación de ideas `ARCHIVADA` (RF-29), cola de validación en **dos etapas**
+> (publicación y calificación, RF-14), y catálogo por **4 zonas** (RF-20)—. La idea vuelve a la cola de
+> calificación al cerrarse el debate y generarse la evaluación de la IA (RF-27); el resultado final debe
+> **coincidir** con la banda del promedio (409 si no, RF-27/RF-28, caso 27) y el motivo es obligatorio para
+> archivar/rechazar (RF-27, caso 28). Los umbrales (defecto 4/7) son un documento único administrado
+> (RF-28, RNF-8, caso 31).
 
 ---
 
@@ -69,46 +78,55 @@ frontend/src/
 │       │
 │       ├── my-ideas/
 │       │   ├── pages/
-│       │   │   ├── list/             # "Mis ideas": título, fecha, origen, estado
-│       │   │   └── detail/           # Detalle + acciones según estado
+│       │   │   ├── list/             # "Mis ideas": título, fecha, origen, estado (incluye finales)
+│       │   │   └── detail/           # Detalle + acciones según estado (solicitar reevaluación de ARCHIVADA, RF-29)
 │       │   ├── components/
 │       │   │   ├── idea-card/        # Carta reutilizada también en cola de validación
 │       │   │   ├── refine-view/      # Versión refinada vs original + Aceptar/Ajustar
-│       │   │   └── reject-note/      # Comentario del especialista (solo si aplica)
+│       │   │   └── reject-note/      # Comentario/motivo del especialista (solo si aplica)
 │       │   └── services/
 │       │       └── my-ideas.service.ts
 │       │
 │       ├── validation/
 │       │   ├── pages/
-│       │   │   └── queue/            # Cola de SOLICITANDO_PUBLICACIÓN
+│       │   │   └── queue/            # Cola de validación en dos etapas (publicación / calificación, RF-14)
 │       │   ├── components/
-│       │   │   ├── validate-panel/   # Validar / Rechazar + comentario obligatorio
+│       │   │   ├── validate-panel/   # Etapa publicación: Validar / Rechazar + comentario obligatorio
+│       │   │   ├── calibration-panel/# Etapa calificación (v2.2): ficha completa (RF-23) + calificación
+│       │   │   │                     # vigente (IA o sustituta) + promedio y banda EN VIVO +
+│       │   │   │                     # formulario de decisión final (RF-27/RF-28) con confirmación
 │       │   │   └── idea-card (usar shared si se comparte)  # ver 1.4
 │       │   └── services/
 │       │       └── validation.service.ts
 │       │
 │       ├── catalog/
 │       │   ├── pages/
-│       │   │   ├── public/           # Catálogo COMPACTO (título, fecha publicación, descripción; D16)
+│       │   │   ├── public/           # Catálogo COMPACTO POR ZONAS (RF-20, v2.2): pestañas
+│       │   │   │                     # En proceso / Aceptadas / Rechazadas / Archivadas
 │       │   │   └── detail/           # Vista de detalle (RF-23): 6 campos, debate (RF-24/RF-25)
-│       │   │                         # y evaluación (RF-26); solo lectura de la idea
+│       │   │                         # y evaluación (RF-26); estado final + decisión (RF-27);
+│       │   │                         # solo lectura de la idea
 │       │   ├── components/
 │       │   │   ├── debate/           # Hilo de mensajes, input, selector de mensaje enlazado,
 │       │   │   │                     # @asistant, cierre/fecha límite, resumen IA (RF-24/RF-25);
-│       │   │   │                     # ajuste inline del límite para rol admin
-│       │   │   └── evaluation/       # 5 criterios con score + justificación; aceptar/sustituir
-│       │   │                         # para rol especialista (RF-26)
+│       │   │   │                     # ajuste inline del límite para rol admin; debate CERRADO
+│       │   │   │                     # compactado (resumen + enlace al chat completo, solo lectura)
+│       │   │   └── evaluation/       # 5 criterios con score + justificación; promedio/banda;
+│       │   │                         # aceptar/sustituir para rol especialista (RF-26); decisión
+│       │   │                         # final visible (RF-27)
 │       │   └── services/
 │       │       └── catalog.service.ts
 │       │
 │       └── admin/
 │           ├── pages/
 │           │   ├── users/            # Gestión de usuarios y roles
-│           │   └── context/          # Contexto de empresa (RF-21): plantilla, edición en línea, subida
+│           │   ├── context/          # Contexto de empresa (RF-21): plantilla, edición en línea, subida
+│           │   └── thresholds/       # Umbrales de calificación (RF-28, v2.2): umbralRechazo/umbralAceptación
 │           ├── components/
 │           │   ├── user-form/        # Alta / edición de usuario
 │           │   ├── role-matrix/      # Asignación/revocación de roles
-│           │   └── context-form/     # Secciones del documento: perfil + guía de la IA
+│           │   ├── context-form/     # Secciones del documento: perfil + guía de la IA
+│           │   └── threshold-form/   # Los dos umbrales enteros 1–10 + validación rechazo < aceptación
 │           └── services/
 │               └── admin.service.ts
 ```
@@ -120,12 +138,13 @@ frontend/src/
 | `features/auth` + `shared/interceptors` | RF-1 |
 | `features/capture` (chat-assist) | RF-2, RF-3, RF-4, RF-5, RF-6 |
 | `features/capture` (manual-form) | RF-7 |
-| `features/my-ideas` (detail) | RF-8, RF-9, RF-10, RF-12, RF-13, RF-19 |
-| `features/validation` | RF-14, RF-15, RF-16 |
-| `features/catalog` (public compacta) | RF-20 |
-| `features/catalog` (detail: debate + evaluación) | RF-23, RF-24, RF-25, RF-26 |
+| `features/my-ideas` (detail) | RF-8, RF-9, RF-10, RF-12, RF-13, RF-19, RF-29 (reevaluación) |
+| `features/validation` | RF-14 (dos etapas), RF-15, RF-16, RF-27, RF-28 (decisión final) |
+| `features/catalog` (public por zonas) | RF-20 |
+| `features/catalog` (detail: debate + evaluación + decisión) | RF-23, RF-24, RF-25, RF-26, RF-27 |
 | `features/admin` (users) | RF-17 |
 | `features/admin` (contexto de empresa) | RF-21, RF-22 |
+| `features/admin` (umbrales) | RF-28 |
 | `shared/components/notification-bell` + `shared/services/session` | RF-18, RF-1 (sesión) |
 
 ### 1.2 Backend (`innov-ia/backend/`)
@@ -184,10 +203,12 @@ backend/
     │   │   │                         # (RF-26; pendiente si la IA cae)
     │   │   ├── reject_idea.py        # Devolución + comentario obligatorio (RF-16)
     │   │   ├── list_my_ideas.py      # (RF-19)
-    │   │   └── list_public.py        # (RF-20, compacto D16)
+    │   │   ├── list_public.py        # (RF-20, compacto D16, por zona en v2.2)
+    │   │   └── reevaluate_idea.py    # ARCHIVADA → VALIDADA_PUBLICA; limpia decision (RF-29)
     │   ├── routers/
     │   │   ├── ideas.py
-    │   │   └── catalog.py            # Catálogo compacto + detalle (RF-20, RF-23)
+    │   │   └── catalog.py            # Catálogo por zonas + detalle (RF-20, RF-23);
+    │   │                             # POST /ideas/{id}/request-reevaluation (RF-29)
     │   └── infrastructure/
     │       └── idea_store.py
     │
@@ -208,16 +229,20 @@ backend/
     │
     ├── validation/                  # Cola del especialista y decisión
     │   ├── domain/
-    │   │   ├── queue_rules.py        # Visibilidad de cola, sin datos de contacto (RF-14)
-    │   │   └── evaluation_rules.py   # 5 criterios fijos, decisión única del especialista (RF-26)
+    │   │   ├── queue_rules.py        # Visibilidad de cola por ETAPA (publicación/calibración, RF-14 v2.2)
+    │   │   ├── evaluation_rules.py   # 5 criterios fijos, decisión única del especialista (RF-26)
+    │   │   └── decision_rules.py     # Promedio, banda vs umbrales, motivo obligatorio (RF-27/RF-28)
     │   ├── use_cases/
-    │   │   ├── review_queue.py       # Lista SOLICITANDO_PUBLICACIÓN
+    │   │   ├── review_queue.py       # Lista por etapa: SOLICITANDO_PUBLICACIÓN / calificación (v2.2)
     │   │   ├── accept_ai_evaluation.py  # La evaluación IA queda como juicio final (RF-26)
-    │   │   └── replace_evaluation.py    # Sustitución por la del especialista (RF-26)
+    │   │   ├── replace_evaluation.py    # Sustitución por la del especialista (RF-26)
+    │   │   ├── decide_final.py         # Decisión final: valida banda/motivo, escribe decision (RF-27/RF-28)
+    │   │   └── admin_thresholds.py     # GET/PUT umbrales (RF-28, RNF-8)
     │   ├── routers/
-    │   │   └── validation.py
+    │   │   └── validation.py         # + POST /validation/{id}/decision (RF-27)
     │   └── infrastructure/
-    │       └── queue_store.py
+    │       ├── queue_store.py
+    │       └── threshold_store.py    # Documento único de umbrales (JSON, defecto 4/7)
     │
     ├── org/                         # Contexto de empresa (documento único administrable, RF-21)
     │   ├── domain/
@@ -264,9 +289,9 @@ backend/
     │
     └── notifications/               # Centro in-app y eventos
         ├── domain/
-        │   └── notification.py       # Entidad Notificación + tipos de evento
+        │   └── notification.py       # Entidad Notificación + tipos de evento (8 eventos, RF-18 v2.2)
         ├── use_cases/
-        │   ├── create_notification.py # Genera los 4 eventos (RF-18) + fanout a especialistas
+        │   ├── create_notification.py # Genera los 8 eventos (RF-18 v2.2) + fanout a especialistas
         │   ├── list_notifications.py  # Leídas/no leídas
         │   └── mark_read.py
         ├── routers/
@@ -282,12 +307,12 @@ backend/
 | `features/auth` | RF-1 |
 | `features/capture` | RF-2, RF-3, RF-5, RF-6, RF-7 |
 | `features/assistant` | RF-3 (asignación), RF-4, RF-8, RF-11, RF-12, RF-22 (prompts con contexto) |
-| `features/ideas` | RF-10, RF-19, RF-20, RF-23 + máquina de estados |
-| `features/validation` | RF-14, RF-15, RF-16, RF-26 (aceptar/sustituir evaluación) |
+| `features/ideas` | RF-10, RF-19, RF-20 (zonas), RF-23 + RF-29 (reevaluación) + máquina de estados (estados finales) |
+| `features/validation` | RF-14 (dos etapas), RF-15, RF-16, RF-26 (aceptar/sustituir evaluación), RF-27/RF-28 (decisión final + umbrales) |
 | `features/users` | RF-17 |
 | `features/org` | RF-21, RF-22 (contexto de empresa) |
-| `features/debate` | RF-24, RF-25 (debate + @asistant + resumen) + disparo de la evaluación IA al cerrarse el debate (RF-26, caso 22) |
-| `features/notifications` | RF-12, RF-15, RF-16, RF-18 |
+| `features/debate` | RF-24, RF-25 (debate + @asistant + resumen) + disparo de la evaluación IA al cerrarse el debate (RF-26, caso 22) + notificación de calificación pendiente (RF-27) |
+| `features/notifications` | RF-12, RF-15, RF-16, RF-18 (8 eventos) |
 
 > **Nota de acoplamiento:** las features solo se comunican mediante contratos definidos en `shared/` (Constitución §3.2/§4.2). Ej.: `assistant` no importará de `ideas`; consumirá un contrato de lectura/expediente de idea expuesto a través de la capa compartida.
 
@@ -300,7 +325,7 @@ backend/
 
 Si `idea-card` (usado en `my-ideas`, `validation` y `catalog`) se reutiliza en más de una feature, debe **promoverse** a `shared/components/` (Constitución §3.2). El plan lo define como candidato a promoción para respetar la regla.
 
-**Trazabilidad RF:** estructura completa → RF-1 a RF-26 (cobertura de sección, no de criterio).
+**Trazabilidad RF:** estructura completa → RF-1 a RF-29 (cobertura de sección, no de criterio).
 
 ---
 
@@ -315,7 +340,8 @@ Si `idea-card` (usado en `my-ideas`, `validation` y `catalog`) se reutiliza en m
 | `Conversation` | Sesión de captura activa | id, user_id, estado, campos capturados, turno de campo |
 | `IdeaVersion` | Versión vigente/refinada de una idea (aceptada/descartada) | id, idea_id, versión, campos, origen (manual/IA), estado |
 | `User` | Cuenta y roles | id, username, nombre, área, datos contacto, roles, habilitado |
-| `Notification` | Evento in-app | id, user_id, tipo, idea_id, leído, fecha |
+| `Notification` | Evento in-app (8 tipos, RF-18 v2.2) | id, user_id, tipo, idea_id, leído, fecha |
+| `EvaluationThreshold` | Umbrales de calificación (documento único, RF-28) | rejectionThreshold, acceptanceThreshold (enteros 1–10), updatedBy, updatedAt |
 | `Session` | Autenticación activa | token, user_id, expiración |
 | `CompanyContext` | Contexto de empresa (documento único, RF-21) | perfil (nombre/sector/descripción/misión/objetivos) + texto guía; seed desde `INNOV_ORG_*` |
 | `Debate` | Debate de una idea publicada (RF-24) | idea_id, deadline, cerrado, resumen IA, rastro de ajustes (quién/cuándo) |
@@ -376,7 +402,7 @@ Si `idea-card` (usado en `my-ideas`, `validation` y `catalog`) se reutiliza en m
     },
 
     "origin": { "enum": ["asistida", "manual"], "description": "RF-2/RNF-2" },
-    "state":  { "enum": ["EN_DESARROLLO", "SOLICITANDO_PUBLICACION", "VALIDADA_PUBLICA"], "description": "Máquina de estados" },
+    "state":  { "enum": ["EN_DESARROLLO", "SOLICITANDO_PUBLICACION", "VALIDADA_PUBLICA", "ACEPTADA", "ARCHIVADA", "RECHAZADA"], "description": "Máquina de estados (v2.2: estados finales RF-27/RF-29)" },
     "reviewedByAI":  { "type": "boolean", "default": false },
     "currentVersionId": { "type": ["string", "null"] },
 
@@ -384,6 +410,20 @@ Si `idea-card` (usado en `my-ideas`, `validation` y `catalog`) se reutiliza en m
     "requestDate":{ "type": ["string", "null"], "format": "date-time", "description": "Fecha de solicitud de publicación" },
     "publishedAt":{ "type": ["string", "null"], "format": "date-time", "description": "Fecha de publicación" },
     "publishedBy":{ "type": ["string", "null"], "description": "Quién validó (RNF-8, autovalidación caso 9)" },
+
+    "decision": {
+      "type": ["object", "null"],
+      "description": "Decisión final del especialista en la etapa de calificación (RF-27); null hasta que la idea decide (ACEPTADA/ARCHIVADA/RECHAZADA); se limpia al reevaluar una ARCHIVADA (RF-29)",
+      "properties": {
+        "outcome":   { "enum": ["ACEPTADA", "ARCHIVADA", "RECHAZADA"], "description": "Resultado final; debe coincidir con la banda del promedio de la evaluación vigente (RF-28)" },
+        "reason":    { "type": "string", "description": "Motivo OBLIGATORIO para ARCHIVADA y RECHAZADA; nota opcional para ACEPTADA (RF-27)" },
+        "score":     { "type": "number", "description": "Promedio de los 5 criterios al decidir (suma/5, 2 decimales); auditado (RNF-8)" },
+        "decidedBy": { "type": "string", "description": "Usuario especialista" },
+        "decidedByName": { "type": "string" },
+        "decidedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["outcome", "decidedBy", "decidedAt"]
+    },
 
     "evaluation": {
       "type": ["object", "null"],
@@ -538,14 +578,16 @@ Si `idea-card` (usado en `my-ideas`, `validation` y `catalog`) se reutiliza en m
   "properties": {
     "id":      { "type": "string" },
     "userId":  { "type": "string" },
-    "type":    { "enum": ["IDEA_REFINED", "IDEA_PUBLISHED", "IDEA_REJECTED", "IDEA_REQUESTED"], "description": "Solo los 4 eventos (RF-18)" },
+    "type":    { "enum": ["IDEA_REFINED", "IDEA_PUBLISHED", "IDEA_REJECTED", "IDEA_REQUESTED", "IDEA_ACCEPTED", "IDEA_ARCHIVED", "IDEA_REEVALUATED", "IDEA_CALIBRATION_PENDING"], "description": "Solo los 8 eventos (RF-18; v2.2 añade los 4 últimos). IDEA_REJECTED se reutiliza para el rechazo en la etapa de calificación (RF-27); el mensaje distingue la etapa e incluye el comentario/motivo" },
     "ideaId":  { "type": "string" },
-    "message": { "type": "string" },
+    "message": { "type": "string", "description": "Texto para el usuario; incluye el comentario (publicación) o motivo (calificación) cuando corresponde" },
     "read":    { "type": "boolean", "default": false },
     "createdAt": { "type": "string", "format": "date-time" }
   }
 }
 ```
+
+> v2.2: se amplía el enum de `EVENT_TYPES` (feature `notifications`) con `IDEA_ACCEPTED`, `IDEA_ARCHIVED`, `IDEA_REEVALUATED` (destino: creador) e `IDEA_CALIBRATION_PENDING` (destino: todos los especialistas). El rechazo en la etapa de calificación reutiliza `IDEA_REJECTED` (el texto del mensaje indica que procede de la calificación y lleva el motivo, RF-27/RF-18).
 
 ### 2.8 Esquema JSON — `CompanyContext` (contexto de empresa, RF-21)
 
@@ -664,15 +706,36 @@ Si `idea-card` (usado en `my-ideas`, `validation` y `catalog`) se reutiliza en m
 
 | Entidad | RF |
 |---|---|
-| `Idea` | RF-1 (ownerId), RF-10/RF-19/RF-20, RF-15/RF-16 (rastro), RF-26 (evaluación) |
+| `Idea` | RF-1 (ownerId), RF-10/RF-19/RF-20, RF-15/RF-16 (rastro), RF-26 (evaluación), RF-27/RF-29 (estado + decisión) |
 | `ChatMessage` | RF-3, RF-4, RF-5 |
 | `Conversation` | RF-2, RF-3, RF-6, RNF-10 |
 | `IdeaVersion` | RF-8, RF-11, RF-13 |
 | `User` | RF-17 |
-| `Notification` | RF-12, RF-15, RF-16, RF-18 |
+| `Notification` | RF-12, RF-15, RF-16, RF-18 (8 eventos v2.2) |
 | `CompanyContext` | RF-21, RF-22 |
 | `Debate`, `DebateMessage` | RF-24, RF-25, RNF-11 |
 | `IdeaEvaluation` | RF-26, RNF-8, RNF-11 |
+| `Idea.decision` (dentro de `Idea`, §2.2) | RF-27, RF-29, RNF-8 |
+| `EvaluationThreshold` | RF-28, RNF-8 |
+
+### 2.11 Esquema JSON — `EvaluationThreshold` (umbrales de calificación, RF-28)
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EvaluationThreshold",
+  "type": "object",
+  "required": ["rejectionThreshold", "acceptanceThreshold"],
+  "properties": {
+    "rejectionThreshold":  { "type": "integer", "minimum": 1, "maximum": 9, "description": "Umbral de rechazo (entero); promedio < X → RECHAZADA. Por defecto 4" },
+    "acceptanceThreshold": { "type": "integer", "minimum": 2, "maximum": 10, "description": "Umbral de aceptación (entero); promedio ≥ Z → ACEPTADA. Por defecto 7" },
+    "updatedBy":   { "type": ["string", "null"], "description": "Último administrador que guardó (RNF-8)" },
+    "updatedAt":   { "type": ["string", "null"], "format": "date-time", "description": "Fecha del último guardado (RNF-8)" }
+  }
+}
+```
+
+> Documento único gestionado por el administrador (sección de administración, RF-28): `rejectionThreshold < acceptanceThreshold` (invariante; se valida en el guardado, caso inválido → 422). Bandas: **promedio < X → RECHAZADA**; **X ≤ promedio < Z → ARCHIVADA**; **promedio ≥ Z → ACEPTADA** (caso 26: el promedio exacto en un umbral cae en la banda cerrada por arriba). Persistido como un único registro en `infrastructure/` (misma abstracción de JSON por entidad, D1); el cambio queda auditado con quien y cuándo (RNF-8, §2.11 `updatedAt`/`updatedBy` en el registro persistente). Solo afecta decisiones posteriores: las ideas ya en estado final no se recalculan (caso 31).
 
 ---
 
@@ -699,13 +762,17 @@ Base: `/api/v1`. Autenticación por **portador de sesión** (RF-1). Todos los pa
 | POST | `/ideas/{id}/improve` | dueño (con IA) | RF-8 | Solicita mejora (versión pendiente) |
 | POST | `/ideas/{id}/versions/{vid}/decide` | dueño | RF-8,RF-13 | Aceptar/descartar versión |
 | POST | `/ideas/{id}/request-publication` | dueño | RF-10 | Solicita publicación |
-| GET  | `/validation/queue` | especialista | RF-14 | Cola en SOLICITANDO_PUBLICACION |
+| GET  | `/validation/queue` | especialista | RF-14 | Cola en dos etapas: `?stage=publicacion` (SOLICITANDO_PUBLICACION) / `?stage=calibracion` (VALIDADA_PUBLICA con debate cerrado, evaluación generada y sin decisión) / sin parámetro (ambas, v2.2) |
 | POST | `/validation/{id}/approve` | especialista | RF-15, RF-24 | Valida/publica; abre el debate (30 d). No ejecuta la evaluación IA (se genera al cerrarse el debate, RF-26) |
-| POST | `/validation/{id}/reject` | especialista | RF-16 | Rechaza con comentario |
+| POST | `/validation/{id}/reject` | especialista | RF-16 | Rechaza en la etapa de publicación con comentario |
 | POST | `/validation/{id}/evaluation/accept` | especialista | RF-26 | Acepta la evaluación de la IA (juicio final) |
 | POST | `/validation/{id}/evaluation` | especialista | RF-26 | Sustituye la evaluación vigente por la propia (5 criterios) |
-| GET  | `/catalog/public` | sesión | RF-20 | Catálogo COMPACTO: título, fecha de publicación, descripción (D16) |
-| GET  | `/catalog/{ideaId}` | sesión | RF-23 | Detalle de una idea publicada: 6 campos, debate y evaluación |
+| POST | `/validation/{id}/decision` | especialista | RF-27, RF-28 | Decisión final (etapa de calificación): `{outcome, reason}`; 409 si `outcome` ≠ banda del promedio (caso 27), 400 sin motivo en ARCHIVADA/RECHAZADA (caso 28), 409 si no está en VALIDADA_PUBLICA; audita y notifica |
+| POST | `/ideas/{id}/request-reevaluation` | dueño | RF-29 | Reevaluación de una ARCHIVADA: vuelve a VALIDADA_PUBLICA (conserva debate cerrado y evaluación IA; limpia `decision`); 409 si no es ARCHIVADA (caso 29/30); notifica al creador |
+| GET  | `/admin/calibration-thresholds` | admin | RF-28 | Umbrales vigentes |
+| PUT  | `/admin/calibration-thresholds` | admin | RF-28 | Actualiza umbrales `{rejectionThreshold, acceptanceThreshold}`; 422 si no enteros 1–10 o `rejection < acceptance`; auditado (RNF-8) |
+| GET  | `/catalog/public` | sesión | RF-20 | Catálogo COMPACTO por zonas: `?zone=en-proceso\|aceptadas\|rechazadas\|archivadas` (v2.2); sin parámetro → todas (título, fecha de publicación, descripción, D16) |
+| GET  | `/catalog/{ideaId}` | sesión | RF-23 | Detalle de una idea publicada (VALIDADA_PUBLICA o estado final): 6 campos, debate y evaluación; expone `state` y `decision` cuando existen |
 | GET  | `/catalog/{ideaId}/debate` | sesión | RF-24, RF-25 | Mensajes del debate + deadline + cerrado + resumen + rastro |
 | POST | `/catalog/{ideaId}/debate` | sesión | RF-24, RF-25 | Publica mensaje (texto, mensaje enlazado para @asistant); 409 si cerrado |
 | PUT  | `/admin/ideas/{ideaId}/debate/deadline` | admin | RF-24, RNF-11 | Ajusta la fecha límite (adelantar/extender; reabrir = futuro); auditado |
@@ -783,6 +850,58 @@ Base: `/api/v1`. Autenticación por **portador de sesión** (RF-1). Todos los pa
 { "status": "SUSTITUIDA", "author": "Marta Ruiz (especialista)", "decidedBy": "user_marta", "decidedAt": "…" }
 // Aceptar y sustituir pueden alternarse en cualquier orden: el juicio final
 // es siempre el resultado de la última acción (caso 23); cada acción queda auditada.
+```
+
+**POST `/validation/{id}/decision`** (v2.2, RF-27/RF-28)
+```json
+// Entrada (decisión final; reason OBLIGATORIO para ARCHIVADA y RECHAZADA, opcional para ACEPTADA)
+{ "outcome": "ARCHIVADA", "reason": "Buen encaje estratégico, pero la factibilidad es baja para este ejercicio." }
+// Salida 200
+{
+  "state": "ARCHIVADA",
+  "decision": {
+    "outcome": "ARCHIVADA",
+    "reason": "Buen encaje estratégico, pero la factibilidad es baja para este ejercicio.",
+    "score": 5.4,
+    "decidedBy": "user_marta",
+    "decidedByName": "Marta Ruiz",
+    "decidedAt": "…"
+  }
+}
+// 409 cuando outcome ≠ banda del promedio de la evaluación vigente (caso 27):
+{ "error": { "code": "DECISION_MISMATCH", "message": "El resultado elegido no coincide con el promedio (5.4 → archivada). Ajusta la puntuación.", "details": { "score": 5.4, "band": "ARCHIVADA" } } }
+// 400 sin motivo en ARCHIVADA/RECHAZADA (caso 28):
+{ "error": { "code": "DECISION_REASON_REQUIRED", "message": "El motivo es obligatorio para archivar o rechazar." } }
+```
+
+**POST `/ideas/{id}/request-reevaluation`** (v2.2, RF-29)
+```json
+// Entrada: sin cuerpo (solo el dueño de una idea ARCHIVADA)
+// Salida 200
+{ "state": "VALIDADA_PUBLICA", "decision": null, "note": "La idea vuelve a la cola de calificación conservando el debate cerrado y la evaluación de la IA." }
+// 409 si la idea no está en ARCHIVADA (caso 29: ACEPTADA/RECHAZADA no admiten reevaluación):
+{ "error": { "code": "REEVALUATION_NOT_ALLOWED", "message": "Solo las ideas archivadas pueden solicitarse a reevaluación." } }
+```
+
+**PUT `/admin/calibration-thresholds`** (v2.2, RF-28)
+```json
+// Entrada
+{ "rejectionThreshold": 4, "acceptanceThreshold": 7 }
+// Salida 200
+{ "rejectionThreshold": 4, "acceptanceThreshold": 7, "updatedBy": "user_admin", "updatedAt": "…" }
+// 422 si los umbrales no son enteros 1–10 o rejection >= acceptance:
+{ "error": { "code": "THRESHOLDS_INVALID", "message": "Los umbrales deben ser enteros 1–10 con umbralRechazo < umbralAceptacion.", "details": { "problems": ["rejectionThreshold >= acceptanceThreshold"] } } }
+```
+
+**GET `/catalog/public?zone=aceptadas`** (v2.2, RF-20)
+```json
+// Salida 200 (una zona; sin parámetro devuelve todas las zonas)
+{
+  "zone": "aceptadas",
+  "items": [
+    { "id": "idea_001", "title": "…", "publishedAt": "…", "description": "…" }
+  ]
+}
 ```
 
 **PUT `/admin/contexto`**
@@ -1008,13 +1127,18 @@ func SOLICITAR_MEJORA(idea, instruccion):            # RF-8
     crear IdeaVersion(idea, version, requestedBy=improvement, status=PENDIENTE)  # requiere aceptar/descartar (RF-8)
 ```
 
-### 4.6 Transiciones de estado de la idea (máquina, RF-10/15/16, RNF-9)
+### 4.6 Transiciones de estado de la idea (máquina, RF-10/15/16, RF-27/29, RNF-9)
 
 ```
 const TRANSICIONES = {
   EN_DESARROLLO:            { request-publication: SOLICITANDO_PUBLICACION },
   SOLICITANDO_PUBLICACION:  { approve: VALIDADA_PUBLICA, reject: EN_DESARROLLO },
-  VALIDADA_PUBLICA:         {}                                   # terminal (MVP)
+  VALIDADA_PUBLICA:         { decide-accepted: ACEPTADA,
+                              decide-archived: ARCHIVADA,
+                              decide-rejected: RECHAZADA },
+  ARCHIVADA:                { reevaluate: VALIDADA_PUBLICA },    # RF-29 (solo el creador)
+  ACEPTADA:                 {},                                  # terminal (MVP)
+  RECHAZADA:                {}                                   # terminal (MVP; sin reevaluación, §8.7)
 }
 
 func TRANSICIONAR(idea, accion, usuario):
@@ -1027,6 +1151,11 @@ func TRANSICIONAR(idea, accion, usuario):
         ABRIR_DEBATE(idea, publishedAt=now)                      # RF-24: deadline = +30 d
         # la evaluación IA NO se ejecuta aquí: se genera al cerrarse el debate (RF-26, ver 4.7/4.8)
     if accion == "reject": adjuntar comentario + identificar usuario (RNF-8)
+    if accion in [decide-accepted, decide-archived, decide-rejected]:
+        # ver DECIDIR_FINAL en 4.9: valida banda (409 caso 27), motivo obligatorio (400 caso 28)
+        registrar idea.decision (outcome, reason, score, decidedBy, decidedByName, decidedAt)  # RNF-8
+    if accion == "reevaluate":
+        idea.decision = null          # conserva debate cerrado + evaluación IA (RF-29, caso 30)
     notificar según evento (RF-18)
     devolver idea
 ```
@@ -1116,6 +1245,8 @@ func GENERAR_EVALUACION(ideaId):                        # se dispara al CERRARSE
                                       status=GENERADA, decidedBy=null, decidedAt=null)
     idea.aiEvaluation = idea.evaluation.copy()          # instantánea inmutable (visible en el detalle)
     persistir(idea)
+    NOTIFICAR_CALIBRACION_PENDIENTE(idea)               # v2.2 (RF-27/RF-18): la idea vuelve a la cola
+                                                        # y se avisa a todos los especialistas (1 vez, guard idempotente)
 
 func REINTENTAR_EVALUACIONES_PENDIENTES():              # cada verificación de disponibilidad (RF-11 triggers) + cada lectura de debate cerrado
     for ideaId in ideas con evaluation?.status == PENDING:
@@ -1139,6 +1270,57 @@ func SUSTITUIR_EVALUACION(ideaId, especialista, criterios):
     persistir(idea)                                                # juicio final = última acción (caso 23); la instantánea aiEvaluation NO se toca
 ```
 
+### 4.9 Decisión final, umbrales y reevaluación (v2.2, RF-27/RF-28/RF-29)
+
+```
+const UMBRAL_DEFECTO = EvaluationThreshold(rejectionThreshold=4, acceptanceThreshold=7)  # RF-28, caso 31
+
+func PROMEDIO(evaluacion):                                     # RF-28: promedio simple de los 5 criterios
+    return sum(c.score for c in evaluacion.criteria) / len(evaluacion.criteria)   # 2 decimales
+
+func BANDA(promedio, umbral):                                  # RF-28, caso 26 (banda cerrada por arriba)
+    if promedio < umbral.rejectionThreshold:  return RECHAZADA
+    if promedio >= umbral.acceptanceThreshold: return ACEPTADA
+    return ARCHIVADA
+
+func DECIDIR_FINAL(ideaId, especialista, outcome, reason):     # RF-27 (endpoint POST /validation/{id}/decision)
+    validar outcome in [ACEPTADA, ARCHIVADA, RECHAZADA]        # 422 DECISION_INVALID
+    idea = cargar(ideaId)
+    if idea.state != VALIDADA_PUBLICA: lanzar DomainError(409)  # RNF-9 (solo la etapa de calificación)
+    if idea.evaluation == null or idea.evaluation.status == PENDING:
+        lanzar DomainError(409)                                 # aún sin calificación vigente (caso 22 en curso)
+    if outcome in [ARCHIVADA, RECHAZADA] and reason vacío: lanzar 400   # motivo obligatorio (RF-27, caso 28)
+    umbral = cargar_umbral()
+    promedio = PROMEDIO(idea.evaluation)
+    if BANDA(promedio, umbral) != outcome:                     # RF-27/RF-28, caso 27: nunca se fuerza
+        lanzar DomainError(409, "DECISION_MISMATCH", details={score: promedio, band: BANDA(…)})
+    TRANSICIONAR(idea, f"decide-{outcome.lower()}", especialista)     # 4.6: escribe idea.decision
+    notificar al creador: IDEA_ACCEPTED (con nota) / IDEA_ARCHIVED (motivo) / IDEA_REJECTED (motivo, etapa calificación)  # RF-18
+
+func CARGAR_UMBRAL():                                          # RF-28
+    return store_umbral.leer() or UMBRAL_DEFECTO               # si aún no se guardó, el defecto 4/7
+
+func GUARDAR_UMBRAL(admin, rejectionThreshold, acceptanceThreshold):   # RF-28 (endpoint PUT /admin/…)
+    if no enteros 1–10 o rejectionThreshold >= acceptanceThreshold: lanzar 422 THRESHOLDS_INVALID
+    store_umbral.escribir(EvaluationThreshold(…), updatedBy=admin.id, updatedAt=now)   # RNF-8
+
+func REEVALUAR(ideaId, usuario):                               # RF-29 (endpoint POST /ideas/{id}/request-reevaluation)
+    idea = cargar(ideaId)
+    if usuario.id != idea.ownerId: lanzar 403                  # solo el creador (segregación RNF-7)
+    if idea.state != ARCHIVADA: lanzar DomainError(409)         # caso 29: ACEPTADA/RECHAZADA no admiten reevaluación
+    TRANSICIONAR(idea, "reevaluate", usuario)                   # 4.6: state=VALIDADA_PUBLICA, decision=null
+    # conserva debate cerrado + evaluación IA (RF-29, caso 30): vuelve a la cola de calificación (RF-14)
+    notificar al creador IDEA_REEVALUATED                       # RF-18: "tu idea vuelve a la cola de calificación"
+    devolver idea
+
+func NOTIFICAR_CALIBRACION_PENDIENTE(idea):                    # RF-27/RF-18 (tras GENERAR_EVALUACION, 4.8)
+    if idea ya notificada como pendiente de calificación: devolver   # guard idempotente (RNF-9)
+    for especialista in usuarios_con_rol("especialista"):
+        crear_notification(specialista, IDEA_CALIBRATION_PENDING, idea.id, "…")
+```
+
+> La **cola de calificación** (RF-14, endpoint `GET /validation/queue?stage=calibracion`) es derivada, no persistida: lista las ideas `VALIDADA_PUBLICA` con debate **cerrado**, `evaluation.status != PENDING` y `decision == null`. Al decidir (4.9) o al reevaluar, la idea entra/sale de la cola de forma coherente con el estado (RNF-9).
+
 **Trazabilidad RF — Lógica de orquestación**
 
 | Bloque pseudocódigo | RF cubiertas |
@@ -1148,20 +1330,10 @@ func SUSTITUIR_EVALUACION(ideaId, especialista, criterios):
 | 4.3 sugerencia de título | RF-4 |
 | 4.4 detección de caídas / manual | RF-7 (RNF-1, RNF-3) |
 | 4.5 clarificación posterior | RF-11, RF-12, RF-13, RF-8 |
-| 4.6 transiciones de idea | RF-10, RF-15, RF-16 (RNF-8, RNF-9) + RF-24 (apertura del debate) |
+| 4.6 transiciones de idea | RF-10, RF-15, RF-16 (RNF-8, RNF-9) + RF-24 (apertura del debate) + RF-27/RF-29 (transiciones finales y reevaluación) |
 | 4.7 debate de la idea publicada | RF-24, RF-25 (RNF-1, RNF-11, RNF-3) + RF-26 (disparo de la evaluación al cerrarse) |
-| 4.8 evaluación IA + decisión especialista | RF-26 (RNF-1, RNF-5, RNF-8, RNF-11) |
-
-**Trazabilidad RF — Lógica de orquestación**
-
-| Bloque pseudocódigo | RF cubiertas |
-|---|---|
-| 4.1 máquina de estados chatbot | RF-2, RF-3, RF-6 |
-| 4.2 sugerencias rápidas | RF-5 |
-| 4.3 sugerencia de título | RF-4 |
-| 4.4 detección de caídas / manual | RF-7 (RNF-1, RNF-3) |
-| 4.5 clarificación posterior | RF-11, RF-12, RF-13, RF-8 |
-| 4.6 transiciones de idea | RF-10, RF-15, RF-16 (RNF-8, RNF-9) |
+| 4.8 evaluación IA + decisión especialista | RF-26 (RNF-1, RNF-5, RNF-8, RNF-11) + RF-27 (notificación de calificación pendiente) |
+| 4.9 decisión final, umbrales y reevaluación (v2.2) | RF-27, RF-28, RF-29, RF-18 (RNF-7, RNF-8, RNF-9), casos 26–31 |
 
 ---
 
@@ -1186,6 +1358,10 @@ func SUSTITUIR_EVALUACION(ideaId, especialista, criterios):
 | D15 | **Cierre automático del debate en la primera lectura tras el deadline** (no hay worker ni programador); el ajuste de fecha por idea es el único control, auditable (RNF-11). | Tiempo de cierre por cron/worker; debate sin cierre | Sin dependencias de programación (C5) y el estado siempre es coherente al ser leído (RNF-9). |
 | D16 | **Catálogo compacto + vista de detalle:** `GET /catalog/public` expone solo título, fecha de publicación y descripción; `GET /catalog/{ideaId}` entrega los 6 campos, el debate y la evaluación (decisiones 16/23 de la spec). | Catálogo completo (todos los datos) | El propietario pidió una listado ligero y el detalle completo; la segregación de datos no cambia (sin contacto en ninguno). |
 | D17 | **Evaluación única por idea con juicio final alterable:** la IA genera 5 criterios **al cerrarse el debate** (o queda `PENDING` si la IA cae; el cierre no se bloquea); el especialista **acepta** (vuelve a poner la de la IA como juicio final) o **sustituye** (nueva sobre los mismos 5 criterios, sin tocar la instantánea `aiEvaluation`) en cualquier orden, cada acción auditada (caso 23). | Generación al publicar (descartada: la evaluación se alinea con el cierre del debate, momento en que ya hay discusión de la que dar cuenta); solo aceptación (sin sustitución); scoring global 0–100 | Cumple RF-26 y el caso 23 de la spec; el scoring global está explícitamente fuera (spec §8.2). |
+| D18 | **Decisión final atada al promedio:** el resultado final (`ACEPTADA`/`ARCHIVADA`/`RECHAZADA`) debe **coincidir** con la banda del promedio de la evaluación vigente (RF-27/RF-28); el endpoint `POST /validation/{id}/decision` devuelve **409 `DECISION_MISMATCH`** si no coincide (el especialista debe ajustar la puntuación) y **400** si falta el motivo en `ARCHIVADA`/`RECHAZADA`. El promedio y la banda se exponen en la respuesta para la vista en vivo del frontend. | Permitir forzar el resultado aunque contradiga los puntos (descartado: rompería la trazabilidad decisión↔puntuación y el RNF-8); decisión sin confirmación (descartado: la spec exige el aviso explícito) | Cumple RF-27/RF-28 y los casos 26–28 de la spec; el frontend hace el mismo cálculo cliente para la vista en vivo (idéntica regla pura compartida en la capa de dominio). |
+| D19 | **Umbrales como documento único persistido** (mismo patrón JSON por entidad, D1) con defecto **4/7**, invariante `rejectionThreshold < acceptanceThreshold` (422 al guardar), auditado (RNF-8) y aplicado solo a decisiones posteriores (caso 31). | Umbrales por idea (descartado: la spec dice configurables por el administrador, globales); rangos flotantes (descartado: la spec exige enteros 1–10) | Cumple RF-28 con la mínima superficie: un registro + 2 endpoints admin. |
+| D20 | **`Idea.decision` como atributo de la idea** (no entidad aparte): `{outcome, reason, score, decidedBy, decidedByName, decidedAt}`; se limpia a `null` al reevaluar una `ARCHIVADA` (RF-29, caso 30). Los estados finales son salidas reales de la máquina (4.6), no atributos. | Entidad `Decision` con historial (descartado para el MVP: una decisión vigente por idea basta; el historial queda fuera de alcance); sin estados finales (descartado: la spec v2.2 los introduce) | Minimiza el modelo (D1) y mantiene RNF-9 intacta: la reevaluación es una transición legítima `ARCHIVADA → VALIDADA_PUBLICA`. |
+| D21 | **Catálogo por zonas derivado del estado:** `GET /catalog/public?zone=…` filtra por estado (en-proceso=`VALIDADA_PUBLICA`, aceptadas/rechazadas/archivadas=estados finales); el detalle `GET /catalog/{ideaId}` acepta los 4 estados y expone `state` + `decision`. | Cuatro colecciones persistidas por zona (descartado: duplicaría datos); catálogo solo de VALIDADA_PUBLICA (descartado: la spec v2.2 organiza en 4 zonas) | Un solo origen de verdad (`Idea.state`); la zona es proyección, no almacenamiento (coherente con RNF-5/D1). |
 
 **Trazabilidad RF — Decisiones**
 
@@ -1208,6 +1384,10 @@ func SUSTITUIR_EVALUACION(ideaId, especialista, criterios):
 | D15 | RF-24, RNF-9, RNF-11 |
 | D16 | RF-20, RF-23 |
 | D17 | RF-26, RNF-8, RNF-11, casos 22/23 |
+| D18 | RF-27, RF-28, RNF-8, RNF-9, casos 26/27/28 |
+| D19 | RF-28, RNF-8, casos 26/31 |
+| D20 | RF-27, RF-29, RNF-8, RNF-9, casos 29/30 |
+| D21 | RF-20, RF-23, RF-29 |
 
 ---
 
@@ -1285,6 +1465,12 @@ backend/tests/
 | 23. Aceptar/sustituir alternados | `test_evaluation::test_alternate_accept_replace_last_wins` |
 | 24. Contexto vacío | `test_org_context_api::test_empty_context_warning` + `test_prompts::test_empty_context_note` |
 | 25. Subida sin texto / corrupta | `test_org_context_api::test_upload_empty_rejected` (el vigente no se modifica) |
+| 26. Promedio exacto en un umbral | `test_decision_rules::test_score_on_threshold_belongs_to_upper_band` (X → ARCHIVADA, Z → ACEPTADA) |
+| 27. Forzar resultado distinto al promedio | `test_decision_api::test_outcome_mismatch_with_average_409` (banda expuesta en `details`) |
+| 28. Rechazo/archivo sin motivo | `test_decision_api::test_archive_and_reject_without_reason_400` |
+| 29. Reevaluar ACEPTADA/RECHAZADA | `test_reevaluation_api::test_reevaluate_non_archived_409` (y sin acción en la UI, FE) |
+| 30. Reevaluar ARCHIVADA con debate cerrado | `test_reevaluation_api::test_reevaluate_archived_keeps_debate_and_evaluation` (decision=null, debate cerrado intacto, evaluación IA intacta) |
+| 31. Umbrales con ideas ya decididas | `test_decision_rules::test_threshold_change_does_not_recompute_decided` (decisión previa inalterada) |
 
 ### 6.4 Mocks y dependencias en pruebas
 
@@ -1298,18 +1484,20 @@ backend/tests/
 |---|---|
 | unit/domain + unit/use_cases | RF-2…RF-11, RF-24, RF-26, RNF-5, RNF-9, casos 6, 12, 21, 22, 23 |
 | unit/features (debate, org) | RF-21, RF-24 (RNF-11) |
+| unit/validation (decision_rules) | RF-27, RF-28, RNF-8, RNF-9, casos 26, 31 (v2.2) |
 | unit/infra | RF-3, RF-4, RF-8, RF-11 (RNF-3) |
 | api/auth | RF-1 |
 | api/capture | RF-2…RF-7, casos 1, 2, 7, 17 |
-| api/ideas | RF-8, RF-9, RF-10, RF-19 |
-| api/validation | RF-14, RF-15, RF-16, caso 13 |
+| api/ideas | RF-8, RF-9, RF-10, RF-19 + RF-29 (reevaluación, casos 29/30) |
+| api/validation | RF-14 (dos etapas), RF-15, RF-16, RF-26, RF-27 (decisión, casos 27/28) |
 | api/evaluation | RF-26, casos 22, 23 |
 | api/debate | RF-24, RF-25, casos 18, 19, 20, 21 |
 | api/org-context | RF-21, RF-22, casos 24, 25 |
 | api/prompts | RF-22 (inyección del contexto) |
-| api/catalog | RF-20, RF-23 |
-| api/notifications | RF-12, RF-15, RF-16, RF-18 |
+| api/catalog | RF-20 (zonas), RF-23 (detalle en los 4 estados) |
+| api/notifications | RF-12, RF-15, RF-16, RF-18 (8 eventos: aceptación/archivo/reevaluación/calificación pendiente) |
 | api/users | RF-17, caso 16 |
+| api/admin-thresholds | RF-28, RNF-8 (umbrales, defecto 4/7, 422 inválidos) |
 
 ---
 
@@ -1330,21 +1518,24 @@ backend/tests/
 | RF-11 | my-ideas (refine-view) | IdeaVersion | /assistant/check | 4.5 | D2, D5 | unit+api |
 | RF-12 | shared (notification-bell) | Notification | /notifications | 4.5 | D9 | api/notifications |
 | RF-13 | my-ideas (refine-view) | IdeaVersion | /decide, /capture | 4.5 | D5 | api/ideas |
-| RF-14 | validation (queue) | — | GET /validation/queue | — | — | api/validation |
+| RF-14 | validation (queue) | — | GET /validation/queue (stage) | — | — | api/validation |
 | RF-15 | validation (validate-panel) | Idea (rastro) | /validation/{id}/approve | 4.6 | D9 | api/validation |
 | RF-16 | validation (validate-panel) | Idea (comentario) | /validation/{id}/reject | 4.6 | — | api/validation |
 | RF-17 | admin (users) | User | /users/* | — | D3, D10 | api/users |
-| RF-18 | shared (notification-bell) | Notification | /notifications* | — | D9 | api/notifications |
-| RF-19 | my-ideas (list) | Idea | GET /ideas/me | — | D1 | api/ideas |
-| RF-20 | catalog (public compacta) | Idea | GET /catalog/public | — | D1, D16 | api/catalog |
+| RF-18 | shared (notification-bell) | Notification (8 eventos) | /notifications* | 4.8, 4.9 | D9 | api/notifications |
+| RF-19 | my-ideas (list) | Idea (decision) | GET /ideas/me, /ideas/{id}/request-reevaluation | 4.9 | D1, D20 | api/ideas |
+| RF-20 | catalog (public por zonas) | Idea | GET /catalog/public?zone | — | D1, D16, D21 | api/catalog |
 | RF-21 | admin (context), org | CompanyContext | /admin/contexto/* | — | D13, D14 | api/org-context, unit/features/org |
 | RF-22 | assistant (prompts), org | CompanyContext | — | 4.2, 4.7, 4.8 (inyección) | D7, D13 | api/prompts, unit |
-| RF-23 | catalog (detail) | Idea, Debate, IdeaEvaluation | GET /catalog/{ideaId} | — | D12, D16 | api/catalog |
+| RF-23 | catalog (detail) | Idea (decision), Debate, IdeaEvaluation | GET /catalog/{ideaId} | — | D12, D16, D21 | api/catalog |
 | RF-24 | debate | Debate, DebateMessage | GET/POST /catalog/{ideaId}/debate, PUT deadline | 4.6 (apertura), 4.7 | D12, D15 | unit/features/debate, api/debate |
 | RF-25 | debate, assistant | DebateMessage | POST /catalog/{ideaId}/debate | 4.7 | D2, D12 | api/debate, casos 19, 20 |
 | RF-26 | validation, debate, assistant | IdeaEvaluation | /validation/{id}/evaluation* | 4.7 (disparo al cierre), 4.8 | D2, D12, D17 | api/evaluation, unit/assistant, casos 22, 23 |
+| RF-27 | validation (calibration-panel/decision-form) | Idea.decision | POST /validation/{id}/decision | 4.6, 4.9 | D18, D20 | api/validation, casos 27, 28 |
+| RF-28 | admin (calibration-thresholds) | EvaluationThreshold | GET/PUT /admin/calibration-thresholds | 4.9 | D18, D19 | api/admin-thresholds, unit/validation, casos 26, 31 |
+| RF-29 | my-ideas, catalog (zones), validation (queue) | Idea (state, decision) | /ideas/{id}/request-reevaluation, /validation/queue, /catalog/public?zone | 4.6, 4.9 | D19, D20, D21 | api/ideas, api/catalog, casos 29, 30 |
 
-**Cobertura:** los 26 RF (RF-1 a RF-26) están cubiertos en todas las 6 secciones del plan; RF-21…RF-26 son de la ampliación v2.1.
+**Cobertura:** los 29 RF (RF-1 a RF-29) están cubiertos en todas las 6 secciones del plan; RF-21…RF-26 son de la ampliación v2.1 y RF-27…RF-29 de la ampliación v2.2.
 
 ---
 

@@ -1,7 +1,8 @@
 # Grupos de desarrollo vertical — Innov-IA MVP
 
 Organización de las **57 tareas** del MVP v2.0 (G01–G16, todas completadas) más las **10 tareas
-de la ampliación de alcance v2.1** (G17–G18, pendientes) en **18 grupos de desarrollo vertical**,
+de la ampliación de alcance v2.1** (G17–G18), las **5 tareas backend de la ampliación v2.2**
+(G19) y las **3 tareas frontend/E2E de la v2.2** (G20) en **20 grupos de desarrollo vertical**,
 cada uno con **máximo 5 tareas**, conectando el backend con su respectiva vista de frontend de
 extremo a extremo.
 
@@ -30,11 +31,13 @@ extremo a extremo.
 | 16 | [`16-accesibilidad-build-cierre.md`](16-accesibilidad-build-cierre.md) | Accesibilidad + build/guías + verificación spec §9 | T-057, T-058, T-068 | 3 | 3/3 | ✅ |
 | 17 | [`17-contexto-recursos.md`](17-contexto-recursos.md) | Contexto de empresa administrable + inyección en todos los prompts + retirada de *Recursos estimados* (6 campos, D11) | T-069, T-070, T-071, T-075, T-076 | 5 | 5/5 | ✅ |
 | 18 | [`18-debate-evaluacion-catalogo.md`](18-debate-evaluacion-catalogo.md) | Debate (30 días, @asistant, cierre+resumen) + evaluación IA 5 criterios al cerrarse el debate + catálogo compacto con detalle | T-072, T-073, T-074, T-077, T-078 | 5 | 4/5 | ⏳ |
+| 19 | [`19-decision-final-umbrales.md`](19-decision-final-umbrales.md) | Estados finales + reglas promedio/banda/decisión + umbrales (4/7) + endpoint decisión + reevaluación + cola en dos etapas + notificación calibración + catálogo por zonas (BE) | T-079, T-080, T-081, T-082, T-083 | 5 | 3/5 | ⏳ |
+| 20 | [`20-frontend-calificacion-zonas.md`](20-frontend-calificacion-zonas.md) | Ficha de calificación + decisión final en vivo + umbrales admin + catálogo 4 zonas + debate compactado + reevaluación + E2E v2.2 (FE) | T-084, T-085, T-086 | 3 | 0/3 | ⏳ |
 
-**Total: 4+4+3+2+3+5+5+5+3+4+5+3+2+2+4+3+5+5 = 67 tareas** (57 del v2.0 + 10 de la ampliación
-v2.1). ✓ (una por grupo, sin huecos ni
-duplicados). **Progreso (2026-10-23): 65/67 tareas implementadas** (G01 ✅ … G17 ✅; G18 ⏳ 3/5 —
-ampliación de alcance v2.1 acordada con el propietario; 78 tareas en total, T-001..T-078).
+**Total: 4+4+3+2+3+5+5+5+3+4+5+3+2+2+4+3+5+5+5+3 = 75 tareas** (57 del v2.0 + 10 de la ampliación
+v2.1 + 8 de la ampliación v2.2). ✓ (una por grupo, sin huecos ni duplicados). **Progreso: 69/75
+tareas implementadas** (G01 ✅ … G17 ✅; G18 ⏳ 4/5; G19 ⏳ 3/5, G20 ⏳ 0/3 — ampliaciones de
+alcance acordadas con el propietario; 86 tareas en total, T-001..T-086).
 **MVP v2.0 cerrado**: `pytest -q` 468 verdes, `ruff check .` limpio, `ng build` verde.
 
 ## Criterio de la secuencia
