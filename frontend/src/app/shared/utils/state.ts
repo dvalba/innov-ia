@@ -14,5 +14,11 @@ export function estadoLabel(state: IdeaState): string {
       return 'Solicitando publicación';
     case 'VALIDADA_PUBLICA':
       return 'Validada pública';
+    case 'ACEPTADA':
+      return 'Aceptada';
+    case 'ARCHIVADA':
+      return 'Archivada';
+    case 'RECHAZADA':
+      return 'Rechazada';
   }
 }

@@ -1,11 +1,43 @@
 <div class="space-y-5">
   <header>
     <h1 class="text-xl font-semibold text-slate-900 dark:text-slate-100">Validación de ideas</h1>
-    <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
-      Revisa las iniciativas en solicitud de publicación. Al validarlas se
-      publican en el catálogo; al rechazarlas devuelve al proponente con tu nota.
-    </p>
+    @if (etapa() === 'publicacion') {
+      <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
+        Revisa las iniciativas en solicitud de publicación. Al validarlas se
+        publican en el catálogo; al rechazarlas las devuelves al proponente
+        con tu nota.
+      </p>
+    } @else {
+      <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
+        Revisa las iniciativas publicadas con el debate cerrado. Acepta o
+        sustituye la calificación de la IA y registra la decisión final.
+      </p>
+    }
   </header>
+
+  <nav
+    class="flex gap-1 rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900"
+    role="tablist"
+    aria-label="Etapa de validación"
+  >
+    @for (etapaDef of ETAPAS; track etapaDef.valor) {
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="etapa() === etapaDef.valor"
+        [disabled]="operando()"
+        (click)="cambiarEtapa(etapaDef.valor)"
+        class="flex-1 rounded-lg px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:cursor-not-allowed disabled:opacity-60 sm:flex-none"
+        [class]="
+          etapa() === etapaDef.valor
+            ? 'bg-indigo-600 text-white'
+            : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'
+        "
+      >
+        {{ etapaDef.etiqueta }}
+      </button>
+    }
+  </nav>
 
   @if (confirmacion()) {
     <div
@@ -42,17 +74,34 @@
         role="status"
         class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
       >
-        No hay iniciativas esperando validación.
+        @if (etapa() === 'publicacion') {
+          No hay iniciativas esperando publicación.
+        } @else {
+          No hay iniciativas esperando calificación.
+        }
       </p>
     } @else {
       <div class="space-y-4">
-        @for (entrada of entradas; track entrada.id) {
-          <app-validate-panel
-            [entrada]="entrada"
-            [ocupado]="operando()"
-            (comenzada)="onComenzada()"
-            (decidida)="onDecidida($event)"
-          />
+        @if (etapa() === 'publicacion') {
+          @for (entrada of entradas; track entrada.id) {
+            <app-validate-panel
+              [entrada]="entrada"
+              [ocupado]="operando()"
+              (comenzada)="onComenzada()"
+              (terminada)="onTerminada()"
+              (decidida)="onDecididaPublicacion($event)"
+            />
+          }
+        } @else {
+          @for (entrada of entradas; track entrada.id) {
+            <app-calibration-panel
+              [entrada]="entrada"
+              [ocupado]="operando()"
+              (comenzada)="onComenzada()"
+              (terminada)="onTerminada()"
+              (decidida)="onDecididaCalibracion($event)"
+            />
+          }
         }
       </div>
     }

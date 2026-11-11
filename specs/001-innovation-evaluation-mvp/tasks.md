@@ -522,7 +522,7 @@
 
 ### 6.2 G20 — Frontend: ficha de calificación, decisión y zonas
 
-- [ ] **[T-084] Frontend: ficha de calificación + decisión final + umbrales admin**
+- [x] **[T-084] Frontend: ficha de calificación + decisión final + umbrales admin**
   - **Covers:** RF-14, RF-27, RF-28, RF-23, plan §1.1
   - **Dependencias:** [T-082], [T-083]
   - **Hecho cuando:** La cola de validación (`/validacion`) muestra las **dos etapas** (publicación / calificación) con selector de etapa; al abrir una entrada de la etapa de **calificación** el especialista accede a la **ficha completa**: 6 campos, debate compactado (resumen + enlace a solo lectura), calificación de la IA vigente (5 criterios, `GENERADA`/`ACEPTADA`/`SUSTITUIDA`, con aceptar/sustituir) y el **formulario de decisión final** (RF-27): el **promedio** (suma/5) y el **resultado derivado** (banda según umbrales) se calculan y muestran **en vivo** mientras se puntúan los 5 criterios; el resultado elegido debe coincidir con la banda (aviso ante 409 `DECISION_MISMATCH` sin forzar); el motivo es obligatorio para ARCHIVADA/RECHAZADA (aviso ante 400) y opcional para ACEPTADA; antes de confirmar se muestra un **diálogo de confirmación** con el aviso de consecuencia y opción de volver; la sección de administración gana una pestaña **Umbrales de calificación** (RF-28) con los dos enteros 1–10, validación `rechazo < aceptación` (aviso ante 422) y guardado auditado; `ng build` verde.

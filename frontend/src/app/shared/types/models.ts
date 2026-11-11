@@ -23,8 +23,30 @@ export const ROLE_PROPOSER = 'proponente';
 export const ROLE_VALIDATOR = 'especialista';
 export const ROLE_ADMIN = 'admin';
 
-/** Idea life-cycle states (plan §2.2 / §4.6, RNF-9). */
-export type IdeaState = 'EN_DESARROLLO' | 'SOLICITANDO_PUBLICACION' | 'VALIDADA_PUBLICA';
+/** Idea life-cycle states (plan §2.2 / §4.6, RNF-9; v2.2 adds the three final states). */
+export type IdeaState =
+  | 'EN_DESARROLLO'
+  | 'SOLICITANDO_PUBLICACION'
+  | 'VALIDADA_PUBLICA'
+  | 'ACEPTADA'
+  | 'ARCHIVADA'
+  | 'RECHAZADA';
+
+/** The three possible final outcomes of the calibration decision (RF-27). */
+export type DecisionOutcome = 'ACEPTADA' | 'ARCHIVADA' | 'RECHAZADA';
+
+/** The final calibration decision recorded on an idea (RF-27/RF-29, plan §2.2/§4.6). */
+export interface Decision {
+  outcome: DecisionOutcome;
+  reason: string | null;
+  score: number;
+  decidedBy: string;
+  decidedByName: string;
+  decidedAt: string;
+}
+
+/** The two review-queue stages (RF-14, v2.2: `GET /validation/queue?stage=…`). */
+export type QueueStage = 'publicacion' | 'calibracion';
 
 /** How the idea was created (RF-2 / RNF-2). */
 export type IdeaOrigin = 'asistida' | 'manual';
@@ -223,15 +245,25 @@ export interface Evaluacion {
   decidedAt?: string | null;
 }
 
-/** `GET /catalog/{ideaId}` payload (T-077, RF-23): the public detail. */
+/** `GET /catalog/{ideaId}` payload (T-077, RF-23; v2.2 adds state + decision). */
 export interface IdeaDetallePublica {
   id: string;
   fields: IdeaFieldsPublica;
   origin: IdeaOrigin;
   createdAt: string;
   publishedAt: string | null;
+  state: IdeaState;
+  decision: Decision | null;
   evaluation: Evaluacion | null;
   aiEvaluation: Evaluacion | null;
+}
+
+/** `GET /admin/calibration-thresholds` payload (RF-28). */
+export interface CalibrationThresholds {
+  rejectionThreshold: number;
+  acceptanceThreshold: number;
+  updatedBy?: string | null;
+  updatedAt?: string | null;
 }
 
 /** One message of the published-idea debate (plan §2.8, RF-24/RF-25). */

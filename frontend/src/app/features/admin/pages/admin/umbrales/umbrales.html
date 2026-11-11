@@ -1,0 +1,112 @@
+<div class="space-y-5">
+  <header class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:p-6">
+    <h1 class="text-xl font-semibold text-slate-900 dark:text-slate-100">Umbrales de calificación</h1>
+    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+      Define en qué zonas del catálogo cae el promedio de los 5 criterios:
+      promedio menor que el umbral de rechazo → <strong>Rechazadas</strong>;
+      entre ambos → <strong>Archivadas</strong>; igual o mayor al umbral de
+      aceptación → <strong>Aprobadas</strong>.
+    </p>
+  </header>
+
+  @if (error()) {
+    <div role="alert" class="flex items-start justify-between gap-4 rounded-xl bg-red-50 px-4 py-3 dark:bg-red-500/10">
+      <div class="space-y-2">
+        <p class="text-sm text-red-700 dark:text-red-300">{{ error() }}</p>
+        @for (problema of problemas(); track problema) {
+          <p class="text-sm text-red-700 dark:text-red-300">{{ problema }}</p>
+        }
+      </div>
+      <button
+        type="button"
+        (click)="descartarError()"
+        class="shrink-0 text-sm text-red-600 underline hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+      >
+        Cerrar
+      </button>
+    </div>
+  }
+
+  <div class="space-y-6 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:p-6">
+    <div class="grid gap-4 sm:grid-cols-2">
+      <div>
+        <label
+          for="umbral-rechazo"
+          class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+        >
+          Umbral de rechazo (1-10)
+        </label>
+        <input
+          type="number"
+          id="umbral-rechazo"
+          min="1"
+          max="10"
+          step="1"
+          [value]="rechazo()"
+          (input)="setUmbral('rechazo', $any($event.target).value)"
+          [disabled]="guardando()"
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-indigo-500/60 dark:focus:ring-indigo-500/30"
+        />
+      </div>
+      <div>
+        <label
+          for="umbral-aceptacion"
+          class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+        >
+          Umbral de aceptación (1-10)
+        </label>
+        <input
+          type="number"
+          id="umbral-aceptacion"
+          min="1"
+          max="10"
+          step="1"
+          [value]="aceptacion()"
+          (input)="setUmbral('aceptacion', $any($event.target).value)"
+          [disabled]="guardando()"
+          class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-indigo-500/60 dark:focus:ring-indigo-500/30"
+        />
+      </div>
+    </div>
+
+    @if (mensajeValidacion() && !guardando()) {
+      <p class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+        {{ mensajeValidacion() }}
+      </p>
+    }
+
+    <div>
+      <app-band-scale
+        [promedio]="null"
+        [umbrales]="umbralesBorrador()"
+        titulo="VISTA PREVIA DE LAS 3 SECCIONES"
+      />
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3">
+      <button
+        type="button"
+        [disabled]="guardando() || !valido()"
+        (click)="guardar()"
+        class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {{ guardando() ? 'Guardando…' : 'Guardar umbrales' }}
+      </button>
+      @if (guardado()) {
+        <p role="status" class="text-sm text-emerald-700 dark:text-emerald-300">
+          Umbrales guardados.
+        </p>
+      }
+    </div>
+
+    @if (umbrales.value(); as u) {
+      @if (u.updatedAt || u.updatedBy) {
+        <p class="text-xs text-slate-500 dark:text-slate-400">
+          Última actualización:
+          @if (u.updatedBy) { {{ u.updatedBy }} · }
+          @if (u.updatedAt) { {{ formatearFecha(u.updatedAt) }} }
+        </p>
+      }
+    }
+  </div>
+</div>

@@ -34,6 +34,8 @@ export class ValidatePanel {
   readonly comenzada = output<void>();
   /** A decision finished so the parent can reload and confirm. */
   readonly decidida = output<ResultadoValidacion>();
+  /** A decision finished (success or failure) so the parent can unlock. */
+  readonly terminada = output<void>();
 
   private readonly validation = inject(ValidationService);
 
@@ -93,6 +95,7 @@ export class ValidatePanel {
       this.error.set(errorMessage(err));
     } finally {
       this.enviando.set(false);
+      this.terminada.emit();
     }
   }
 }

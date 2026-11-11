@@ -32,7 +32,7 @@ extremo a extremo.
 | 17 | [`17-contexto-recursos.md`](17-contexto-recursos.md) | Contexto de empresa administrable + inyección en todos los prompts + retirada de *Recursos estimados* (6 campos, D11) | T-069, T-070, T-071, T-075, T-076 | 5 | 5/5 | ✅ |
 | 18 | [`18-debate-evaluacion-catalogo.md`](18-debate-evaluacion-catalogo.md) | Debate (30 días, @asistant, cierre+resumen) + evaluación IA 5 criterios al cerrarse el debate + catálogo compacto con detalle | T-072, T-073, T-074, T-077, T-078 | 5 | 4/5 | ⏳ |
 | 19 | [`19-decision-final-umbrales.md`](19-decision-final-umbrales.md) | Estados finales + reglas promedio/banda/decisión + umbrales (4/7) + endpoint decisión + reevaluación + cola en dos etapas + notificación calibración + catálogo por zonas (BE) | T-079, T-080, T-081, T-082, T-083 | 5 | 3/5 | ⏳ |
-| 20 | [`20-frontend-calificacion-zonas.md`](20-frontend-calificacion-zonas.md) | Ficha de calificación + decisión final en vivo + umbrales admin + catálogo 4 zonas + debate compactado + reevaluación + E2E v2.2 (FE) | T-084, T-085, T-086 | 3 | 0/3 | ⏳ |
+| 20 | [`20-frontend-calificacion-zonas.md`](20-frontend-calificacion-zonas.md) | Ficha de calificación + decisión final en vivo + umbrales admin + catálogo 4 zonas + debate compactado + reevaluación + E2E v2.2 (FE) | T-084, T-085, T-086 | 3 | 1/3 | ⏳ |
 
 **Total: 4+4+3+2+3+5+5+5+3+4+5+3+2+2+4+3+5+5+5+3 = 75 tareas** (57 del v2.0 + 10 de la ampliación
 v2.1 + 8 de la ampliación v2.2). ✓ (una por grupo, sin huecos ni duplicados). **Progreso: 69/75

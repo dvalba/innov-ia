@@ -150,6 +150,13 @@ export const routes: Routes = [
                 (m) => m.ContextoPage,
               ),
           },
+          {
+            path: 'umbrales',
+            loadComponent: () =>
+              import('./features/admin/pages/admin/umbrales/umbrales').then(
+                (m) => m.UmbralesPage,
+              ),
+          },
         ],
       },
       {
