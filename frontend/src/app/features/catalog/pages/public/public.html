@@ -2,44 +2,99 @@
   <header>
     <h1 class="text-xl font-semibold text-slate-900 dark:text-slate-100">Catálogo público</h1>
     <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
-      Iniciativas validadas y publicadas por la comunidad. Solo lectura.
+      Iniciativas publicadas por la comunidad, organizadas por estado. Solo lectura.
     </p>
   </header>
 
-  @if (catalogo.error()) {
-    <p role="alert" class="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
-      No se pudo cargar el catálogo público.
-    </p>
-  } @else if (catalogo.isLoading()) {
-    <p
-      role="status"
-      class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
-    >
-      Cargando catálogo…
-    </p>
-  } @else {
-    @let ideas = catalogo.value() ?? [];
-    @if (ideas.length === 0) {
+  <!-- Pestañas de zona (RF-20, D21): ?zone= deep-link, RNF-6 -->
+  <div
+    role="tablist"
+    aria-label="Zonas del catálogo"
+    class="flex flex-wrap gap-2 border-b border-slate-200 pb-px dark:border-slate-700"
+  >
+    @for (zona of zonas; track zona) {
+      <button
+        type="button"
+        role="tab"
+        [id]="'zona-tab-' + zona"
+        [attr.aria-selected]="zonaActiva() === zona"
+        [attr.aria-controls]="'zona-panel-' + zona"
+        (click)="cambiarZona(zona)"
+        class="-mb-px inline-flex items-center gap-2 rounded-t-lg border-b-2 px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-indigo-300"
+        [class]="
+          zonaActiva() === zona
+            ? 'border-indigo-600 text-indigo-700 dark:border-indigo-400 dark:text-indigo-300'
+            : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700 dark:text-slate-400 dark:hover:border-slate-600 dark:hover:text-slate-200'
+        "
+      >
+        {{ zonaLabel[zona] }}
+        <span
+          class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 ring-1 ring-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:ring-slate-700"
+        >
+          {{ totalDe(zona) }}
+        </span>
+      </button>
+    }
+  </div>
+
+  <section
+    [id]="'zona-panel-' + zonaActiva()"
+    role="tabpanel"
+    [attr.aria-labelledby]="'zona-tab-' + zonaActiva()"
+    class="space-y-3"
+  >
+    @if (catalogo.error()) {
+      <p role="alert" class="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+        No se pudo cargar el catálogo público.
+      </p>
+    } @else if (catalogo.isLoading()) {
       <p
         role="status"
         class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
       >
-        Aún no hay iniciativas publicadas.
+        Cargando catálogo…
       </p>
     } @else {
-      <ul class="space-y-3">
-        @for (idea of ideas; track idea.id) {
-          <li>
-            <a [routerLink]="['/catalogo/publico', idea.id]">
-              <app-idea-card
-                variant="compact"
-                [titulo]="idea.fields.title"
-                [metaCompacta]="meta(idea)"
-              />
-            </a>
-          </li>
-        }
-      </ul>
+      @let lista = items();
+      @if (lista.length === 0) {
+        <p
+          role="status"
+          class="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400"
+        >
+          No hay iniciativas en esta zona.
+        </p>
+      } @else {
+        <ul class="space-y-3">
+          @for (item of lista; track item.id) {
+            <li>
+              <a
+                [routerLink]="['/catalogo/publico', item.id]"
+                class="group block rounded-xl border border-slate-200 bg-white p-5 transition hover:border-indigo-300 hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-indigo-500/50"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0 flex-1">
+                    <p class="truncate text-base font-semibold text-slate-900 group-hover:text-indigo-700 dark:text-slate-100 dark:group-hover:text-indigo-300">
+                      {{ item.title || 'Sin título' }}
+                    </p>
+                    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ meta(item) }}</p>
+                    @if (item.description) {
+                      <p class="mt-2 line-clamp-2 text-sm text-slate-600 dark:text-slate-400">
+                        {{ item.description }}
+                      </p>
+                    }
+                  </div>
+                  <span
+                    aria-hidden="true"
+                    class="shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-indigo-500 dark:text-slate-500 dark:group-hover:text-indigo-400"
+                  >
+                    →
+                  </span>
+                </div>
+              </a>
+            </li>
+          }
+        </ul>
+      }
     }
-  }
+  </section>
 </div>

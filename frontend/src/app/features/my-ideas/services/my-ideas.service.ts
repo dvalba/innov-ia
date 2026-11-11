@@ -2,10 +2,12 @@ import { HttpClient, HttpResourceRef, httpResource } from '@angular/common/http'
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import {
+  Decision,
   Idea,
   IdeaDetalle,
   IdeaFields,
   IdeaResumen,
+  IdeaState,
   IdeaVersion,
   SolicitudMejora,
 } from '../../../shared/types/models';
@@ -15,6 +17,13 @@ import {
 export type MejoraResultado =
   | { version: IdeaVersion; idea: Idea }
   | { notice: string; improvementRequest: SolicitudMejora };
+
+/** `POST /ideas/{id}/request-reevaluation` outcome (RF-29): the re-entry. */
+export interface ReevaluacionResultado {
+  state: IdeaState;
+  decision: Decision | null;
+  note: string;
+}
 
 /**
  * "Mis ideas" API client (T-046..T-050, RF-19/RF-9/RF-8/RF-10/RF-16).
@@ -58,5 +67,12 @@ export class MyIdeasService {
   /** POST /ideas/{id}/request-publication — move to SOLICITANDO_PUBLICACION (RF-10). */
   solicitarPublicacion(ideaId: string): Promise<Idea> {
     return firstValueFrom(this.http.post<Idea>(`/ideas/${ideaId}/request-publication`, {}));
+  }
+
+  /** POST /ideas/{id}/request-reevaluation — send an ARCHIVADA idea back to calibration (RF-29). */
+  solicitarReevaluacion(ideaId: string): Promise<ReevaluacionResultado> {
+    return firstValueFrom(
+      this.http.post<ReevaluacionResultado>(`/ideas/${ideaId}/request-reevaluation`, {}),
+    );
   }
 }

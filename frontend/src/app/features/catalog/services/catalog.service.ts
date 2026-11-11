@@ -2,19 +2,20 @@ import { HttpClient, HttpResourceRef, httpResource } from '@angular/common/http'
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import {
+  CatalogoZonas,
   CriterioEvaluacion,
   Debate,
   Idea,
-  IdeaCatalogo,
   IdeaDetallePublica,
   MensajeDebate,
 } from '../../../shared/types/models';
 
 /**
- * Public catalog API client (T-052, T-077, RF-20/RF-23/RF-24/RF-25/RF-26).
- *
- * Reads go through `httpResource` (guideline §5): the public list, the per-idea
- * public detail and the per-idea debate. The mutations (`POST .../debate`,
+   * Public catalog API client (T-052, T-077, T-085, RF-20/RF-23/RF-24/RF-25/RF-26).
+   *
+   * Reads go through `httpResource` (guideline §5): the public catalog by the
+   * four zones (RF-20), the per-idea public detail and the per-idea debate. The
+   * mutations (`POST .../debate`,
  * `PUT .../debate/deadline`, the two evaluation decisions) are encapsulated
  * with `HttpClient` (guideline §5: mutations never use `httpResource`). The
  * evaluation endpoints live on `/validation` but they belong to this
@@ -34,8 +35,12 @@ export interface ResultadoDebate {
 export class CatalogService {
   private readonly http = inject(HttpClient);
 
-  /** GET /catalog/public — the VALIDADA_PUBLICA ideas, newest first. */
-  readonly catalogo = httpResource<IdeaCatalogo[]>(() => '/catalog/public');
+  /**
+   * GET /catalog/public — the four zones (RF-20) as a name -> compact-items map.
+   * Read without `?zone=` so one request feeds every tab; the per-zone form
+   * (`?zone=…`) is still served by the backend (T-083) for direct use.
+   */
+  readonly catalogoZonas = httpResource<CatalogoZonas>(() => '/catalog/public');
 
   /**
    * Builds a reactive `GET /catalog/{id}` resource for a given idea (RF-23:

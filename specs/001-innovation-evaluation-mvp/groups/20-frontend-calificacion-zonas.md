@@ -8,12 +8,12 @@ ideas**. + E2E v2.2.
 
 ## Estado
 
-> ⏳ **En curso** — 1/3 tareas. T-084 completada; T-085/T-086 pendientes.
+> ⏳ **En curso** — 2/3 tareas. T-084 y T-085 completadas; T-086 (E2E) pendiente.
 
 ## Tareas (orden de ejecución)
 
 - [x] **T-084** _(FE)_ — Ficha de calificación + decisión final + umbrales admin: selector de etapa en `/validacion` (publicación / calibración); la entrada de calibración abre la ficha completa (6 campos, debate compactado, calificación IA con aceptar/sustituir) y el **formulario de decisión final** con **promedio** y **banda** en vivo (misma regla pura que el backend), validación de coincidencia (aviso 409), motivo obligatorio para archivada/rechazada (aviso 400), **diálogo de confirmación** con aviso de consecuencia; pestaña admin **Umbrales de calificación** (dos enteros 1–10, `rechazo < aceptación`, guardado auditado)
-- [ ] **T-085** _(FE)_ — Catálogo por 4 zonas + debate compactado + reevaluación: `/catalogo/publico` en 4 pestañas (En proceso / Aceptadas / Rechazadas / Archivadas, `?zone=`); detalle de estado final con estado + decisión (resultado, motivo, promedio, especialista, fecha) en solo lectura; debate cerrado **compactado** (resumen IA o aviso sin debate) con enlace a vista **solo lectura** del chat completo; **Mis ideas** muestra los estados finales y, en `ARCHIVADA`, la acción **Solicitar reevaluación** (confirmación); sin acción en `ACEPTADA`/`RECHAZADA` (caso 29)
+- [x] **T-085** _(FE)_ — Catálogo por 4 zonas + debate compactado + reevaluación: `/catalogo/publico` en 4 pestañas (En proceso / Aceptadas / Rechazadas / Archivadas, `?zone=`); detalle de estado final con estado + decisión (resultado, motivo, promedio, especialista, fecha) en solo lectura; debate cerrado **compactado** (resumen IA o aviso sin debate) con enlace a vista **solo lectura** del chat completo; **Mis ideas** muestra los estados finales y, en `ARCHIVADA`, la acción **Solicitar reevaluación** (confirmación); sin acción en `ACEPTADA`/`RECHAZADA` (caso 29)
 - [ ] **T-086** _(E2E)_ — Verificación de la ampliación v2.2 (spec §9 + casos 26–31): publicar → debate → cierre → evaluación IA → cola de calificación + notificación a especialistas → calificación → decisión (409/400) → estado final + zona + notificación al creador; reevaluación de `ARCHIVADA` (conserva debate cerrado + evaluación IA, limpia `decision`) y no-reevaluación de `ACEPTADA`/`RECHAZADA`; umbrales defecto 4/7, cambio auditado, inválidos 422 y sin recálculo; `pytest -q`, `ruff check .` y `ng build` verdes
 
 ## Criterio de salida

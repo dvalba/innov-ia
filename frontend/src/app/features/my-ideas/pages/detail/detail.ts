@@ -14,6 +14,7 @@ import {
 } from '../../services/my-idea-fields';
 import { errorMessage } from '../../../../shared/interceptors/error.interceptor';
 import { formatearFecha, formatearDia } from '../../../../shared/utils/format';
+import { resultadoLabel } from '../../../../shared/utils/decision';
 import { Idea, IdeaFields, IdeaVersion } from '../../../../shared/types/models';
 
 /**
@@ -58,12 +59,17 @@ export class IdeaDetail {
   protected readonly publicando = signal(false);
   /** Whether the "Solicitar publicación" confirm dialog is open (T-056). */
   protected readonly confirmarPublicar = signal(false);
+  /** Whether the "Solicitar reevaluación" confirm dialog is open (T-085). */
+  protected readonly confirmarReevaluar = signal(false);
+  /** `true` while the re-evaluation request is in flight (T-085). */
+  protected readonly reevaluando = signal(false);
 
   protected readonly campos = CAMPOS_DEF;
   protected readonly formatearDetalle = formatearDetalle;
   protected readonly formatearFecha = formatearFecha;
   protected readonly formatearDia = formatearDia;
   protected readonly origenLabel = origenLabel;
+  protected readonly resultadoLabel = resultadoLabel;
 
   // -- idea / versions (read straight from the reactive resource) ------------
   protected idea(): Idea | null {
@@ -100,6 +106,35 @@ export class IdeaDetail {
 
   protected esManual(): boolean {
     return this.idea()?.origin === 'manual';
+  }
+
+  // -- final states (T-085, RF-29): ACEPTADA / RECHAZADA / ARCHIVADA ----------
+  protected aceptada(): boolean {
+    return this.vida() === 'ACEPTADA';
+  }
+
+  protected rechazada(): boolean {
+    return this.vida() === 'RECHAZADA';
+  }
+
+  protected archivada(): boolean {
+    return this.vida() === 'ARCHIVADA';
+  }
+
+  /** `true` once the idea reached a final calibration state (RF-29). */
+  protected final(): boolean {
+    return this.aceptada() || this.rechazada() || this.archivada();
+  }
+
+  /** The final decision of the idea (present in the three final states, RF-27). */
+  protected decision() {
+    return this.idea()?.decision ?? null;
+  }
+
+  /** The decision score with its 2-decimal display (RF-27). */
+  protected scoreDecision(): string {
+    const d = this.decision();
+    return d ? d.score.toFixed(2) : '';
   }
 
   /** The newest pending refinement version (T-049 `refine-view`), when any. */
@@ -139,6 +174,26 @@ export class IdeaDetail {
 
   protected onDecidir(v: IdeaVersion, decision: 'accept' | 'discard'): void {
     void this.mutar(() => this.ideas.decidirVersion(this.ideaId, v.id, decision));
+  }
+
+  /** Opens the confirm dialog before requesting a re-evaluation (T-085). */
+  protected abrirReevaluar(): void {
+    this.confirmarReevaluar.set(true);
+  }
+
+  /** Confirmation accepted: `POST /ideas/{id}/request-reevaluation` (RF-29). */
+  protected onReevaluar(): void {
+    this.confirmarReevaluar.set(false);
+    this.reevaluando.set(true);
+    this.error.set('');
+    this.ideas
+      .solicitarReevaluacion(this.ideaId)
+      .then((r) => {
+        this.info.set(r.note);
+        this.detalle.reload();
+      })
+      .catch((err) => this.error.set(errorMessage(err)))
+      .finally(() => this.reevaluando.set(false));
   }
 
   /**

@@ -8,15 +8,15 @@ validación en dos etapas (RF-14) y notificación de calificación pendiente + c
 
 ## Estado
 
-> ⏳ **En curso** — 3/5 tareas (T-079, T-080, T-081 completadas). Depende de G18 (debate cerrado + evaluación IA vigente).
+> ✅ **Completo** — 5/5 tareas completadas. Depende de G18 (debate cerrado + evaluación IA vigente).
 
 ## Tareas (orden de ejecución)
 
 - [x] **T-079** _(BE)_ — Estados finales y máquina de estados: `ACEPTADA`/`ARCHIVADA`/`RECHAZADA` en `Idea.STATES`, contrato `idea_ledger.py` y `state_machine.py` (transiciones `decide-*` desde `VALIDADA_PUBLICA` y `reevaluate` desde `ARCHIVADA`); estados terminales; `idea.decision` escrito al decidir y limpiado al reevaluar; 409 transición inválida (RNF-9)
 - [x] **T-080** _(BE)_ — Reglas puras `validation/domain/decision_rules.py`: `PROMEDIO` (suma/5, 2 decimales), `BANDA` (promedio < X → RECHAZADA; X ≤ promedio < Z → ARCHIVADA; promedio ≥ Z → ACEPTADA, caso 26) y validación de decisión (motivo obligatorio → 400; `outcome` ≠ banda → 409 `DECISION_MISMATCH` con `score`/`band`; no `VALIDADA_PUBLICA` → 409)
 - [x] **T-081** _(BE)_ — Umbrales administrables (RF-28): `threshold_store.py` (JSON, un registro) + `GET/PUT /admin/calibration-thresholds` (defecto 4/7, 422 `THRESHOLDS_INVALID` si no enteros 1–10 o `rejection >= acceptance`, auditado `updatedBy`/`updatedAt`, RNF-8; caso 31: sin recálculo de decisiones previas)
-- [ ] **T-082** _(BE)_ — Decisión final + reevaluación + cola de calificación: `POST /validation/{id}/decision` (especialista; 409 `DECISION_MISMATCH`, 400 `DECISION_REASON_REQUIRED`; audita + notifica al creador), `POST /ideas/{id}/request-reevaluation` (dueño; 403/409, conserva debate cerrado + evaluación IA, limpia `decision`, notifica `IDEA_REEVALUATED`) y `GET /validation/queue?stage=publicacion|calibracion` (calibración = `VALIDADA_PUBLICA` con debate cerrado, evaluación ≠ PENDING y `decision == null`)
-- [ ] **T-083** _(BE)_ — Notificación de calificación pendiente + catálogo por zonas: `EVENT_TYPES` ampliada a 8 eventos; al cerrar el debate y generarse la evaluación IA, `IDEA_CALIBRATION_PENDING` a todos los especialistas (idempotente); `IDEA_REJECTED` reutilizada en calificación (motivo incluido); `GET /catalog/public?zone=en-proceso|aceptadas|rechazadas|archivadas` y detalle con `state` + `decision` en los 4 estados
+- [x] **T-082** _(BE)_ — Decisión final + reevaluación + cola de calificación: `POST /validation/{id}/decision` (especialista; 409 `DECISION_MISMATCH`, 400 `DECISION_REASON_REQUIRED`; audita + notifica al creador), `POST /ideas/{id}/request-reevaluation` (dueño; 403/409, conserva debate cerrado + evaluación IA, limpia `decision`, notifica `IDEA_REEVALUATED`) y `GET /validation/queue?stage=publicacion|calibracion` (calibración = `VALIDADA_PUBLICA` con debate cerrado, evaluación ≠ PENDING y `decision == null`)
+- [x] **T-083** _(BE)_ — Notificación de calificación pendiente + catálogo por zonas: `EVENT_TYPES` ampliada a 8 eventos; al cerrar el debate y generarse la evaluación IA, `IDEA_CALIBRATION_PENDING` a todos los especialistas (idempotente); `IDEA_REJECTED` reutilizada en calificación (motivo incluido); `GET /catalog/public?zone=en-proceso|aceptadas|rechazadas|archivadas` y detalle con `state` + `decision` en los 4 estados
 
 ## Criterio de salida
 

@@ -127,6 +127,15 @@ export const routes: Routes = [
                 (m) => m.CatalogDetail,
               ),
           },
+          {
+            // Read-only full debate thread (T-085, RF-24): target of the
+            // compact closure box "Ver el debate completo" link.
+            path: 'publico/:id/debate',
+            loadComponent: () =>
+              import('./features/catalog/pages/debate-readonly/debate-readonly').then(
+                (m) => m.DebateReadonly,
+              ),
+          },
         ],
       },
       {

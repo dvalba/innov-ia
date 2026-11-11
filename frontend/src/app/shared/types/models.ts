@@ -60,12 +60,16 @@ export type VersionRequestedBy = 'refinement' | 'improvement' | 'adjustment';
 /** Decision state of an `IdeaVersion` (RF-8 / RF-13). */
 export type VersionStatus = 'PENDIENTE' | 'ACEPTADA' | 'DESCARTADA' | 'VIGENTE';
 
-/** The only four in-app notification events (RF-18). */
+/** The in-app notification events (RF-18; v2.2 adds the final-state ones). */
 export type NotificacionType =
   | 'IDEA_REFINED'
   | 'IDEA_PUBLISHED'
   | 'IDEA_REJECTED'
-  | 'IDEA_REQUESTED';
+  | 'IDEA_REQUESTED'
+  | 'IDEA_ACCEPTED'
+  | 'IDEA_ARCHIVED'
+  | 'IDEA_REEVALUATED'
+  | 'IDEA_CALIBRATION_PENDING';
 
 /** Speaker of a chat message (plan §2.3). */
 export type ChatRole = 'user' | 'assistant' | 'system';
@@ -127,6 +131,8 @@ export interface Idea extends IdeaFields {
   evaluation?: Evaluacion | null;
   /** The immutable evaluation snapshot produced by the AI (RF-26, T-077). */
   aiEvaluation?: Evaluacion | null;
+  /** The final calibration decision (RF-27/RF-29); present in the final states. */
+  decision?: Decision | null;
 }
 
 /** `GET /ideas/me` entry (RF-19): the "Mis ideas" summary. */
@@ -212,13 +218,48 @@ export interface IdeaCola {
   fields: IdeaFieldsPublica;
 }
 
-/** `GET /catalog/public` entry (RF-20): a VALIDADA_PUBLICA idea, read-only. */
-export interface IdeaCatalogo {
+/**
+ * The four public-catalog zones (RF-20) in their canonical tab order (D21):
+ * each zone is a projection of one idea state.
+ */
+export const CATALOG_ZONES = [
+  'en-proceso',
+  'aceptadas',
+  'rechazadas',
+  'archivadas',
+] as const;
+
+/** One of the four catalog zone names (the `?zone=` query value, RF-20). */
+export type CatalogZone = (typeof CATALOG_ZONES)[number];
+
+/** Spanish label of a catalog zone (RNF-4). */
+export const ZONA_LABEL: Record<CatalogZone, string> = {
+  'en-proceso': 'En proceso',
+  aceptadas: 'Aceptadas',
+  rechazadas: 'Rechazadas',
+  archivadas: 'Archivadas',
+};
+
+/**
+ * `GET /catalog/public` compact entry (RF-20, D16): one idea in a zone, holding
+ * only `id`, `title`, `publishedAt` and `description` (read-only, no contact).
+ */
+export interface ItemZona {
   id: string;
-  origin: IdeaOrigin;
-  createdAt: string;
+  title: string;
   publishedAt: string | null;
-  fields: IdeaFieldsPublica;
+  description: string;
+}
+
+/** `GET /catalog/public` (no zone, RF-20): the four zones as a name -> items map. */
+export interface CatalogoZonas {
+  zones: Record<CatalogZone, ItemZona[]>;
+}
+
+/** `GET /catalog/public?zone=…` (one zone, RF-20). */
+export interface CatalogoZona {
+  zone: CatalogZone;
+  items: ItemZona[];
 }
 
 /** Evaluation lifecycle state (`evaluation.status`, plan §2.2, RF-26). */

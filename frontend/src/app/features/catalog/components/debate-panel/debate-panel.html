@@ -13,7 +13,52 @@
   }
 
   @if (debate(); as debate) {
-    @if (debate.closed) {
+    @if (soloLectura()) {
+      <!-- Vista de solo lectura (T-085): hilo completo sin composer ni ajuste -->
+      <div class="rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
+        <p class="text-sm font-medium text-slate-700 dark:text-slate-300">
+          @if (debate.closed) {
+            Debate cerrado el {{ formatearFecha(debate.closedAt) }}.
+          } @else {
+            Debate abierto.
+          }
+        </p>
+      </div>
+
+      @if (debate.messages.length > 0) {
+        <ul class="space-y-3">
+          @for (mensaje of debate.messages; track mensaje.id) {
+            <li
+              [class]="esAsistente(mensaje) ? 'rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 dark:border-indigo-500/30 dark:bg-indigo-500/10' : 'rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900'"
+            >
+              <div class="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                <span
+                  [class]="esAsistente(mensaje) ? 'text-sm font-semibold text-indigo-700 dark:text-indigo-300' : 'text-sm font-semibold text-slate-900 dark:text-slate-100'"
+                >
+                  {{ mensaje.authorName }}
+                </span>
+                <span class="text-xs text-slate-500 dark:text-slate-400">
+                  {{ formatearFecha(mensaje.createdAt) }}
+                </span>
+                @if (mensaje.linkedMessageId) {
+                  <span
+                    class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                  >
+                    enlazado a mensaje
+                  </span>
+                }
+              </div>
+              <p class="whitespace-pre-line text-sm text-slate-700 dark:text-slate-300">
+                {{ mensaje.text }}
+              </p>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="text-sm text-slate-500 dark:text-slate-400">Aún no hay mensajes en el debate.</p>
+      }
+    } @else if (debate.closed) {
+      <!-- Cerrado y compacto (T-085): resumen + enlace a la vista completa -->
       <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/50">
         <p class="text-sm font-medium text-slate-700 dark:text-slate-300">
           Debate cerrado el {{ formatearFecha(debate.closedAt) }}.
@@ -27,97 +72,103 @@
             No hubo debate antes del cierre.
           </p>
         }
-      </div>
-    }
-
-    <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
-      <p class="text-sm text-slate-600 dark:text-slate-400">
-        Fecha límite de debate:
-        <span class="font-medium text-slate-900 dark:text-slate-100">
-          {{ formatearFecha(debate.deadline) }}
-        </span>
-      </p>
-      @if (esAdmin() && !ajustando()) {
-        <button
-          type="button"
-          (click)="mostrarAjuste()"
-          class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:focus:ring-slate-500/40"
+        <a
+          [routerLink]="['/catalogo/publico', ideaId(), 'debate']"
+          class="mt-3 inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:text-indigo-400 dark:hover:text-indigo-300"
         >
-          Ajustar fecha límite
-        </button>
-      }
-      @if (ajustando()) {
-        <div class="flex flex-wrap items-center gap-2">
-          <input
-            [type]="'datetime-local'"
-            [value]="fechaAjuste()"
-            (input)="fechaAjuste.set($any($event.target).value)"
-            aria-label="Nueva fecha límite del debate"
-            class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-indigo-500/60 dark:focus:ring-indigo-500/30"
-          />
+          Ver el debate completo (solo lectura)
+          <span aria-hidden="true">→</span>
+        </a>
+      </div>
+    } @else {
+      <!-- Abierto e interactivo (comportamiento actual) -->
+      <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
+        <p class="text-sm text-slate-600 dark:text-slate-400">
+          Fecha límite de debate:
+          <span class="font-medium text-slate-900 dark:text-slate-100">
+            {{ formatearFecha(debate.deadline) }}
+          </span>
+        </p>
+        @if (esAdmin() && !ajustando()) {
           <button
             type="button"
-            [disabled]="ajustandoLimite() || fechaAjuste() === ''"
-            (click)="ajustarLimite()"
-            class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
+            (click)="mostrarAjuste()"
+            class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:focus:ring-slate-500/40"
           >
-            {{ ajustandoLimite() ? 'Guardando…' : 'Guardar' }}
+            Ajustar fecha límite
           </button>
-          <button
-            type="button"
-            [disabled]="ajustandoLimite()"
-            (click)="ajustando.set(false)"
-            class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:focus:ring-slate-500/40"
-          >
-            Cancelar
-          </button>
+        }
+        @if (ajustando()) {
+          <div class="flex flex-wrap items-center gap-2">
+            <input
+              [type]="'datetime-local'"
+              [value]="fechaAjuste()"
+              (input)="fechaAjuste.set($any($event.target).value)"
+              aria-label="Nueva fecha límite del debate"
+              class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-indigo-500/60 dark:focus:ring-indigo-500/30"
+            />
+            <button
+              type="button"
+              [disabled]="ajustandoLimite() || fechaAjuste() === ''"
+              (click)="ajustarLimite()"
+              class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {{ ajustandoLimite() ? 'Guardando…' : 'Guardar' }}
+            </button>
+            <button
+              type="button"
+              [disabled]="ajustandoLimite()"
+              (click)="ajustando.set(false)"
+              class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:focus:ring-slate-500/40"
+            >
+              Cancelar
+            </button>
+          </div>
+        }
+      </div>
+
+      @if (debate.pendingAssistant) {
+        <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10">
+          <p class="text-sm text-amber-800 dark:text-amber-300">
+            La solicitud a <span class="font-mono">@asistant</span> quedó pendiente: el
+            asistente no estaba disponible. Se reintentará en la próxima interacción.
+          </p>
         </div>
       }
-    </div>
 
-    @if (debate.pendingAssistant) {
-      <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10">
-        <p class="text-sm text-amber-800 dark:text-amber-300">
-          La solicitud a <span class="font-mono">@asistant</span> quedó pendiente: el
-          asistente no estaba disponible. Se reintentará en la próxima interacción.
-        </p>
-      </div>
-    }
-
-    @if (debate.messages.length > 0) {
-      <ul class="space-y-3">
-        @for (mensaje of debate.messages; track mensaje.id) {
-          <li
-            [class]="esAsistente(mensaje) ? 'rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 dark:border-indigo-500/30 dark:bg-indigo-500/10' : 'rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900'"
-          >
-            <div class="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-              <span
-                [class]="esAsistente(mensaje) ? 'text-sm font-semibold text-indigo-700 dark:text-indigo-300' : 'text-sm font-semibold text-slate-900 dark:text-slate-100'"
-              >
-                {{ mensaje.authorName }}
-              </span>
-              <span class="text-xs text-slate-500 dark:text-slate-400">
-                {{ formatearFecha(mensaje.createdAt) }}
-              </span>
-              @if (mensaje.linkedMessageId) {
+      @if (debate.messages.length > 0) {
+        <ul class="space-y-3">
+          @for (mensaje of debate.messages; track mensaje.id) {
+            <li
+              [class]="esAsistente(mensaje) ? 'rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 dark:border-indigo-500/30 dark:bg-indigo-500/10' : 'rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900'"
+            >
+              <div class="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
                 <span
-                  class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                  [class]="esAsistente(mensaje) ? 'text-sm font-semibold text-indigo-700 dark:text-indigo-300' : 'text-sm font-semibold text-slate-900 dark:text-slate-100'"
                 >
-                  enlazado a mensaje
+                  {{ mensaje.authorName }}
                 </span>
-              }
-            </div>
-            <p class="whitespace-pre-line text-sm text-slate-700 dark:text-slate-300">
-              {{ mensaje.text }}
-            </p>
-          </li>
-        }
-      </ul>
-    } @else {
-      <p class="text-sm text-slate-500 dark:text-slate-400">Aún no hay mensajes en el debate.</p>
-    }
+                <span class="text-xs text-slate-500 dark:text-slate-400">
+                  {{ formatearFecha(mensaje.createdAt) }}
+                </span>
+                @if (mensaje.linkedMessageId) {
+                  <span
+                    class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                  >
+                    enlazado a mensaje
+                  </span>
+                }
+              </div>
+              <p class="whitespace-pre-line text-sm text-slate-700 dark:text-slate-300">
+                {{ mensaje.text }}
+              </p>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="text-sm text-slate-500 dark:text-slate-400">Aún no hay mensajes en el debate.</p>
+      }
 
-    @if (!debate.closed) {
       <form (ngSubmit)="$event.preventDefault(); publicar()" class="space-y-3">
         <label for="debate-texto" class="block text-sm font-medium text-slate-700 dark:text-slate-300">
           Participar en el debate

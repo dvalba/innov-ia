@@ -1,12 +1,14 @@
 import { SlicePipe } from '@angular/common';
 import { Component, inject, input, output, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { CatalogService } from '../../services/catalog.service';
 import { errorMessage } from '../../../../shared/interceptors/error.interceptor';
 import { formatearFecha } from '../../../../shared/utils/format';
 import { Debate, MensajeDebate } from '../../../../shared/types/models';
 
 /**
- * Published-idea debate panel (T-077, RF-24/RF-25, cases 18-21).
+ * Published-idea debate panel (T-077, RF-24/RF-25, cases 18-21; T-085:
+ * compact closure + read-only view).
  *
  * Renders the public debate of one published idea and its mutations. The read
  * state (messages, deadline, closure, the AI summary, the pending `@asistant`)
@@ -15,6 +17,14 @@ import { Debate, MensajeDebate } from '../../../../shared/types/models';
  * deadline`) through `CatalogService` (guideline §5: mutations never use
  * `httpResource`) and emits `actualizado` so the parent reloads the resources
  * and the server stays the source of truth (RNF-2).
+ *
+ * Three renderings (T-085, RF-24/RF-29):
+ *   - **open** (default): the full thread + the composer + the admin-only
+ *     deadline adjustment;
+ *   - **closed** (default): a compact box — the AI summary (or a "no debate"
+ *     notice) and a link to the read-only thread, with no input at all;
+ *   - **read-only** (`soloLectura`): the full thread with no composer and no
+ *     deadline control (the `/catalogo/publico/{id}/debate` page).
  *
  * The `@asistant` rule is surfaced, not re-implemented (RNF-3/RNF-4): a text
  * that starts with `@asistant` only asks the assistant when it also links an
@@ -25,7 +35,7 @@ import { Debate, MensajeDebate } from '../../../../shared/types/models';
  */
 @Component({
   selector: 'app-debate-panel',
-  imports: [SlicePipe],
+  imports: [SlicePipe, RouterLink],
   templateUrl: './debate-panel.html',
 })
 export class DebatePanel {
@@ -35,6 +45,11 @@ export class DebatePanel {
   readonly debate = input<Debate | null>(null);
   /** `true` for an administrator (may adjust the deadline, RF-24). */
   readonly esAdmin = input(false);
+  /**
+   * `true` to render the read-only thread (no composer, no deadline control):
+   * the `/catalogo/publico/{id}/debate` page (T-085, RF-24).
+   */
+  readonly soloLectura = input(false);
   /** A mutation finished (post / deadline) so the parent can reload. */
   readonly actualizado = output<void>();
 
