@@ -376,12 +376,12 @@
 
 ## Fase 4 — Integración Ollama / E2E y Cierre
 
-- [ ] **[T-059] assistant · cliente Ollama nativo (stdlib) con timeout 60 s y reintento único**
+- [x] **[T-059] assistant · cliente Ollama nativo (stdlib) con timeout 60 s y reintento único**
   - **Covers:** RNF-3, caso 14
   - **Dependencias:** [T-001]
   - **Hecho cuando:** `features/assistant/infrastructure/ollama_client.py` implementa con `urllib`/`http.client` (D2): `ping()` para disponibilidad, `generate(prompt)` para generación, con timeout configurable (default 60 s, RNF-3) y reintento único transparente ante timeout/error; define "fallo de IA" = sin respuesta en el tiempo límite, error del servicio, o respuesta no interpretable (caso 14) y lanza `AssistantUnavailable`; test en `tests/unit/infra/test_ollama_client.py` con servidor HTTP simulado cubre: ping OK, timeout con reintento único, error de servicio → contingencia (`pytest -q` verde).
 
-- [ ] **[T-060] assistant · dominio: prompts y reglas de refinamiento**
+- [x] **[T-060] assistant · dominio: prompts y reglas de refinamiento**
   - **Covers:** RF-3 (asignación), RF-4, RF-11
   - **Dependencias:** [T-059]
   - **Hecho cuando:** `domain/prompts.py` contiene las plantillas de prompts en español: extracción de campos de narrativa libre (RF-3), sugerencia de título con lista de intentos a evitar (RF-4), refinamiento de idea manual (7 campos), mejora bajo instrucción (RF-8); `domain/refinement.py` define la cola: ideas EN_DESARROLLO con origen manual y sin versión refinada válida, ordenadas de más antigua a más reciente, y la interpretación de la respuesta de la IA (valida los 7 campos; si no es interpretable se trata como fallo); tests en `tests/unit/domain/test_refinement.py` cubren el filtro de cola, el orden y la interpretación inválida → fallo (`pytest -q` verde).
@@ -481,7 +481,7 @@
   - **Dependencias:** [T-075], [T-073], [T-074]
   - **Hecho cuando:** `/catalogo/publico` lista ideas compactas (título, fecha de publicación, descripción, proponente nombre+área) y al pulsar abre `/catalogo/publico/{id}`: vista de detalle con resumen de los 6 campos (solo lectura), el debate (mensajes con autor/fecha, input para publicar, selector de mensaje enlazado, invocación de `@asistant` con estado de carga, indicador de cierre/fecha límite, resumen de la IA cuando existe, y para rol administrador un control inline para ajustar la fecha límite) y la evaluación por estados: sin evaluación → aviso de que se generará al cerrarse el debate; `PENDING` → aviso + solo sustitución por especialista (sin aceptar); `GENERADA` → los 5 criterios con score y justificación + botones **Acepto la evaluación de la IA** y **Sustituir con mi evaluación** (formulario de los 5 criterios prellenado, validación 1–10 + justificación, y listado de problemas ante 422); `ACEPTADA`/`SUSTITUIDA` → juicio final con autor/fecha + instantánea de la evaluación de la IA de solo lectura; todo responsive y accesible (teclado/aria, RNF-6); `ng build` verde.
 
-- [ ] **[T-078] E2E e integración: verificación de la ampliación v2.1 (spec §9 10–14 + casos límite)**
+- [x] **[T-078] E2E e integración: verificación de la ampliación v2.1 (spec §9 10–14 + casos límite)**
   - **Covers:** RF-20..RF-26, RNF-11..RNF-13, casos 18, 20, 22
   - **Dependencias:** [T-072..T-077]
   - **Hecho cuando:** Se verifica y firma cada criterio nuevo del spec §9 (10-14) y los casos límite 18, 20, 22 con evidencia de tests (tests de API integrados del flujo: publicar → debate abierto → mensaje → `@asistant` → cierre por deadline → resumen; evaluación generada → sustituida por especialista; contexto vacío/inyectado), `pytest -q` al completo verde, `ruff check .` limpio y `ng build` verde; el estado de G17/G18 queda firmado en los archivos de grupo.
@@ -532,7 +532,7 @@
   - **Dependencias:** [T-083], [T-084]
   - **Hecho cuando:** El catálogo público (`/catalogo/publico`) se organiza en **4 pestañas/zonas** (En proceso / Aceptadas / Rechazadas / Archivadas) que consumen `?zone=`; el detalle de una idea en estado final muestra el **estado final** y la **decisión** (resultado, motivo, promedio, especialista, fecha) en solo lectura; el **debate cerrado** se muestra **compactado** (resumen de la IA o aviso de que no hubo debate) con un enlace a una vista **solo lectura** del chat completo (sin input); en **Mis ideas** (`/mias-ideas`) se muestran los estados finales y, para una idea `ARCHIVADA`, la acción **Solicitar reevaluación** (RF-29, llamada a `POST /ideas/{id}/request-reevaluation` con confirmación) que la devuelve a la cola de calificación; para `ACEPTADA`/`RECHAZADA` no se muestra la acción (caso 29); todo responsive y accesible (teclado/aria, RNF-6); `ng build` verde.
 
-- [ ] **[T-086] E2E e integración: verificación de la ampliación v2.2 (spec §9 + casos 26–31)**
+- [x] **[T-086] E2E e integración: verificación de la ampliación v2.2 (spec §9 + casos 26–31)**
   - **Covers:** RF-14, RF-20, RF-23, RF-27, RF-28, RF-29, RNF-8, RNF-9, casos 26, 27, 28, 29, 30, 31
   - **Dependencias:** [T-078], [T-079..T-085]
   - **Hecho cuando:** Se verifica y firma cada criterio nuevo del spec §9 y los casos límite 26–31 con evidencia de tests de API integrados del flujo completo: publicar → debate → cierre → evaluación IA → la idea vuelve a la cola de calificación + notificación a especialistas → calificación (aceptar/sustituir) → promedio/banda en vivo → decisión final (coincidencia 409, motivo 400) → estado final + zona de catálogo + notificación al creador; reevaluación de una ARCHIVADA (conserva debate cerrado + evaluación IA, limpia decision, vuelve a la cola) y no-reevaluación de ACEPTADA/RECHAZADA; umbrales defecto 4/7, cambio auditado, inválidos 422 y no recálculo de decisiones previas; `pytest -q` al completo verde, `ruff check .` limpio y `ng build` verde; el estado de G19/G20 queda firmado en los archivos de grupo.
