@@ -8,8 +8,8 @@ expressed with `Annotated` typed dependencies, overridable in tests.
 Typed dependency aliases:
   - `TokenStoreDep` / `UserDirectoryDep` / `IdeaLedgerDep` /
     `ConversationStoreDep` / `AssistantClientDep` /
-    `NotificationStoreDep` / `OrgStoreDep` / `DebateStoreDep`:
-    DI providers (override in tests).
+    `NotificationStoreDep` / `OrgStoreDep` / `DebateStoreDep` /
+    `DebateDaysStoreDep` (T-089): DI providers (override in tests).
   - `RefinedEmitterDep` / `PublishedEmitterDep` / `RejectedEmitterDep` /
     `RequestedEmitterDep` (G10/T-033) plus `DecisionEmitterDep` /
     `ReevaluatedEmitterDep` (T-082) and `CalibrationEmitterDep` (T-083):
@@ -38,6 +38,7 @@ from features.assistant.use_cases.run_refinement_queue import run_refinement_que
 from features.auth.domain.session import Session
 from features.auth.infrastructure.token_store import TokenStore
 from features.capture.infrastructure.conversation_store import ConversationStore
+from features.debate.infrastructure.debate_days_store import DebateDaysStore
 from features.debate.infrastructure.debate_store import DebateStore
 from features.debate.use_cases.open_debate import open_debate
 from features.ideas.domain.idea import Idea
@@ -149,6 +150,15 @@ def get_debate_store() -> DebateStore:
     return _debate_store()
 
 
+def _debate_days_store() -> DebateDaysStore:
+    return DebateDaysStore(JsonStore(settings.data_dir / "debate_days.json"))
+
+
+def get_debate_days_store() -> DebateDaysStore:
+    """DI provider for the global debate-days store (T-089, override in tests)."""
+    return _debate_days_store()
+
+
 TokenStoreDep = Annotated[TokenStore, Depends(get_token_store)]
 UserDirectoryDep = Annotated[UserDirectory, Depends(get_user_directory)]
 IdeaLedgerDep = Annotated[IdeaStore, Depends(get_idea_ledger)]
@@ -158,6 +168,7 @@ NotificationStoreDep = Annotated[NotificationStore, Depends(get_notification_sto
 OrgStoreDep = Annotated[OrgStore, Depends(get_org_store)]
 ThresholdStoreDep = Annotated[ThresholdStore, Depends(get_threshold_store)]
 DebateStoreDep = Annotated[DebateStore, Depends(get_debate_store)]
+DebateDaysStoreDep = Annotated[DebateDaysStore, Depends(get_debate_days_store)]
 
 
 def _refined_emitter(store, directory):
@@ -343,22 +354,25 @@ def get_assistant_check(ledger: IdeaLedgerDep, assistant: AssistantClientDep,
 AssistantCheckDep = Annotated[Callable[[], dict], Depends(get_assistant_check)]
 
 
-def get_debate_opener(store: DebateStoreDep) -> Callable[[dict], None]:
-    """Builds the on-publish debate opener (T-073, RF-24).
+def get_debate_opener(store: DebateStoreDep, days_store: DebateDaysStoreDep) -> Callable[[dict], None]:
+    """Builds the on-publish debate opener (T-073, RF-24; T-089, v2.4).
 
     The publication of an idea (`approve_idea`) opens its debate with a
-    deadline of `publishedAt + 30 days` (RF-24). The `ideas` feature must not
-    import `debate` (decision D12: the debate is an attribute of the idea, not
-    part of the idea record), so the opener is wired here at the composition
-    root — exactly how the notification emitters are wired (G10/T-033). The
-    returned callable takes the `VALIDADA_PUBLICA` payload produced by the
-    approve use case and opens the debate idempotently (a replayed publication
-    never duplicates the thread).
+    deadline of `publishedAt + debateDays`, the global administrator setting
+    in force at that moment (RF-24, v2.4: it was a fixed 30, now it is
+    configured; the deadline is fixed at opening and never recomputed). The
+    `ideas` feature must not import `debate` (decision D12: the debate is an
+    attribute of the idea, not part of the idea record), so the opener is
+    wired here at the composition root — exactly how the notification emitters
+    are wired (G10/T-033). The returned callable takes the `VALIDADA_PUBLICA`
+    payload produced by the approve use case and opens the debate idempotently
+    (a replayed publication never duplicates the thread).
     """
 
     def _open(payload: dict) -> None:
         open_debate(
             store,
+            days_store,
             idea_id=str(payload["id"]),
             published_at=str(payload.get("publishedAt") or ""),
             now=datetime.now().isoformat(),

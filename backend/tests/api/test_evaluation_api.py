@@ -134,11 +134,14 @@ def _publish(auth, mock, *, available: bool, respond=None, **field_overrides) ->
 
 
 def _close(auth, idea_id: str) -> dict:
-    """Closes the debate through the real admin path: the deadline moves into
-    the past and the next read runs the closure (summary + AI evaluation,
-    RF-26). Returns the debate payload."""
-    auth(ADMIN).put(f"/admin/ideas/{idea_id}/debate/deadline",
-                    json={"deadline": PAST_DEADLINE})
+    """Closes the debate: the deadline moves into the past and the next read
+    runs the closure (summary + AI evaluation, RF-26). The deadline is fixed
+    at opening (T-089), so the test forces the past deadline directly on the
+    shared in-memory store. Returns the debate payload."""
+    debate_store = main_app.dependency_overrides[deps_module.get_debate_store]()
+    debate = debate_store.get_debate(idea_id)
+    debate.deadline = PAST_DEADLINE
+    debate_store.set(debate)
     return auth(SPECIALIST).get(f"/catalog/{idea_id}/debate").json()
 
 

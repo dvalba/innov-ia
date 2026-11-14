@@ -1,10 +1,12 @@
 """Capture use-case flow tests (T-027/028/029, RF-2..RF-7).
 
 Cover the use cases of the conversational engine:
-  - `start_conversation` (T-027): resume the single ``ACTIVA`` (RF-2, case 8),
-    start with greeting + first question (RF-2/RF-5), and the manual-form
-    signal without the assistant (RF-7, case 1) — the proponent field is
-    prefilled from the account (spec §5.2);
+   - `start_conversation` (T-027/T-087): resume the single ``ACTIVA`` (RF-2,
+     case 8) — with priority over the ``RESUMEN`` ones (v2.3), which are
+     resumed with their editable summary (RF-2/RF-6) —, start with greeting +
+     first question (RF-2/RF-5), and the manual-form signal without the
+     assistant (RF-7, case 1) — the proponent field is prefilled from the
+     account (spec §5.2);
   - `process_message` (T-028): a free narrative may complete several fields at
     once and the completed ones are never re-asked (RF-3); a chip is the
     field's complete answer and is only valid when it was offered on the turn
@@ -27,6 +29,7 @@ import pytest
 from features.assistant.domain.prompts import FIELD_LABELS
 from features.capture.domain import capture_rules as rules
 from features.capture.infrastructure.conversation_store import ConversationStore
+from features.capture.use_cases import abandon_conversation as abandon_uc
 from features.capture.use_cases import activate_manual as manual_uc
 from features.capture.use_cases import finish_capture as finish_uc
 from features.capture.use_cases import process_message as msg_uc
@@ -291,6 +294,22 @@ def test_an_insufficient_answer_triggers_clarification_without_advancing() -> No
     # The marker is never stored as a captured value (RNF-10, RF-3).
     assert store.get(cid)["capturedFields"] == {}
     assert store.get(cid)["currentField"] == "description"
+    assert store.get(cid)["state"] == "ACTIVA"
+
+
+def test_an_unusable_narrative_is_a_clarification_with_a_manual_escape() -> None:
+    """A narrative from which the assistant captures nothing re-asks the field
+    as a clarification (`needsClarification`, RF-3) so the client can offer the
+    manual-form escape (RF-7, RNF-10) instead of an endless loop."""
+    store, cid = _captured({}, "description")
+    assistant = _Extractor(extract={})  # no field captured at all
+    result = msg_uc.process_message(
+        store, assistant, conversation_id=cid, user_id=PROPOSER, message="mmm"
+    )
+    assert result["assistant"]["needsClarification"] is True
+    assert result["assistant"]["currentField"] == "description"
+    # Nothing is persisted and the conversation stays in flight (no advance).
+    assert store.get(cid)["capturedFields"] == {}
     assert store.get(cid)["state"] == "ACTIVA"
 
 
@@ -754,3 +773,133 @@ def test_partial_fields_are_kept_when_activating_manual() -> None:
     assert set(result["capturedFields"]) == set(partial)
     assert result["capturedFields"]["proponent"] == partial["proponent"]
     assert store.get(cid)["capturedFields"] == partial
+
+
+# ---------------------------------------------------------------------------
+# T-087 (v2.3): RESUMEN resume + explicit abandonment
+# ---------------------------------------------------------------------------
+
+
+def test_start_resumes_a_summary_conversation_with_its_summary() -> None:
+    """v2.3: without an ACTIVA, `start` resumes the RESUMEN with its editable
+    summary — the captured fields are never lost (RF-2/RF-6, decision D22)."""
+    store, cid = _resumen(_complete_summary())
+    result = start_uc.start_conversation(store, OllamaMock(), _directory(), user_id=PROPOSER)
+    assert result["mode"] == "assistant"
+    assert result["resumed"] is True
+    assert result["conversation"]["id"] == cid
+    assert result["state"] == "RESUMEN"
+    # No new turn is started: the client deploys the editable summary directly.
+    assert result["assistant"] is None
+    assert result["manual"] is None
+    # The summary is the editable one (RF-6): the structured field is parsed
+    # back into its object, the rest kept as text (plan §2.2).
+    summary = result["summary"]
+    assert summary["title"] == _complete_summary()["title"]
+    assert isinstance(summary["proponent"], dict)
+    assert summary["proponent"]["name"] == "Ana Torres"
+    # No conversation is created: the RESUMEN is the one resumed.
+    assert [p["id"] for p in store.list()] == [cid]
+
+
+def test_start_prefers_active_over_summary() -> None:
+    """v2.3: an ACTIVA conversation always wins the resume (case 8); the
+    RESUMEN stays untouched for later."""
+    store = _store()
+    active = rules.new_conversation(conversation_id="c_act", user_id=PROPOSER)
+    active.capturedFields = {"description": "lo capturado"}
+    active.currentField = "title"
+    store.create(active)
+    resumen = rules.new_conversation(conversation_id="c_res", user_id=PROPOSER)
+    resumen.capturedFields = dict(_complete_summary())
+    resumen.currentField = None
+    resumen.state = "RESUMEN"
+    store.create(resumen)
+    active_id, resumen_id = "c_act", "c_res"
+    result = start_uc.start_conversation(store, OllamaMock(), _directory(), user_id=PROPOSER)
+    assert result["resumed"] is True
+    assert result["conversation"]["id"] == active_id
+    assert result["state"] == "ACTIVA"
+    assert result["summary"] is None
+    # The resume still shows the turn (the ACTIVA contract is invariant).
+    assert result["assistant"]["currentField"] == "title"
+    # The RESUMEN is not consumed by the resume.
+    assert store.get(resumen_id)["state"] == "RESUMEN"
+    # After the ACTIVA ends, the RESUMEN becomes the resume candidate.
+    store.set_state(active_id, "TERMINADA", current_state="ACTIVA")
+    second = start_uc.start_conversation(store, OllamaMock(), _directory(), user_id=PROPOSER)
+    assert second["resumed"] is True
+    assert second["conversation"]["id"] == resumen_id
+    assert second["state"] == "RESUMEN"
+    assert second["summary"]["title"] == _complete_summary()["title"]
+
+
+def test_start_outcomes_carry_state_and_summary_fields() -> None:
+    """v2.3: every start outcome carries coherent `state`/`summary` so the
+    client can route (ACTIVA chat vs RESUMEN summary vs manual form)."""
+    store = _store()
+    result = start_uc.start_conversation(store, OllamaMock(), _directory(), user_id=PROPOSER)
+    assert result["state"] == "ACTIVA"
+    assert result["summary"] is None
+    store2 = _store()
+    result2 = start_uc.start_conversation(store2, OllamaMock(available=False), _directory(),
+                                          user_id=PROPOSER)
+    assert result2["mode"] == "manual"
+    assert result2["state"] is None
+    assert result2["summary"] is None
+
+
+def test_abandon_from_active_finishes_the_conversation() -> None:
+    """Case 7 (v2.3): abandoning an in-flight conversation ends it without
+    saving anything and frees the one-conversation limit (RF-2)."""
+    store, cid = _captured({"description": "lo capturado"}, "title")
+    result = abandon_uc.abandon_conversation(store, conversation_id=cid, user_id=PROPOSER)
+    assert result == {"conversationId": cid, "state": "TERMINADA"}
+    assert store.get(cid)["state"] == "TERMINADA"
+    # The limit is freed: a new capture can start (the guard no longer blocks).
+    again = start_uc.start_conversation(store, OllamaMock(), _directory(), user_id=PROPOSER)
+    assert again["resumed"] is False
+    assert again["conversation"]["id"] != cid
+
+
+def test_abandon_from_summary_finishes_the_conversation() -> None:
+    store, cid = _resumen(_complete_summary())
+    result = abandon_uc.abandon_conversation(store, conversation_id=cid, user_id=PROPOSER)
+    assert result == {"conversationId": cid, "state": "TERMINADA"}
+    assert store.get(cid)["state"] == "TERMINADA"
+    # A TERMINADA conversation is never resumed by `start`.
+    result2 = start_uc.start_conversation(store, OllamaMock(), _directory(), user_id=PROPOSER)
+    assert result2["resumed"] is False
+    assert result2["conversation"]["id"] != cid
+
+
+def test_abandon_from_contingency_finishes_the_conversation() -> None:
+    store, cid = _resumen(_complete_summary(), state="CONTINGENCIA")
+    result = abandon_uc.abandon_conversation(store, conversation_id=cid, user_id=PROPOSER)
+    assert result == {"conversationId": cid, "state": "TERMINADA"}
+    assert store.get(cid)["state"] == "TERMINADA"
+
+
+def test_abandon_of_a_finished_conversation_is_idempotent() -> None:
+    """v2.3: abandoning a TERMINADA conversation is a no-op with the same
+    outcome (it cannot be abandoned twice nor resurrected)."""
+    store, cid = _resumen(_complete_summary(), state="TERMINADA")
+    before = store.get(cid)
+    result = abandon_uc.abandon_conversation(store, conversation_id=cid, user_id=PROPOSER)
+    assert result == {"conversationId": cid, "state": "TERMINADA"}
+    assert store.get(cid) == before  # nothing rewritten
+
+
+def test_abandon_requires_ownership() -> None:
+    store, cid = _captured({"description": "lo capturado"}, "title")
+    with pytest.raises(DomainError) as error:
+        abandon_uc.abandon_conversation(store, conversation_id=cid, user_id="u_otro")
+    assert error.value.status_code == 403
+    assert store.get(cid)["state"] == "ACTIVA"  # the foreign call changed nothing
+
+
+def test_abandon_of_a_missing_conversation_404() -> None:
+    store = _store()
+    with pytest.raises(DomainError) as error:
+        abandon_uc.abandon_conversation(store, conversation_id="c_inexistente", user_id=PROPOSER)
+    assert error.value.status_code == 404

@@ -136,8 +136,12 @@ def _to_archivada(auth, mock) -> str:
     idea = auth(OWNER).post("/ideas", json=_fields()).json()
     auth(OWNER).post(f"/ideas/{idea['id']}/request-publication")
     assert auth(SPECIALIST).post(f"/validation/{idea['id']}/approve").status_code == 200
-    auth(ADMIN).put(f"/admin/ideas/{idea['id']}/debate/deadline",
-                    json={"deadline": PAST_DEADLINE})
+    # The deadline is fixed at opening (T-089): the test forces the past
+    # deadline directly on the shared in-memory store to run the closure.
+    debate_store = main_app.dependency_overrides[deps_module.get_debate_store]()
+    debate = debate_store.get_debate(idea["id"])
+    debate.deadline = PAST_DEADLINE
+    debate_store.set(debate)
     assert auth(SPECIALIST).get(f"/catalog/{idea['id']}/debate").status_code == 200
     decision = auth(SPECIALIST).post(f"/validation/{idea['id']}/decision",
                                      json={"outcome": "ARCHIVADA",

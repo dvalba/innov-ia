@@ -1,8 +1,8 @@
 # Plan de Implementación Técnico — Innov-IA MVP
 
 **Documento:** specs/001-innovation-evaluation-mvp/plan.md
-**Versión:** 1.2
-**Depende de:** `specs/001-innovation-evaluation-mvp/spec.md` (v2.2, definitiva) y `docs/CONSTITUTION.md`
+**Versión:** 1.3
+**Depende de:** `specs/001-innovation-evaluation-mvp/spec.md` (v2.4, definitiva) y `docs/CONSTITUTION.md`
 **Naturaleza:** Este documento es un plan técnico (arquitectura, contratos y pseudocódigo). No contiene código de implementación y no modifica contratos sin actualizar antes la especificación, conforme a la inmutabilidad de contratos (Constitución §5.2).
 
 Cada sección incluye una **Trazabilidad RF** que asigna explícitamente los requisitos funcionales (RF-1 … RF-29) que cubre.
@@ -22,6 +22,13 @@ Cada sección incluye una **Trazabilidad RF** que asigna explícitamente los req
 > **coincidir** con la banda del promedio (409 si no, RF-27/RF-28, caso 27) y el motivo es obligatorio para
 > archivar/rechazar (RF-27, caso 28). Los umbrales (defecto 4/7) son un documento único administrado
 > (RF-28, RNF-8, caso 31).
+>
+> **v1.3 (ampliación v2.4):** Sustituye el ajuste de fecha límite **idea por idea** del debate por una
+> **configuración global administrable de días de debate** (entero 1–90, defecto 30, auditada RNF-11):
+> `GET/PUT /admin/debate-days`; el deadline de un debate se fija al abrirlo con el valor vigente y **no se
+> recomputa** (los debates existentes conservan su fecha almacenada, sin migración). Se retiran
+> `PUT /admin/ideas/{ideaId}/debate/deadline`, el use case `adjust_deadline`, el esquema `DebateDeadlineRequest`
+> y el rastro `Debate.adjustments` (v2.4, D23).
 
 ---
 
@@ -109,8 +116,8 @@ frontend/src/
 │       │   ├── components/
 │       │   │   ├── debate/           # Hilo de mensajes, input, selector de mensaje enlazado,
 │       │   │   │                     # @asistant, cierre/fecha límite, resumen IA (RF-24/RF-25);
-│       │   │   │                     # ajuste inline del límite para rol admin; debate CERRADO
-│       │   │   │                     # compactado (resumen + enlace al chat completo, solo lectura)
+│       │   │   │                     # debate CERRADO compactado (resumen + enlace al chat
+│       │   │   │                     # completo, solo lectura)
 │       │   │   └── evaluation/       # 5 criterios con score + justificación; promedio/banda;
 │       │   │                         # aceptar/sustituir para rol especialista (RF-26); decisión
 │       │   │                         # final visible (RF-27)
@@ -121,7 +128,8 @@ frontend/src/
 │           ├── pages/
 │           │   ├── users/            # Gestión de usuarios y roles
 │           │   ├── context/          # Contexto de empresa (RF-21): plantilla, edición en línea, subida
-│           │   └── thresholds/       # Umbrales de calificación (RF-28, v2.2): umbralRechazo/umbralAceptación
+│           │   ├── thresholds/       # Umbrales de calificación (RF-28, v2.2): umbralRechazo/umbralAceptación
+│           │   └── debate-days/      # Días de debate (RF-24, v2.4): configuración global 1–90, defecto 30
 │           ├── components/
 │           │   ├── user-form/        # Alta / edición de usuario
 │           │   ├── role-matrix/      # Asignación/revocación de roles
@@ -274,18 +282,20 @@ backend/
     │
     ├── debate/                      # Debate de la idea publicada (RF-24, RF-25)
     │   ├── domain/
-    │   │   └── debate_rules.py       # 30 días por defecto, cierre automático único, ajuste admin auditado
+    │   │   └── debate_rules.py       # Validación de días de debate (1–90, defecto 30, v2.4),
+    │   │                             # cierre automático único, deadline fijo al abrir (sin recomputar)
     │   ├── use_cases/
-    │   │   ├── open_debate.py        # Crea el debate al publicarse (deadline = publishedAt + 30 d)
-    │   │   ├── post_message.py       # Publica mensaje; @asistant enlaza un mensaje (RF-25)
+    │   │   ├── open_debate.py        # Crea el debate al publicarse (deadline = publishedAt + días globales)
+    │   │   ├── post_message.py       # Publica mensaje; @asistant inline con enlace opcional (RF-25, v2.5)
     │   │   ├── list_debate.py        # Mensajes + estado + resumen; cierra si se superó el deadline
-    │   │   ├── adjust_deadline.py    # Ajuste por idea (admin; reabrir = fecha futura; auditado)
+    │   │   ├── debate_days.py        # GET/PUT días de debate globales (admin; defecto 30; auditado, v2.4)
     │   │   └── close_summary.py      # Al cierre, con mensajes: resumen IA (pendiente si la IA cae)
     │   ├── routers/
-    │   │   └── debate.py             # GET/POST /catalog/{ideaId}/debate;
-    │   │                             # PUT /admin/ideas/{ideaId}/debate/deadline
+    │   │   ├── debate.py             # GET/POST /catalog/{ideaId}/debate
+    │   │   └── admin.py              # GET/PUT /admin/debate-days (admin; 422 inválido, v2.4)
     │   └── infrastructure/
-    │       └── debate_store.py       # JSON (debates + mensajes) bajo backend/data/
+    │       ├── debate_store.py       # JSON (debates + mensajes) bajo backend/data/
+    │       └── debate_days_store.py  # Registro único JSON (debateDays, auditoría) bajo backend/data/
     │
     └── notifications/               # Centro in-app y eventos
         ├── domain/
@@ -344,7 +354,8 @@ Si `idea-card` (usado en `my-ideas`, `validation` y `catalog`) se reutiliza en m
 | `EvaluationThreshold` | Umbrales de calificación (documento único, RF-28) | rejectionThreshold, acceptanceThreshold (enteros 1–10), updatedBy, updatedAt |
 | `Session` | Autenticación activa | token, user_id, expiración |
 | `CompanyContext` | Contexto de empresa (documento único, RF-21) | perfil (nombre/sector/descripción/misión/objetivos) + texto guía; seed desde `INNOV_ORG_*` |
-| `Debate` | Debate de una idea publicada (RF-24) | idea_id, deadline, cerrado, resumen IA, rastro de ajustes (quién/cuándo) |
+| `Debate` | Debate de una idea publicada (RF-24) | idea_id, deadline (fijado al abrir con los días globales vigentes, v2.4), cerrado, resumen IA |
+| `DebateDays` | Días de debate globales (documento único, RF-24, v2.4) | debateDays (entero 1–90, defecto 30), updatedBy, updatedAt |
 | `DebateMessage` | Mensaje del debate (RF-24/RF-25) | id, idea_id, autor (usuario o *Asistente*), texto, mensaje enlazado (@asistant), fecha |
 | `IdeaEvaluation` | Evaluación vigente de una idea (RF-26) | 5 criterios (score 1–10 + justificación), autor (IA/especialista), fecha, decisión (aceptada/sustituida), rastro |
 
@@ -630,23 +641,9 @@ Si `idea-card` (usado en `my-ideas`, `validation` y `catalog`) se reutiliza en m
   "required": ["ideaId", "deadline", "closed"],
   "properties": {
     "ideaId":    { "type": "string" },
-    "deadline":  { "type": "string", "format": "date-time", "description": "publishedAt + 30 días por defecto; ajustable solo por admin (RNF-11)" },
+    "deadline":  { "type": "string", "format": "date-time", "description": "publishedAt + días de debate globales vigentes al abrir (v2.4); inmutable: no se recomputa ni al cambiar la configuración ni al releer" },
     "closed":    { "type": "boolean", "description": "Cierre automático y definitivo al llegar la fecha límite (solo se ejecuta una vez)" },
-    "summary":   { "type": ["string", "null"], "description": "Resumen de la IA de los puntos principales (solo si hubo mensajes; null mientras la IA no puede generarlo)" },
-    "adjustments": {
-      "type": "array",
-      "description": "Rastro de ajustes de la fecha límite (RNF-11): quien, cuándo, valor anterior y nuevo; reabrir = fecha en el futuro",
-      "items": {
-        "type": "object",
-        "required": ["by", "at", "from", "to"],
-        "properties": {
-          "by":  { "type": "string" },
-          "at":  { "type": "string", "format": "date-time" },
-          "from": { "type": "string", "format": "date-time" },
-          "to":  { "type": "string", "format": "date-time" }
-        }
-      }
-    }
+    "summary":   { "type": ["string", "null"], "description": "Resumen de la IA de los puntos principales (solo si hubo mensajes; null mientras la IA no puede generarlo)" }
   }
 }
 ```
@@ -669,6 +666,18 @@ Si `idea-card` (usado en `my-ideas`, `validation` y `catalog`) se reutiliza en m
   }
 }
 ```
+
+> **DebateDays (v2.4):** registro único (mismo patrón de documento JSON por entidad, D1/D19):
+>
+> ```json
+> {
+>   "debateDays": { "type": "integer", "minimum": 1, "maximum": 90, "default": 30, "description": "Días de duración de cada debate (RF-24, v2.4)" },
+>   "updatedBy":  { "type": ["string", "null"], "description": "Auditoría (RNF-11): admin que cambió el valor; null si aún no hay cambio explícito (solo el defecto)" },
+>   "updatedAt":  { "type": ["string", "format": "date-time", "null"], "description": "Auditoría (RNF-11): cuándo cambió el valor" }
+> }
+> ```
+>
+> Solo afecta a los debates que se abran a partir del cambio; los debates ya abiertos/cerrados conservan su `deadline` almacenado (sin recomputación ni migración).
 
 ### 2.10 Esquema JSON — `IdeaEvaluation`
 
@@ -750,11 +759,12 @@ Base: `/api/v1`. Autenticación por **portador de sesión** (RF-1). Todos los pa
 | POST | `/auth/login` | — | RF-1 | Inicia sesión |
 | POST | `/auth/logout` | sesión | RF-1 | Cierra sesión |
 | GET  | `/auth/me` | sesión | RF-1 | Datos y roles del usuario |
-| POST | `/capture/start` | proponente | RF-2 | Inicia/retoma conversación (IA disponible) |
+| POST | `/capture/start` | proponente | RF-2 | Inicia/retoma conversación: prioriza la ACTIVA; si no, retoma la RESUMEN más reciente devolviéndole el **resumen editable** (`state: RESUMEN`, `summary`); si no, nueva (IA disponible) o formulario manual |
 | GET  | `/capture/assistant-status` | proponente | RF-7 | Estado del asistente (OK/UNAVAILABLE) |
 | POST | `/capture/messages` | proponente | RF-3,RF-4,RF-5 | Procesa un mensaje de captura |
 | POST | `/capture/finish` | proponente | RF-6 | Registra idea (EN_DESARROLLO) |
 | POST | `/capture/activate-manual` | proponente | RF-7 | Convierte conversación en formulario prellenado |
+| POST | `/capture/abandon` | proponente | RF-2 | Abandono explícito: termina la conversación (ACTIVA/RESUMEN/CONTINGENCIA) sin guardar nada (sin borradores, caso 7); idempotente si ya terminada; `conversationId` opcional (por defecto la en curso); 403 si no es dueño, 404 si no existe (v2.3) |
 | POST | `/ideas` | proponente | RF-6,RF-7 | Crea idea (origen asistida/manual) |
 | GET  | `/ideas/me` | proponente | RF-19 | Lista mis ideas |
 | GET  | `/ideas/{id}` | dueño | RF-19 | Detalle de una idea |
@@ -763,7 +773,7 @@ Base: `/api/v1`. Autenticación por **portador de sesión** (RF-1). Todos los pa
 | POST | `/ideas/{id}/versions/{vid}/decide` | dueño | RF-8,RF-13 | Aceptar/descartar versión |
 | POST | `/ideas/{id}/request-publication` | dueño | RF-10 | Solicita publicación |
 | GET  | `/validation/queue` | especialista | RF-14 | Cola en dos etapas: `?stage=publicacion` (SOLICITANDO_PUBLICACION) / `?stage=calibracion` (VALIDADA_PUBLICA con debate cerrado, evaluación generada y sin decisión) / sin parámetro (ambas, v2.2) |
-| POST | `/validation/{id}/approve` | especialista | RF-15, RF-24 | Valida/publica; abre el debate (30 d). No ejecuta la evaluación IA (se genera al cerrarse el debate, RF-26) |
+| POST | `/validation/{id}/approve` | especialista | RF-15, RF-24 | Valida/publica; abre el debate (días de debate globales vigentes, v2.4). No ejecuta la evaluación IA (se genera al cerrarse el debate, RF-26) |
 | POST | `/validation/{id}/reject` | especialista | RF-16 | Rechaza en la etapa de publicación con comentario |
 | POST | `/validation/{id}/evaluation/accept` | especialista | RF-26 | Acepta la evaluación de la IA (juicio final) |
 | POST | `/validation/{id}/evaluation` | especialista | RF-26 | Sustituye la evaluación vigente por la propia (5 criterios) |
@@ -773,9 +783,10 @@ Base: `/api/v1`. Autenticación por **portador de sesión** (RF-1). Todos los pa
 | PUT  | `/admin/calibration-thresholds` | admin | RF-28 | Actualiza umbrales `{rejectionThreshold, acceptanceThreshold}`; 422 si no enteros 1–10 o `rejection < acceptance`; auditado (RNF-8) |
 | GET  | `/catalog/public` | sesión | RF-20 | Catálogo COMPACTO por zonas: `?zone=en-proceso\|aceptadas\|rechazadas\|archivadas` (v2.2); sin parámetro → todas (título, fecha de publicación, descripción, D16) |
 | GET  | `/catalog/{ideaId}` | sesión | RF-23 | Detalle de una idea publicada (VALIDADA_PUBLICA o estado final): 6 campos, debate y evaluación; expone `state` y `decision` cuando existen |
-| GET  | `/catalog/{ideaId}/debate` | sesión | RF-24, RF-25 | Mensajes del debate + deadline + cerrado + resumen + rastro |
+| GET  | `/catalog/{ideaId}/debate` | sesión | RF-24, RF-25 | Mensajes del debate + deadline + cerrado + resumen |
 | POST | `/catalog/{ideaId}/debate` | sesión | RF-24, RF-25 | Publica mensaje (texto, mensaje enlazado para @asistant); 409 si cerrado |
-| PUT  | `/admin/ideas/{ideaId}/debate/deadline` | admin | RF-24, RNF-11 | Ajusta la fecha límite (adelantar/extender; reabrir = futuro); auditado |
+| GET  | `/admin/debate-days` | admin | RF-24, RNF-11 | Días de debate vigentes (v2.4) |
+| PUT  | `/admin/debate-days` | admin | RF-24, RNF-11 | Actualiza días de debate `{debateDays}`; entero 1–90, defecto 30; 422 si inválido; auditado (quién/cuándo, RNF-11); solo afecta a debates nuevos (v2.4) |
 | GET  | `/admin/contexto/plantilla` | admin | RF-21 | Plantilla de texto del contexto de empresa (`text/plain`) |
 | GET  | `/admin/contexto` | admin | RF-21, RF-22 | Documento de contexto vigente (o vacío, caso 24) |
 | PUT  | `/admin/contexto` | admin | RF-21 | Edición en línea del documento (perfil + guía); 400 si perfil vacío |
@@ -808,6 +819,65 @@ Base: `/api/v1`. Autenticación por **portador de sesión** (RF-1). Todos los pa
 ```
 > `quickOptions` son las opciones que la IA generó para el turno en curso (RF-5, D7); el array puede ser vacío cuando el campo no las admite.
 
+**POST `/capture/start`** (v2.3: retoma ACTIVA o RESUMEN)
+```json
+// Entrada: sin cuerpo (solo sesión proponente)
+// Salida 200 — retoma la conversación ACTIVA en curso (caso 8, RF-2)
+{
+  "mode": "assistant",
+  "resumed": true,
+  "conversation": { "id": "conv_001", "state": "ACTIVA", "currentField": "problem", "capturedFields": { "description": "…" } },
+  "assistant": null,
+  "state": "ACTIVA",
+  "summary": null,
+  "manual": null
+}
+// Salida 200 — retoma la RESUMEN más reciente: los campos ya capturados no se pierden (RF-2/RF-6, v2.3)
+{
+  "mode": "assistant",
+  "resumed": true,
+  "conversation": { "id": "conv_002", "state": "RESUMEN", "capturedFields": { "title": "…", "description": "…", "problem": "…", "expectedBenefit": "…", "strategicAlignment": "…", "proponent": "{…json…}" } },
+  "assistant": null,
+  "state": "RESUMEN",
+  "summary": { "title": "…", "description": "…", "problem": "…", "expectedBenefit": "…", "strategicAlignment": "…", "proponent": { "name": "…", "area": "…", "contact": "…" } },
+  "manual": null
+}
+// Salida 200 — nueva conversación (IA disponible)
+{
+  "mode": "assistant",
+  "resumed": false,
+  "conversation": { "id": "conv_003", "state": "ACTIVA", "currentField": "description", "capturedFields": {} },
+  "assistant": { "text": "…saludo…\n\nCuéntame, ¿en qué quieres trabajar?", "currentField": "description", "quickOptions": [], "titleSuggestion": null },
+  "state": "ACTIVA",
+  "summary": null,
+  "manual": null
+}
+// Salida 200 — IA no disponible: formulario manual directo (caso 1, RF-7)
+{
+  "mode": "manual",
+  "resumed": false,
+  "conversation": null,
+  "assistant": null,
+  "state": null,
+  "summary": null,
+  "manual": { "notice": "El asistente no está disponible; completa el formulario manual.", "capturedFields": {} }
+}
+```
+
+**POST `/capture/abandon`** (v2.3, RF-2, caso 7)
+```json
+// Entrada (conversationId opcional; por defecto la conversación en curso del usuario)
+{ "conversationId": "conv_002" }
+// Salida 200 — termina la conversación sin guardar nada (sin borradores)
+{ "conversationId": "conv_002", "state": "TERMINADA" }
+// Salida 200 — idempotente si la conversación ya estaba TERMINADA
+{ "conversationId": "conv_002", "state": "TERMINADA" }
+// 403 si la conversación no pertenece al usuario:
+{ "error": { "code": "NOT_CONVERSATION_OWNER", "message": "La conversación no es tuya." } }
+// 404 si la conversación no existe:
+{ "error": { "code": "CONVERSATION_NOT_FOUND", "message": "La conversación no existe." } }
+```
+
 **POST `/capture/finish`**
 ```json
 // Entrada (resumen confirmado)
@@ -826,12 +896,14 @@ Base: `/api/v1`. Autenticación por **portador de sesión** (RF-1). Todos los pa
 
 **POST `/catalog/{ideaId}/debate`**
 ```json
-// Entrada (invocación @asistant enlazando un mensaje del hilo)
+// Entrada (invocación @asistant inline; linkedMessageId es contexto opcional, v2.5)
 { "text": "@asistant ¿cómo se alinea esto con las líneas de innovación del contexto?", "linkedMessageId": "debmsg_003" }
 // Salida 201
 { "id": "debmsg_007", "author": "Laura Gómez", "text": "@asistant ¿cómo se alinea…?", "linkedMessageId": "debmsg_003", "createdAt": "…" }
 // Salida 201 adicional: el sistema responde en el hilo (RF-25)
 { "id": "debmsg_008", "author": "Asistente (IA)", "text": "…criterio generado con el contexto de empresa…", "linkedMessageId": "debmsg_007", "createdAt": "…" }
+// Sin petición tras el token (@asistant solo) se publica como mensaje corriente,
+// sin invocar al asistente (caso 19, v2.5); un linkedMessageId inexistente es 400.
 // Salida 409 cuando el debate está cerrado
 { "error": { "code": "DEBATE_CLOSED", "message": "El debate está cerrado (fecha límite alcanzada)." } }
 ```
@@ -920,12 +992,13 @@ Base: `/api/v1`. Autenticación por **portador de sesión** (RF-1). Todos los pa
 
 ### 3.3 Manejo del flujo de chat asistido (secuencia)
 
-1. Cliente → `POST /capture/start` → 200 `conversationId` + saludo/primera pregunta (RF-2).
+1. Cliente → `POST /capture/start` → 200: si el usuario tiene conversación ACTIVA, se retoma (caso 8); si solo tiene una RESUMEN, se retoma con `state: RESUMEN` + `summary` editable (v2.3, RF-2); si no, nueva conversación + saludo/primera pregunta (RF-2).
 2. Cliente → `POST /capture/messages` con la respuesta.
 3. Backend aplica el texto al campo en curso (asignación narrativa, RF-3) y devuelve la siguiente pregunta + opciones rápidas del turno generadas por la IA (RF-5, D7) + sugerencia de título si corresponde (RF-4).
 4. Al completar los 6 campos, el último `messages` devuelve `state: RESUMEN` con el resumen editable (RF-6).
 5. Cliente → `POST /capture/finish` → 201 idea (EN_DESARROLLO, RF-6).
-6. Si en cualquier paso la IA falló → ver §3.4.
+6. En cualquier momento, el cliente puede → `POST /capture/abandon` (v2.3, RF-2, caso 7): termina la conversación en curso (ACTIVA/RESUMEN/CONTINGENCIA) sin guardar nada (sin borradores) y libera el límite de una conversación a la vez; es idempotente si ya está terminada.
+7. Si en cualquier paso la IA falló → ver §3.4.
 
 ### 3.4 Fallback manual (secuencia)
 
@@ -967,7 +1040,7 @@ Base: `/api/v1`. Autenticación por **portador de sesión** (RF-1). Todos los pa
 | Bloque endpoint | RF cubiertas |
 |---|---|
 | auth | RF-1 |
-| capture (start/messages/finish/activate-manual) | RF-2, RF-3, RF-4, RF-5, RF-6, RF-7 |
+| capture (start/messages/finish/activate-manual/abandon) | RF-2, RF-3, RF-4, RF-5, RF-6, RF-7 |
 | ideas (CRUD/improve/versions/request-publication) | RF-8, RF-9, RF-10, RF-19 |
 | validation (queue/approve/reject) | RF-14, RF-15, RF-16 |
 | catalog | RF-20 |
@@ -986,13 +1059,24 @@ Pseudocódigo de alto nivel. No es código de implementación.
 ORDER = [description, title, problem, expectedBenefit, strategicAlignment, proponent]   # 6 campos (decisión 11 spec)
 
 func INICIAR_CONVERSACION(usuario):
-    si usuario tiene conversación ACTIVA:          # límite 1 (RF-2, caso 8)
-        devolver conversación existente
+    en_curso = conversaciones del usuario en ACTIVA o RESUMEN  # límite 1 (RF-2, caso 8, v2.3)
+    si existe ACTIVA en en_curso:                              # prioridad: la ACTIVA
+        devolver la ACTIVA + su turno actual
+    si existe RESUMEN en en_curso:                             # v2.3: retoma con el resumen editable
+        devolver la RESUMEN + state=RESUMEN + RESUMEN_EDITABLE(resumen)  # los campos ya capturados no se pierden (RF-6)
     si ASISTENTE_DISPONIBLE():
         conv = nuevo conversation(campos={}, currentField=ORDER[0])
         devolver conv + saludo + pregunta(ORDER[0])  # sin chips: la 1ª llamada IA va en PROCESAR_MENSAJE (D7)
     si no:
         devolver FORMULARIO_MANUAL(campos={})       # RF-7, caso 1
+
+func ABANDONAR_CONVERSACION(usuario, [conversationId]):     # v2.3, RF-2, caso 7
+    conv = conversación indicada (o la en curso del usuario)
+    si conv no existe: 404
+    si conv.userId != usuario: 403                          # solo la conversación del propio usuario
+    si conv.state en {ACTIVA, RESUMEN, CONTINGENCIA}:
+        conv.state = TERMINADA                              # sin guardar nada (sin borradores, D4)
+    devolver {conversationId, state: TERMINADA}             # idempotente si ya estaba TERMINADA
 
 func PROCESAR_MENSAJE(conv, texto):
     if conv.state == RESUMEN:                      # ya completado
@@ -1148,7 +1232,8 @@ func TRANSICIONAR(idea, accion, usuario):
     idea.state = objetivo
     if accion == "approve":
         registrar rastro (publishedBy=usuario, publishedAt=now)   # RNF-8
-        ABRIR_DEBATE(idea, publishedAt=now)                      # RF-24: deadline = +30 d
+        dias = LEER_DIAS_DEBATE().debateDays                      # RF-24 (v2.4): días globales vigentes
+        ABRIR_DEBATE(idea, publishedAt=now, debateDays=dias)      # RF-24: deadline = +días globales
         # la evaluación IA NO se ejecuta aquí: se genera al cerrarse el debate (RF-26, ver 4.7/4.8)
     if accion == "reject": adjuntar comentario + identificar usuario (RNF-8)
     if accion in [decide-accepted, decide-archived, decide-rejected]:
@@ -1163,11 +1248,14 @@ func TRANSICIONAR(idea, accion, usuario):
 ### 4.7 Debate de la idea publicada (RF-24, RF-25)
 
 ```
-const DEFECTO_DEBATE = 30 dias
+const DEBATE_DAYS_DEFECTO = 30                 # v2.4: configuración global, defecto 30
+const DEBATE_DAYS_MIN = 1
+const DEBATE_DAYS_MAX = 90
 
-func ABRIR_DEBATE(idea, publishedAt):
-    debate = nuevo Debate(ideaId=idea.id, deadline=publishedAt + DEFECTO_DEBATE,
-                          closed=false, summary=null, adjustments=[])
+func ABRIR_DEBATE(idea, publishedAt, debateDays):
+    debate = nuevo Debate(ideaId=idea.id, deadline=publishedAt + debateDays,
+                          closed=false, summary=null)
+    # el deadline es inmutable: no se recomputa ni al cambiar la configuración ni al releer (v2.4)
 
 func LEER_DEBATE(ideaId, ahora):
     CERRAR_DEBATE(ideaId, ahora)                                   # cierra si llegó el deadline + resumen/evaluación (idempotente)
@@ -1196,16 +1284,17 @@ func PUBLICAR_MENSAJE(ideaId, usuario, texto, linkedMessageId):
     if debate.closed: lanzar DomainError(409)       # RF-24, caso 18
     mensaje = DebateMessage(ideaId, author=usuario.nombre, text=texto,
                             linkedMessageId=linkedMessageId, processed=true)
-    if texto empieza con "@asistant":
-        if linkedMessageId no existe en el debate: lanzar 400     # RF-25: referencia concreta
-        mensaje = pedir_asistente(ideaId, mensaje, debate)
+    solicitud = texto_tras_@asistant(texto)         # None si no empieza por el token
+    if solicitud != null y solicitud no vacía:      # invocación inline (v2.5)
+        linked = linkedMessageId ? mensaje(linkedMessageId) : null
+        if linkedMessageId y linked == null: lanzar 400      # RF-25: enlace inexistente
+        mensaje = pedir_asistente(ideaId, mensaje, linked, solicitud)
     persistir(mensaje)
     devolver mensaje
 
-func PEDIR_ASISTENTE(ideaId, mensaje, debate):
+func PEDIR_ASISTENTE(ideaId, mensaje, linked, solicitud):
     if ASISTENTE_DISPONIBLE():
-        linked = mensaje(linkedMessageId)
-        respuesta = IA.debate_criterio(contexto_empresa, idea, linked, texto_tras_@asistant)  # RF-22, RF-25
+        respuesta = IA.debate_criterio(contexto_empresa, idea, linked, solicitud)  # RF-22, RF-25 (linked opcional)
         persistir(mensaje)
         asistente = DebateMessage(author="Asistente (IA)", text=respuesta,
                                   linkedMessageId=mensaje.id)
@@ -1217,12 +1306,18 @@ func PEDIR_ASISTENTE(ideaId, mensaje, debate):
         devolver mensaje
         # se reintenta en la siguiente interacción con la IA disponible
 
-func AJUSTAR_DEADLINE(ideaId, admin, nuevaFecha):
-    debate = cargar_debate(ideaId)
-    debate.adjustments.push({ by: admin.id, at: now, from: debate.deadline, to: nuevaFecha })  # RNF-11
-    debate.deadline = nuevaFecha
-    if nuevaFecha > now: debate.closed = false         # reabrir = ajustar a futuro (RF-24)
-    persistir(debate)                                  # el ajuste queda registrado (quién y cuándo)
+func LEER_DIAS_DEBATE():                               # RF-24 (v2.4): configuración global
+    registro = cargar_registro_debate_days()           # documento único (patrón D1/D19)
+    if registro no existe: devolver { debateDays: DEBATE_DAYS_DEFECTO, updatedBy: null, updatedAt: null }
+    devolver registro
+
+func GUARDAR_DIAS_DEBATE(admin, valor):                # RF-24, RNF-11 (v2.4)
+    if no es_entero(valor) or valor < DEBATE_DAYS_MIN or valor > DEBATE_DAYS_MAX:
+        lanzar DomainError(422)                        # entero 1–90; booleanos rechazados
+    registro = { debateDays: valor, updatedBy: admin.id, updatedAt: now }  # auditado (RNF-11)
+    persistir_registro_debate_days(registro)
+    devolver registro
+    # solo afecta a los debates abiertos a partir de ahora: los existentes conservan su deadline
 ```
 
 ### 4.8 Evaluación de la IA al cerrarse el debate + decisión del especialista (RF-26)
@@ -1355,13 +1450,15 @@ func NOTIFICAR_CALIBRACION_PENDIENTE(idea):                    # RF-27/RF-18 (tr
 | D12 | **Debate y evaluación como atributos de la idea publicada, no estados:** el debate vive en su propia feature (`debate`) y la evaluación en `ideas`/`validation`; la máquina de estados **no** adquiere los estados *En debate*/*En evaluación* (decisión 12 de la spec). | Estados IDEA_EN_DEBATE / IDEA_EN_EVALUACION con salidas Aprobada/Archivada (esquema v1.0) | Amplía el alcance sin romper el ciclo de vida MVP; el debate se cierra por fecha y la evaluación es un juicio final, sin transiciones de estado (RNF-9 intacta). |
 | D13 | **Contexto de empresa como único documento** (plantilla + edición en línea + subida de archivo que lo reemplaza en su totalidad) en la feature `org`, inyectado en **todas** las operaciones de la IA; el perfil v2.0 queda como sección del documento (decisión 13 de la spec). | Extender el perfil v2.0 sin sección de guía; o documento por sección | Un solo documento es lo que pidió el propietario (RF-21); garantiza la coherencia de lo que la IA inyecta (RF-22, RNF-12) y evita la fragmentación del perfil. |
 | D14 | **Subida de contexto como JSON** (el frontend lee el archivo y envía `content` en el cuerpo) | `multipart/form-data` con `python-multipart` | Constitución §6.1: las dependencias permitidas no incluyen `python-multipart`; un campo JSON evita añadir un paquete y es suficiente para texto. |
-| D15 | **Cierre automático del debate en la primera lectura tras el deadline** (no hay worker ni programador); el ajuste de fecha por idea es el único control, auditable (RNF-11). | Tiempo de cierre por cron/worker; debate sin cierre | Sin dependencias de programación (C5) y el estado siempre es coherente al ser leído (RNF-9). |
+| D15 | **Cierre automático del debate en la primera lectura tras el deadline** (no hay worker ni programador); la duración la fija la **configuración global de días de debate** (v2.4). | Tiempo de cierre por cron/worker; debate sin cierre | Sin dependencias de programación (C5) y el estado siempre es coherente al ser leído (RNF-9). |
 | D16 | **Catálogo compacto + vista de detalle:** `GET /catalog/public` expone solo título, fecha de publicación y descripción; `GET /catalog/{ideaId}` entrega los 6 campos, el debate y la evaluación (decisiones 16/23 de la spec). | Catálogo completo (todos los datos) | El propietario pidió una listado ligero y el detalle completo; la segregación de datos no cambia (sin contacto en ninguno). |
 | D17 | **Evaluación única por idea con juicio final alterable:** la IA genera 5 criterios **al cerrarse el debate** (o queda `PENDING` si la IA cae; el cierre no se bloquea); el especialista **acepta** (vuelve a poner la de la IA como juicio final) o **sustituye** (nueva sobre los mismos 5 criterios, sin tocar la instantánea `aiEvaluation`) en cualquier orden, cada acción auditada (caso 23). | Generación al publicar (descartada: la evaluación se alinea con el cierre del debate, momento en que ya hay discusión de la que dar cuenta); solo aceptación (sin sustitución); scoring global 0–100 | Cumple RF-26 y el caso 23 de la spec; el scoring global está explícitamente fuera (spec §8.2). |
 | D18 | **Decisión final atada al promedio:** el resultado final (`ACEPTADA`/`ARCHIVADA`/`RECHAZADA`) debe **coincidir** con la banda del promedio de la evaluación vigente (RF-27/RF-28); el endpoint `POST /validation/{id}/decision` devuelve **409 `DECISION_MISMATCH`** si no coincide (el especialista debe ajustar la puntuación) y **400** si falta el motivo en `ARCHIVADA`/`RECHAZADA`. El promedio y la banda se exponen en la respuesta para la vista en vivo del frontend. | Permitir forzar el resultado aunque contradiga los puntos (descartado: rompería la trazabilidad decisión↔puntuación y el RNF-8); decisión sin confirmación (descartado: la spec exige el aviso explícito) | Cumple RF-27/RF-28 y los casos 26–28 de la spec; el frontend hace el mismo cálculo cliente para la vista en vivo (idéntica regla pura compartida en la capa de dominio). |
 | D19 | **Umbrales como documento único persistido** (mismo patrón JSON por entidad, D1) con defecto **4/7**, invariante `rejectionThreshold < acceptanceThreshold` (422 al guardar), auditado (RNF-8) y aplicado solo a decisiones posteriores (caso 31). | Umbrales por idea (descartado: la spec dice configurables por el administrador, globales); rangos flotantes (descartado: la spec exige enteros 1–10) | Cumple RF-28 con la mínima superficie: un registro + 2 endpoints admin. |
 | D20 | **`Idea.decision` como atributo de la idea** (no entidad aparte): `{outcome, reason, score, decidedBy, decidedByName, decidedAt}`; se limpia a `null` al reevaluar una `ARCHIVADA` (RF-29, caso 30). Los estados finales son salidas reales de la máquina (4.6), no atributos. | Entidad `Decision` con historial (descartado para el MVP: una decisión vigente por idea basta; el historial queda fuera de alcance); sin estados finales (descartado: la spec v2.2 los introduce) | Minimiza el modelo (D1) y mantiene RNF-9 intacta: la reevaluación es una transición legítima `ARCHIVADA → VALIDADA_PUBLICA`. |
 | D21 | **Catálogo por zonas derivado del estado:** `GET /catalog/public?zone=…` filtra por estado (en-proceso=`VALIDADA_PUBLICA`, aceptadas/rechazadas/archivadas=estados finales); el detalle `GET /catalog/{ideaId}` acepta los 4 estados y expone `state` + `decision`. | Cuatro colecciones persistidas por zona (descartado: duplicaría datos); catálogo solo de VALIDADA_PUBLICA (descartado: la spec v2.2 organiza en 4 zonas) | Un solo origen de verdad (`Idea.state`); la zona es proyección, no almacenamiento (coherente con RNF-5/D1). |
+| D22 | **Cierre del ciclo de captura (v2.3):** `POST /capture/start` retoma la conversación en curso (ACTIVA primero, luego la RESUMEN más reciente devolviendo el **resumen editable** — campos ya capturados no se pierden) y `POST /capture/abandon` termina la conversación (ACTIVA/RESUMEN/CONTINGENCIA) **sin guardar nada** (sin borradores, D4), idempotente y solo sobre la conversación del propio usuario (403/404). | Sin retoma de RESUMEN (descartado: el usuario perdía los 6 campos capturados al volver a `start` y tener que rehacer la captura); abandono solo cerrando la página (descartado: no se liberaba el límite de una conversación y la conversación RESUMEN huérfana bloqueaba capturas futuras) | El límite de una conversación a la vez (RF-2) se libera solo terminando la conversación; la retoma con resumen mantiene el RNF-10 (sin pérdida) y reutiliza el resumen editable existente (RF-6) sin nueva entidad ni borrador (D4 intacta). |
+| D23 | **Días de debate como configuración global (v2.4):** un registro único (`debateDays`, entero 1–90, defecto 30, auditado `updatedBy`/`updatedAt`) gestionado por `GET/PUT /admin/debate-days` (misma forma que los umbrales, D19); `open_debate` fija el `deadline = publishedAt + debateDays` con el valor vigente al abrirlo y **no se recomputa** (ni al cambiar la configuración, ni al releer); los debates existentes conservan su `deadline` almacenado (sin migración). Se retiran `PUT /admin/ideas/{ideaId}/debate/deadline`, `adjust_deadline`, `DebateDeadlineRequest` y `Debate.adjustments`. | Ajuste de deadline idea por idea (v2.3; descartado: el propietario pidió sustituirlo por una configuración global); recomputar el deadline al cambiar los días globales (descartado: rompería los debates existentes y el RNF-9) | El deadline es un atributo fijo del debate (D12 intacto); la duración es global y administrable (RF-24); la regla pura de validación vive en `debate/domain/` y el store/auditado en `infrastructure/` (D8); el wiring por feature evita imports cruzados (D12). |
 
 **Trazabilidad RF — Decisiones**
 
@@ -1388,6 +1485,8 @@ func NOTIFICAR_CALIBRACION_PENDIENTE(idea):                    # RF-27/RF-18 (tr
 | D19 | RF-28, RNF-8, casos 26/31 |
 | D20 | RF-27, RF-29, RNF-8, RNF-9, casos 29/30 |
 | D21 | RF-20, RF-23, RF-29 |
+| D22 | RF-2, RF-6 (retoma RESUMEN + abandono, v2.3) |
+| D23 | RF-24, RNF-11 (días de debate globales, v2.4) |
 
 ---
 
@@ -1417,11 +1516,11 @@ backend/tests/
 │   │   └── test_role_rules.py      # no dejar sin admin (RF-17)
 │   ├── features/
 │   │   ├── debate/
-│   │   │   └── test_debate_rules.py # 30 d, cierre único, ajuste admin auditado (RF-24)
+    │   │   │   └── test_debate_rules.py # días de debate 1–90 (defecto 30), cierre único (RF-24, v2.4)
 │   │   └── org/
 │   │       └── test_context.py     # documento único, plantilla, subida reemplaza (RF-21)
 │   ├── use_cases/
-│   │   ├── test_capture_flow.py    # RF-2..RF-7: orden (6 campos), chips, título, resumen, manual
+│   │   ├── test_capture_flow.py    # RF-2..RF-7: orden (6 campos), chips, título, resumen, manual, retoma ACTIVA/RESUMEN y abandono (v2.3)
 │   │   ├── test_refinement.py      # RF-8, RF-11, RF-12, RF-13
 │   │   ├── test_publication.py     # RF-10, RF-15, RF-16 (la evaluación NO se dispara aquí; se genera al cerrarse el debate, RF-26)
 │   │   ├── test_evaluation.py      # PENDING → reintento, aceptar/sustituir en cualquier orden (caso 23)
@@ -1435,8 +1534,9 @@ backend/tests/
     ├── test_ideas_api.py           # RF-8, RF-9, RF-10, RF-19
     ├── test_validation_api.py      # RF-14..RF-16: cola, aprobar, rechazar (sin comentario → 400)
     ├── test_evaluation_api.py      # RF-26: generación al cierre (PENDING caso 22), reintento, /evaluation/accept (404/409) y /evaluation (403/422)
-    ├── test_debate_api.py          # RF-24/RF-25: leer/publicar, @asistant, cierre 409, resumen,
-    │                               #     PUT deadline admin (reapertura), casos 18-21
+    ├── test_debate_api.py          # RF-24/RF-25: leer/publicar, @asistant, cierre 409, resumen, casos 18-21
+    ├── test_debate_days_api.py     # RF-24 (v2.4): GET/PUT /admin/debate-days (defecto 30, entero 1–90,
+    │                               #     422 inválido, 403 no-admin, auditoría RNF-11)
     ├── test_org_context_api.py     # RF-21/RF-22: plantilla, GET/PUT, subida, 403 sin admin,
     │                               #     inyección en prompts (casos 24, 25)
     ├── test_catalog_api.py         # RF-20/RF-23: compacto (título/fecha/descripción) + detalle
@@ -1453,13 +1553,14 @@ backend/tests/
 | 2. Caída a mitad | `test_capture_api::test_midconversation_fallback_prefilled` |
 | 5. Indisponibilidad prolongada | `test_refinement::test_manual_publish_without_refine` |
 | 6. Fallo refinamiento | `test_refinement::test_partial_failure_keeps_pending` |
-| 7. Abandono sin enviar | `test_capture_flow::test_no_draft_saved` |
+| 7. Abandono sin enviar | `test_capture_flow::test_no_draft_saved` + `test_capture_api::test_abandon_closes_the_capture_without_saving` (+ idempotencia/403/404: `test_capture_api::test_abandon_is_idempotent_and_handles_missing_or_foreign`) |
+| 8. Una conversación a la vez (v2.3) | `test_capture_flow::test_start_prefers_active_over_summary` + `test_capture_flow::test_start_resumes_a_summary_conversation_with_its_summary` (+ API: `test_capture_api::test_start_after_summary_resumes_with_the_editable_summary`) |
 | 13. Rechazo sin comentario | `test_validation_api::test_reject_without_comment_400` |
 | 16. Revocación / desactivación | `test_users_roles::test_revoke_keeps_history` |
 | 17. Fallo al registrar | `test_capture_api::test_save_failure_no_partial_record` |
 | 18. Debate cerrado por límite | `test_debate_api::test_post_after_deadline_409` (y cierre automático en lectura) |
-| 19. `@asistant` sin enlazar | `test_debate_api::test_asistant_without_link_treated_as_user` |
-| 20. `@asistant` con IA caída | `test_debate_api::test_asistant_ai_down_keeps_unprocessed` (reintento tras recuperación) |
+| 19. `@asistant` sin petición | `test_debate_api::test_asistant_token_alone_is_a_plain_message` (token solo; la petición con enlace opcional responde inline) |
+| 20. `@asistant` con IA caída | `test_debate_api::test_asistant_down_keeps_the_request_pending` (reintento tras recuperación; + `test_asistant_pending_without_a_link_retries_on_the_next_read`) |
 | 21. Cierre sin mensajes | `test_debate_rules::test_close_without_messages_no_summary` |
 | 22. IA caída al cerrarse el debate | `test_evaluation::test_generation_down_keeps_the_idea_pending` + `test_evaluation_api::test_closing_with_the_assistant_down_keeps_it_pending_case_22` + `test_evaluation_api::test_pending_evaluation_is_retried_at_the_next_assistant_check` |
 | 23. Aceptar/sustituir alternados | `test_evaluation::test_alternate_accept_replace_last_wins` |
@@ -1492,6 +1593,7 @@ backend/tests/
 | api/validation | RF-14 (dos etapas), RF-15, RF-16, RF-26, RF-27 (decisión, casos 27/28) |
 | api/evaluation | RF-26, casos 22, 23 |
 | api/debate | RF-24, RF-25, casos 18, 19, 20, 21 |
+| api/debate-days | RF-24 (v2.4, RNF-11): días globales 1–90, defecto 30, 422/403/401, sin recomputación |
 | api/org-context | RF-21, RF-22, casos 24, 25 |
 | api/prompts | RF-22 (inyección del contexto) |
 | api/catalog | RF-20 (zonas), RF-23 (detalle en los 4 estados) |
@@ -1528,7 +1630,7 @@ backend/tests/
 | RF-21 | admin (context), org | CompanyContext | /admin/contexto/* | — | D13, D14 | api/org-context, unit/features/org |
 | RF-22 | assistant (prompts), org | CompanyContext | — | 4.2, 4.7, 4.8 (inyección) | D7, D13 | api/prompts, unit |
 | RF-23 | catalog (detail) | Idea (decision), Debate, IdeaEvaluation | GET /catalog/{ideaId} | — | D12, D16, D21 | api/catalog |
-| RF-24 | debate | Debate, DebateMessage | GET/POST /catalog/{ideaId}/debate, PUT deadline | 4.6 (apertura), 4.7 | D12, D15 | unit/features/debate, api/debate |
+| RF-24 | debate, admin (debate-days) | Debate, DebateMessage, DebateDays | GET/POST /catalog/{ideaId}/debate, GET/PUT /admin/debate-days | 4.6 (apertura), 4.7 | D12, D15, D23 | unit/features/debate, api/debate |
 | RF-25 | debate, assistant | DebateMessage | POST /catalog/{ideaId}/debate | 4.7 | D2, D12 | api/debate, casos 19, 20 |
 | RF-26 | validation, debate, assistant | IdeaEvaluation | /validation/{id}/evaluation* | 4.7 (disparo al cierre), 4.8 | D2, D12, D17 | api/evaluation, unit/assistant, casos 22, 23 |
 | RF-27 | validation (calibration-panel/decision-form) | Idea.decision | POST /validation/{id}/decision | 4.6, 4.9 | D18, D20 | api/validation, casos 27, 28 |

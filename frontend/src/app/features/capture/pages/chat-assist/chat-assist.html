@@ -24,7 +24,7 @@
             @if (estadoConv() === 'RESUMEN') {
               Resumen de la idea
             } @else {
-              Pregunta {{ progreso() }} de 7
+              Pregunta {{ progreso() }} de 6
               @if (campoActual()) {
                 — {{ campoActual() }}
               }
@@ -83,6 +83,27 @@
               type="button"
               (click)="irManual()"
               class="rounded-lg bg-amber-500 px-3 py-1.5 font-medium text-white transition hover:bg-amber-600"
+            >
+              Continuar con formulario manual
+            </button>
+          </div>
+        }
+        @if (estadoConv() === 'ACTIVA' && turno()?.needsClarification && !contingencia() && !cargando()) {
+          <div
+            class="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm dark:border-sky-500/30 dark:bg-sky-500/10"
+            role="alert"
+          >
+            <p class="mb-2 font-medium text-sky-800 dark:text-sky-300">
+              El asistente no terminó de capturar tu respuesta.
+            </p>
+            <p class="mb-3 text-sky-700 dark:text-sky-400/90">
+              Puedes volver a intentarlo con otra respuesta o continuar con el
+              formulario manual, que ya llega con lo que llevas capturado.
+            </p>
+            <button
+              type="button"
+              (click)="continuarManual()"
+              class="rounded-lg bg-sky-500 px-3 py-1.5 font-medium text-white transition hover:bg-sky-600"
             >
               Continuar con formulario manual
             </button>

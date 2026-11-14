@@ -129,6 +129,15 @@ def auth(directory, mock, idea_ledger, notify_store, threshold_store, org_store)
     return _client
 
 
+def _force_past_deadline(idea_id: str) -> None:
+    """Forces the debate's deadline into the past. The deadline is fixed at
+    opening (T-089), so the test reaches the shared in-memory store directly."""
+    debate_store = main_app.dependency_overrides[deps_module.get_debate_store]()
+    debate = debate_store.get_debate(idea_id)
+    debate.deadline = PAST_DEADLINE
+    debate_store.set(debate)
+
+
 def _idea(auth, mock, *, scores: list[int], close: bool = True,
           title: str = "") -> str:
     """Creates + publishes an idea; with `close` closes the debate so the AI
@@ -143,8 +152,7 @@ def _idea(auth, mock, *, scores: list[int], close: bool = True,
     approved = auth(SPECIALIST).post(f"/validation/{idea['id']}/approve")
     assert approved.status_code == 200
     if close:
-        auth(ADMIN).put(f"/admin/ideas/{idea['id']}/debate/deadline",
-                        json={"deadline": PAST_DEADLINE})
+        _force_past_deadline(idea["id"])
         auth(SPECIALIST).get(f"/catalog/{idea['id']}/debate")
     return idea["id"]
 
@@ -254,8 +262,7 @@ def test_decision_409_when_the_evaluation_is_pending(auth, mock) -> None:
     assert auth(SPECIALIST).post(f"/validation/{idea['id']}/approve").status_code == 200
     # Close the debate with the assistant down: the evaluation stays PENDING.
     mock.available = False
-    auth(ADMIN).put(f"/admin/ideas/{idea['id']}/debate/deadline",
-                    json={"deadline": PAST_DEADLINE})
+    _force_past_deadline(idea["id"])
     auth(SPECIALIST).get(f"/catalog/{idea['id']}/debate")
 
     response = _decide(auth, idea["id"], "ACEPTADA")

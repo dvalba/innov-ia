@@ -6,30 +6,26 @@ debate lives alongside it).
 
 Rules owned here:
 - The debate opens when the idea is published with a deadline of
-  `publication date + 30 days` (RF-24).
+  `publication date + the global debate-days setting in force at opening`
+  (RF-24, v2.4: the deadline is fixed at opening and is never recomputed —
+  see `debate_rules`).
 - Messages are only admitted while the debate is open; the deadline is
   enforced at read time (the first read after the deadline closes the debate
   exactly once — RF-24, case 18).
-- Only the administrator adjusts the deadline, per idea, even on a closed
-  debate; setting it to a future date re-opens it. Every adjustment is audited
-  with who/when/before/after (RNF-11, case 18).
 - The `@asistant` invocation, the assistant reply and the closure summary are
   AI operations (RF-25, RF-24); the domain only stores the assistant request
   as "pending" (retry at the next interaction, case 20) and the closure flag
   plus the AI-generated summary.
 
-Audit fields (RNF-8 / RNF-11): `closedAt`/`closedById`, `deadlineHistory`
-(every admin adjustment) and the assistant request/summary timestamps.
+Audit fields (RNF-8 / RNF-11): `closedAt`/`closedById` and the assistant
+request/summary timestamps.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from shared.exceptions.handlers import DomainError
-
-# Fixed deadline of the debate: publication date + 30 days (RF-24).
-DEBATE_DAYS = 30
 
 # The exact token that, at the start of a message, invokes the assistant in
 # the thread (RF-25). The spec spells it `@asistant` (one s) — the single
@@ -133,14 +129,17 @@ def assistant_request(text: str) -> str | None:
     invocation (RF-25, case 19).
 
     A message invokes the assistant only when it starts with the token
-    `@asistant`. The request is what remains after the token; blank requests
-    are still invocations (the prompt falls back to the linked message as the
-    question, case 19), so a non-`None` result means "ask the assistant".
+    `@asistant` **and has a non-blank request after it** (v2.5: the request is
+    inline, e.g. `@asistant ¿es viable?`; the optional message link is context,
+    not a precondition). The token alone — or followed only by blanks — is a
+    plain user message, so a non-`None` result means "ask the assistant with
+    this request".
     """
     stripped = str(text or "").strip()
     if not stripped.lower().startswith(ASSISTANT_TOKEN):
         return None
-    return stripped[len(ASSISTANT_TOKEN):].strip()
+    request = stripped[len(ASSISTANT_TOKEN):].strip()
+    return request or None
 
 
 @dataclass
@@ -154,7 +153,6 @@ class Debate:
     (otherwise `None`, case 21 — the UI says "there was no debate").
     `pendingAssistant` holds an `@asistant` request the assistant could not
     process (assistant down, case 20); it is retried at the next interaction.
-    `deadlineHistory` is the audit of every admin adjustment (RNF-11).
 
     The `pendingAssistant` mapping is `{messageId, request, at}`: `messageId`
     is the (unprocessed) message the user wrote (visible in the thread with a
@@ -173,7 +171,6 @@ class Debate:
     summary: str | None = None
     summaryAt: str | None = None
     pendingAssistant: dict | None = None
-    deadlineHistory: list = field(default_factory=list)
     messages: list = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -217,39 +214,6 @@ class Debate:
         self.closedAt = now
         self.closedBy = by_user
 
-    def adjust_deadline(self, new_deadline: str, now: str, by_user: str | None = None,
-                        by_name: str = "") -> None:
-        """Admin per-idea deadline adjustment (RF-24, RNF-11).
-
-        Advances or extends the deadline, even on a closed debate. Re-opening
-        is adjusting the date to a future one (RF-24); a non-future date keeps
-        (or makes) the debate closed. Every adjustment is audited with
-        who/when/before/after in `deadlineHistory`.
-        """
-        new_deadline = _require_iso(new_deadline, "deadline")
-        previous = self.deadline
-        self.deadline = new_deadline
-        try:
-            future = datetime.fromisoformat(new_deadline) > datetime.fromisoformat(now)
-        except ValueError:
-            future = False
-        if future:
-            self.closed = False
-            self.open = True
-            self.closedAt = None
-        else:
-            self.closed = True
-            self.open = False
-            if self.closedAt is None:
-                self.closedAt = now
-        self.deadlineHistory.append({
-            "by": by_user or "",
-            "byName": by_name or "",
-            "at": now,
-            "before": previous,
-            "after": new_deadline,
-        })
-
     def set_summary(self, text: str, at: str) -> None:
         """Stores the AI closure summary (only when there was a debate, case 21)."""
         self.summary = text
@@ -269,13 +233,17 @@ class Debate:
             "summary": self.summary,
             "summaryAt": self.summaryAt,
             "pendingAssistant": self.pendingAssistant,
-            "deadlineHistory": list(self.deadlineHistory or []),
             "messages": [message.to_payload() for message in self.messages],
         }
 
     @classmethod
     def from_payload(cls, payload: dict) -> "Debate":
-        """Rebuilds a debate from a stored payload, rejecting a malformed one."""
+        """Rebuilds a debate from a stored payload, rejecting a malformed one.
+
+        Tolerates the legacy `deadlineHistory` key (v2.4 removed the per-idea
+        deadline adjustment, T-089): it is dropped on read, a silent
+        migration with no stored data touched.
+        """
         payload = payload or {}
         return cls(
             id=str(payload.get("id", "")),
@@ -288,12 +256,5 @@ class Debate:
             summary=payload.get("summary"),
             summaryAt=payload.get("summaryAt"),
             pendingAssistant=payload.get("pendingAssistant"),
-            deadlineHistory=list(payload.get("deadlineHistory") or []),
             messages=list(payload.get("messages") or []),
         )
-
-
-def deadline_after_days(reference: str, days: int = DEBATE_DAYS) -> str:
-    """The debate deadline: `reference` (the publication date) + `days` (RF-24)."""
-    moment = datetime.fromisoformat(str(reference))
-    return (moment + timedelta(days=days)).isoformat()

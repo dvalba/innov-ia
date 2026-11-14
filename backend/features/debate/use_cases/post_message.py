@@ -7,8 +7,9 @@ also runs at read time). A message is never admitted on a closed debate (case
 18). The audit registers the author (id and name) and the creation date
 (RNF-11).
 
-`@asistant` detection and the AI reply are the router/`post_message_with_ai`
-concerns (RF-25, T-073); here the message is only registered.
+`@asistant` detection and the AI reply are the `post_debate` concerns (RF-25,
+T-073, v2.5: the inline request with its optional context link); here the
+message is only registered.
 """
 
 import uuid

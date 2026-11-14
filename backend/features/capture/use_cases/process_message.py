@@ -203,12 +203,13 @@ def process_message(
 
     if not fields:
         # The narrative captured nothing usable: re-ask the field in the course
-        # unchanged (no advance, no extra IA call).
+        # as a clarification (no advance, no extra IA call, RNF-10) — the user
+        # can re-answer or escape to the manual form (RF-7, RNF-10).
         stored = Conversation.from_payload(store.get(conversation_id))
         return {
             "conversationId": conversation_id,
             "state": "ACTIVA",
-            "assistant": build_turn(stored),
+            "assistant": _clarify_turn(stored),
         }
 
     rules.apply_capture(conversation.capturedFields, fields, conversation.currentField)

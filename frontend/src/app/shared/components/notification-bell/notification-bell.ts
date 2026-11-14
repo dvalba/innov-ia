@@ -57,10 +57,12 @@ export class NotificationBell {
 
   /**
    * Marks the notification read and navigates to its object. Owner events
-   * (`IDEA_REFINED`/`IDEA_PUBLISHED`/`IDEA_REJECTED`) go to the G11 idea detail
-   * by `ideaId`; `IDEA_REQUESTED` is received by the specialist, whose object
-   * is the review queue (G12), so it goes to `/validacion`. Navigating by path
-   * keeps this shared component free of feature imports.
+   * (`IDEA_REFINED`/`IDEA_PUBLISHED`/`IDEA_REJECTED`/`IDEA_ACCEPTED`/
+   * `IDEA_ARCHIVED`/`IDEA_REEVALUATED`) go to the G11 idea detail by `ideaId`;
+   * the two events received by the specialist (`IDEA_REQUESTED` and
+   * `IDEA_CALIBRATION_PENDING`) have the review queue (G12) as their object, so
+   * they go to `/validacion`. Navigating by path keeps this shared component
+   * free of feature imports.
    */
   protected onConsultar(n: Notificacion): void {
     this.abierto.set(false);
@@ -68,7 +70,10 @@ export class NotificationBell {
       .marcarLeida(n.id)
       .catch(() => void 0)
       .finally(() => this.notifs.notificaciones.reload());
-    const destino = n.type === 'IDEA_REQUESTED' ? ['/validacion'] : ['/mis-ideas', n.ideaId];
+    const destino =
+      n.type === 'IDEA_REQUESTED' || n.type === 'IDEA_CALIBRATION_PENDING'
+        ? ['/validacion']
+        : ['/mis-ideas', n.ideaId];
     void this.router.navigate(destino);
   }
 }

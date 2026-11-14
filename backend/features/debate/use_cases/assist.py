@@ -1,14 +1,17 @@
 """The `@asistant` intervention in a published-idea debate (RF-25, case 20).
 
-The invocation rule (RF-25, case 19): a message starting with the `@asistant`
-token is an invocation **only** when it links a concrete existing message of
-the thread. The three outcomes:
+The invocation rule (RF-25, case 19, v2.5): a message starting with the
+`@asistant` token **and carrying a non-blank request** is an invocation; the
+assistant then replies inline in the thread. The message link is *optional*
+context for the answer:
 
-- no link given      -> the message is posted as a plain user message (case 19);
-- a provided link    that does not exist in the thread -> 400 (invalid reference);
-- a valid link       -> the assistant replies in the thread (RF-25). A blank
-                        request after the token still asks the assistant: the
-                        prompt falls back to a general analysis.
+- no request after   the token (`@asistant` alone) -> the message is posted
+                as a plain user message (case 19);
+- a request given    -> the assistant replies in the thread (RF-25), with the
+                linked message as context when one is provided, or a general
+                answer about the idea and the debate otherwise;
+- a provided link    that does not exist in the thread -> 400 (invalid
+                reference).
 
 When the assistant is down or the generation fails (RNF-1, case 20), the user
 message is kept in the thread with `processed=False` and the request is stored
@@ -30,7 +33,6 @@ from features.debate.domain.debate import (
     ASSISTANT_AUTHOR_ID,
     Debate,
     DebateMessage,
-    assistant_request,
 )
 from features.debate.use_cases.post_message import build_message
 from shared.contracts.assistant_client import AssistantClient
@@ -106,11 +108,6 @@ def make_evaluate(
     return _evaluate
 
 
-def is_assistant_invocation(text: str) -> bool:
-    """`True` when the text starts with the `@asistant` token (RF-25)."""
-    return assistant_request(text) is not None
-
-
 def _resolve_linked(debate: Debate, linked_message_id: str | None) -> DebateMessage | None:
     """The linked message of the thread, or `None` when the id is absent/dangling."""
     if not linked_message_id:
@@ -125,17 +122,21 @@ def _assistant_reply(
     idea_fields: dict | None,
     company_context: dict | None,
     user_message: DebateMessage,
-    linked: DebateMessage,
+    linked: DebateMessage | None,
     request: str,
     now: str,
 ) -> DebateMessage:
     """Generates the assistant reply and builds its message (the AI text is
     stored verbatim in the thread, linked back to the user's `@asistant`
-    message, RF-25)."""
+    message, RF-25). `linked` is the optional context message (v2.5): the
+    prompt answers the request about the idea and the debate in general when
+    it is `None`."""
     prompt = debate_assistant_prompt(
         idea_fields=idea_fields or {},
         company_context=company_context,
-        linked_message={"authorName": linked.authorName, "text": linked.text},
+        linked_message=(
+            {"authorName": linked.authorName, "text": linked.text} if linked is not None else None
+        ),
         request=request,
     )
     text = assistant.generate(prompt)
@@ -155,7 +156,7 @@ def try_assist(
     *,
     idea_id: str,
     user_message: DebateMessage,
-    linked_message: DebateMessage,
+    linked_message: DebateMessage | None,
     request: str,
     assistant: AssistantClient | None,
     idea_fields: dict | None,
@@ -216,7 +217,9 @@ def process_pending_assistant(
     if message is None:
         debate.pendingAssistant = None
         return False
-    linked = _resolve_linked(debate, message.linkedMessageId) or message
+    # The original link (when the invocation had one) is the context again;
+    # an invocation posted without a link retries without context (v2.5).
+    linked = _resolve_linked(debate, message.linkedMessageId)
     reply = try_assist(
         debate,
         idea_id=idea_id,

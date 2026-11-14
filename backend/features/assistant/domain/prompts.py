@@ -224,13 +224,15 @@ def debate_assistant_prompt(
 ) -> str:
     """The `@asistant` reply in the published-idea debate (RF-25, RF-22).
 
-    When a participant writes `@asistant` citing one concrete message of the
-    thread, the assistant must reply in the same thread with the requested
-    criterion/analysis, grounded on the company context, the idea and the linked
-    message. The reply is a natural-language text (NOT JSON): it lands in the
-    thread verbatim. `request` is the text following the `@asistant` token
-    (case 19: a blank request still asks the assistant, the prompt falls back
-    to a general analysis).
+    When a participant writes `@asistant` followed by a request, the assistant
+    must reply in the same thread with the requested criterion/analysis,
+    grounded on the company context, the idea and the debate. `request` is the
+    non-blank text following the `@asistant` token (the token alone is a plain
+    message, case 19, and never reaches this prompt). `linked_message` is the
+    optional context message of the thread (v2.5): when it is `None` the
+    assistant answers the request about the idea and the debate in general.
+    The reply is a natural-language text (NOT JSON): it lands in the thread
+    verbatim.
     """
     if linked_message:
         author = str(linked_message.get("authorName") or "").strip() or "un participante"

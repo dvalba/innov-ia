@@ -50,6 +50,15 @@ class ConversationStore:
         """The user's ``ACTIVA`` conversations (RF-2: there should be at most one)."""
         return [payload for payload in self.list_by_user(user_id) if payload["state"] == "ACTIVA"]
 
+    def list_in_progress(self, user_id: str) -> Sequence[dict]:
+        """The user's conversations still inside the capture cycle (RF-2, v2.3):
+        ``ACTIVA`` or ``RESUMEN`` — the ones a `start` can resume."""
+        return [
+            payload
+            for payload in self.list_by_user(user_id)
+            if payload["state"] in ("ACTIVA", "RESUMEN")
+        ]
+
     # -- creation ----------------------------------------------------------------
 
     def create(self, conversation: Conversation) -> dict:

@@ -84,47 +84,11 @@
       <!-- Abierto e interactivo (comportamiento actual) -->
       <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
         <p class="text-sm text-slate-600 dark:text-slate-400">
-          Fecha límite de debate:
+          Fecha límite de debate (solo lectura):
           <span class="font-medium text-slate-900 dark:text-slate-100">
             {{ formatearFecha(debate.deadline) }}
           </span>
         </p>
-        @if (esAdmin() && !ajustando()) {
-          <button
-            type="button"
-            (click)="mostrarAjuste()"
-            class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:focus:ring-slate-500/40"
-          >
-            Ajustar fecha límite
-          </button>
-        }
-        @if (ajustando()) {
-          <div class="flex flex-wrap items-center gap-2">
-            <input
-              [type]="'datetime-local'"
-              [value]="fechaAjuste()"
-              (input)="fechaAjuste.set($any($event.target).value)"
-              aria-label="Nueva fecha límite del debate"
-              class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:focus:border-indigo-500/60 dark:focus:ring-indigo-500/30"
-            />
-            <button
-              type="button"
-              [disabled]="ajustandoLimite() || fechaAjuste() === ''"
-              (click)="ajustarLimite()"
-              class="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {{ ajustandoLimite() ? 'Guardando…' : 'Guardar' }}
-            </button>
-            <button
-              type="button"
-              [disabled]="ajustandoLimite()"
-              (click)="ajustando.set(false)"
-              class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 dark:focus:ring-slate-500/40"
-            >
-              Cancelar
-            </button>
-          </div>
-        }
       </div>
 
       @if (debate.pendingAssistant) {
@@ -178,7 +142,7 @@
           [value]="texto()"
           (input)="texto.set($any($event.target).value)"
           rows="3"
-          placeholder="Escribe tu comentario. Inicia con @asistant y enlaza un mensaje para pedir el asistente."
+          placeholder="Escribe tu comentario. Inicia con @asistant y la petición para invocar al asistente; puedes enlazar un mensaje como contexto."
           class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-indigo-500/60 dark:focus:ring-indigo-500/30"
         ></textarea>
         @if (esInvocacion()) {
@@ -187,7 +151,7 @@
               for="debate-enlazado"
               class="mb-1 block text-sm font-medium text-indigo-800 dark:text-indigo-300"
             >
-              Mensaje al que se enlaza la solicitud al asistente
+              Mensaje de contexto para la respuesta del asistente (opcional)
             </label>
             <select
               id="debate-enlazado"
@@ -203,7 +167,9 @@
               }
             </select>
             <p class="mt-1 text-xs text-indigo-700 dark:text-indigo-300">
-              Sin un mensaje enlazado, el texto se publica como mensaje normal.
+              Escribe la petición tras @asistant: el asistente responderá en el
+              hilo; sin mensaje enlazado responderá sobre la idea y el debate
+              en general.
             </p>
           </div>
         }

@@ -23,7 +23,17 @@ export interface StartResult {
   resumed: boolean;
   conversation: Conversation | null;
   assistant: TurnAssistant | null;
+  /** The resumed conversation's state (`ACTIVA`/`RESUMEN`), `null` without one. */
+  state: 'ACTIVA' | 'RESUMEN' | null;
+  /** The editable summary when a `RESUMEN` conversation is resumed (v2.3). */
+  summary: Record<string, unknown> | null;
   manual: { notice: string; capturedFields: Record<string, string> } | null;
+}
+
+/** `POST /capture/abandon` (RF-2, case 7, v2.3) outcome. */
+export interface AbandonResult {
+  conversationId: string;
+  state: 'TERMINADA';
 }
 
 /** `POST /capture/messages` (RF-3/RF-4/RF-5, RF-6) next turn. */
@@ -131,10 +141,29 @@ export class CaptureService {
       }
       this.conversacionId.set(r.conversation?.id ?? null);
       this.turno.set(r.assistant ?? null);
-      this.estadoConv.set('ACTIVA');
-      this.resumen.set(null);
+      this.estadoConv.set(r.state ?? null);
+      this.resumen.set(r.summary ?? null);
       this.retomada.set(r.resumed);
       this.contingencia.set(null);
+      return r;
+    });
+  }
+
+  /**
+   * POST /capture/abandon (RF-2, case 7, v2.3) — the proponent explicitly
+   * abandons the capture: the in-flight conversation ends as `TERMINADA`
+   * WITHOUT saving anything (no draft, no partial record) and the limit of
+   * one capture conversation at a time is freed. The local state is cleared so
+   * a fresh capture can start clean.
+   */
+  abandon(conversationId?: string | null): Promise<AbandonResult> {
+    return this.conCarga(async () => {
+      const r = await firstValueFrom(
+        this.http.post<AbandonResult>('/capture/abandon', {
+          conversationId: conversationId ?? null,
+        }),
+      );
+      this.reiniciar();
       return r;
     });
   }

@@ -314,8 +314,12 @@ def test_calibration_fans_pending_out_to_active_specialists_at_closure(
 
     # The deadline moves into the past and the next read closes the debate: the
     # AI evaluation is generated and the calibration fanout fires (T-083).
-    auth("u_admin").put(f"/admin/ideas/{idea['id']}/debate/deadline",
-                        json={"deadline": PAST_DEADLINE})
+    # The deadline is fixed at opening (T-089): the test forces the past
+    # deadline directly on the shared in-memory store.
+    debate_store = main_app.dependency_overrides[deps_module.get_debate_store]()
+    debate = debate_store.get_debate(idea["id"])
+    debate.deadline = PAST_DEADLINE
+    debate_store.set(debate)
     assert auth("u_solo").get(f"/catalog/{idea['id']}/debate").status_code == 200
 
     # Both active specialists got one calibration-pending notification (newest

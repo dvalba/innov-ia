@@ -16,6 +16,7 @@ from features.assistant.routers.assistant import assistant_router
 from features.auth.infrastructure.token_store import seed_first_admin
 from features.auth.routers.auth import auth_router
 from features.capture.routers.capture import capture_router
+from features.debate.routers.admin import admin_debate_days_router
 from features.debate.routers.debate import debate_router
 from features.ideas.routers.catalog import catalog_router
 from features.ideas.routers.ideas import ideas_router
@@ -84,6 +85,7 @@ app.include_router(catalog_router)
 app.include_router(debate_router)
 app.include_router(org_router)
 app.include_router(admin_thresholds_router)
+app.include_router(admin_debate_days_router)
 
 if settings.cors_origins:
     app.add_middleware(
@@ -102,4 +104,4 @@ def health() -> dict[str, str]:
 
 # Router registration completed above: auth (T-013), assistant (T-062),
 # users, ideas (T-023), capture (T-031), notifications/validation/catalog
-# (T-033/T-034/T-035).
+# (T-033/T-034/T-035), debate (T-073) and the admin debate-days (T-089).

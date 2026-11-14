@@ -1,7 +1,7 @@
 # Tareas de Implementación — Innov-IA MVP
 
 **Documento:** specs/001-innovation-evaluation-mvp/tasks.md
-**Depende de:** `specs/001-innovation-evaluation-mvp/spec.md` (v2.2 — ampliación de alcance del propietario), `specs/001-innovation-evaluation-mvp/plan.md` (v1.2) y `docs/CONSTITUTION.md`
+**Depende de:** `specs/001-innovation-evaluation-mvp/spec.md` (v2.4 — días de debate como configuración global, autorizada por el propietario), `specs/001-innovation-evaluation-mvp/plan.md` (v1.3) y `docs/CONSTITUTION.md`
 **Naturaleza:** Desglose de implementación en tareas atómicas (20–30 min cada una). Una tarea NO se marca como hecha hasta cumplir su criterio "Hecho cuando".
 
 > **Ampliación de alcance (v2.1):** el propietario del producto incorporó al MVP el debate de las
@@ -18,6 +18,25 @@
 > finales `ACEPTADA`/`ARCHIVADA`/`RECHAZADA`, la **reevaluación** de una `ARCHIVADA` (RF-29), la cola de
 > validación en **dos etapas** (RF-14) y el **catálogo por 4 zonas** (RF-20). Quedan registradas en la
 > **Fase 6 / G19–G20** (T-079 y siguientes).
+
+> **Corrección de alcance (v2.3):** el propietario del producto autoriza dos correcciones del flujo de
+> captura (RF-2, casos 7 y 8, plan D22): (1) `POST /capture/start` retoma la conversación en `RESUMEN`
+> devolviéndole el **resumen editable** (los campos ya capturados no se pierden) con prioridad sobre
+> crear una nueva, tras la conversación `ACTIVA`; (2) el proponente puede **abandonar** la captura
+> (ACTIVA/RESUMEN/CONTINGENCIA) tras confirmación y aviso de pérdida: la conversación termina **sin
+> guardar nada** (sin borradores) y se libera el límite de una conversación a la vez; el abandono es
+> idempotente y solo aplica a la conversación del propio usuario (403/404). Quedan registradas en la
+> **Fase 7 / G21** (T-087 y siguientes).
+
+> **Ampliación de alcance (v2.4):** el propietario del producto sustituye el ajuste de fecha límite
+> **idea por idea** del debate por una **configuración global administrable de días de debate** (RF-24,
+> RNF-11, plan D23): un registro único `{debateDays}` (entero 1–90, defecto 30, auditado con
+> `updatedBy`/`updatedAt`) gestionado por `GET/PUT /admin/debate-days`; el deadline de un debate se fija
+> al abrirlo con el valor vigente (`publishedAt + debateDays`) y **no se recomputa** (los debates ya
+> abiertos/cerrados conservan su fecha almacenada, sin migración). Se retiran `PUT
+> /admin/ideas/{ideaId}/debate/deadline`, el use case `adjust_deadline`, el esquema `DebateDeadlineRequest`
+> y el rastro `Debate.adjustments`/`deadlineHistory`. Quedan registradas en la **Fase 8 / G22** (T-089 y
+> siguientes).
 
 > **Reglas de ejecución:**
 >
@@ -37,6 +56,8 @@
 | **4** | Integración Ollama, e2e y cierre |
 | **5** | Ampliación de alcance v2.1: contexto de empresa, debate, evaluación IA, catálogo detalle, sin recursos (G17/G18) |
 | **6** | Ampliación de alcance v2.2: decisión final de calificación, umbrales, estados finales, reevaluación, cola en dos etapas, catálogo por zonas (G19/G20) |
+| **7** | Correcciones de captura v2.3: retoma de conversación RESUMEN con resumen editable y abandono explícito de la captura (G21) |
+| **8** | Ampliación v2.4: días de debate como configuración global administrable (retirada del ajuste por idea) (G22) |
 
 ---
 
@@ -539,16 +560,56 @@
 
 ---
 
+## Fase 7 — Correcciones de captura (G21)
+
+> Autorizado por el propietario del producto (corrección de alcance v2.3, spec RF-2/casos 7 y 8, plan D22):
+> la conversación en RESUMEN se retoma con su resumen editable y el proponente puede abandonar la captura
+> de forma explícita. Ejecutar en orden T-087 → T-088.
+
+### 7.1 G21 — Backend + Frontend: retoma RESUMEN y abandono explícito
+
+- [x] **[T-087] Backend: `POST /capture/abandon` + retoma de conversación RESUMEN en `POST /capture/start`**
+  - **Covers:** RF-2, RF-6, casos 7 y 8, plan D22, spec v2.3
+  - **Dependencias:** [T-027], [T-030], [T-031]
+  - **Hecho cuando:** `ConversationStore.list_in_progress(user_id)` lista las conversaciones del usuario en `ACTIVA` o `RESUMEN`; `start_conversation.py` retoma primero la `ACTIVA` (sin cambios en el contrato) y, si no existe, la `RESUMEN` más reciente devolviendo `state: RESUMEN` + `summary` (resumen editable vía `Conversation.to_summary()`, los campos ya capturados no se pierden; `resumed: true`); los demás resultados (`ACTIVA` nueva/retomada, manual) devuelven `state`/`summary` coherentes; nuevo use case `abandon_conversation.py` + endpoint `POST /capture/abandon` (`conversationId` opcional, por defecto la en curso): `ACTIVA`/`RESUMEN`/`CONTINGENCIA` → `TERMINADA` sin guardar nada (sin borradores, caso 7), idempotente si ya `TERMINADA`, 404 `CONVERSATION_NOT_FOUND` si no existe, 403 `NOT_CONVERSATION_OWNER` si no es dueño; respuesta `{"conversationId", "state": "TERMINADA"}`; tests unitarios en `tests/unit/use_cases/test_capture_flow.py` (abandono desde ACTIVA/RESUMEN/CONTINGENCIA, idempotencia, 403/404, retoma RESUMEN con resumen, prioridad ACTIVA sobre RESUMEN) y API en `tests/api/test_capture_api.py` (`test_abandon_closes_the_capture_without_saving`, `test_abandon_is_idempotent_and_handles_missing_or_foreign`, `test_start_after_summary_resumes_with_the_editable_summary`); `pytest -q` verde y `ruff check .` limpio.
+
+- [x] **[T-088] Frontend: retoma de RESUMEN y abandono de captura**
+  - **Covers:** RF-2, RF-6, casos 7 y 8, spec v2.3
+  - **Dependencias:** [T-087]
+   - **Hecho cuando:** `capture.service.ts` extiende `StartResult` con `state` (`ACTIVA`/`RESUMEN`/null) y `summary` y añade `abandon(conversationId?)` → `POST /capture/abandon`; la ruta de inicio (`new-idea.ts`) y el chat asistido (`chat-assist.ts`) al recibir `state: RESUMEN` inicializan el estado `RESUMEN` con el **resumen editable** (vista de resumen prellenada con los campos ya capturados, lista para editar y confirmar) y no reinician la conversación; el chat asistido expone la acción **Abandonar captura** (confirmación con aviso de pérdida, caso 7: se pierde todo lo capturado) que llama a `abandon()` y limpia el estado local (sin borrador); todo responsive y accesible (teclado/aria, RNF-6); `ng build` verde.
+
+---
+
+## Fase 8 — Ampliación de alcance v2.4 (G22)
+
+> Autorizado por el propietario del producto (ampliación v2.4, spec RF-24/RNF-11, plan D23): el ajuste
+> de fecha límite idea por idea se sustituye por una configuración global de días de debate. Ejecutar en
+> orden T-089 → T-090.
+
+### 8.1 G22 — Backend + Frontend: días de debate como configuración global
+
+- [x] **[T-089] Backend: días de debate globales administrables + deadline fijo al abrir**
+  - **Covers:** RF-24, RNF-11, plan D23, spec v2.4
+  - **Dependencias:** [T-072], [T-073], [T-087]
+  - **Hecho cuando:** En la feature `debate`: reglas puras en `domain/debate_rules.py` (`DEBATE_DAYS_DEFECTO = 30`, `DEBATE_DAYS_MIN = 1`, `DEBATE_DAYS_MAX = 90`, validación pura que exige entero 1–90 y rechaza booleanos → `DomainError` 422, mismo patrón que `validation/domain/threshold_rules.py`); registro único en `infrastructure/debate_days_store.py` (JSON bajo `backend/data/`, patrón de `threshold_store.py`); use case `use_cases/debate_days.py` (GET devuelve el registro o el defecto `{debateDays: 30, updatedBy: null, updatedAt: null}`; PUT valida y guarda con auditoría `updatedBy`/`updatedAt`, RNF-11); router `routers/admin.py` con `GET /admin/debate-days` y `PUT /admin/debate-days` (rol admin: 403 no-admin, 401 sin sesión; payload `{debateDays}`; 422 `DEBATE_DAYS_INVALID` con `details.problems` si no es entero 1–90); `open_debate` recibe los días globales (wiring en `backend/app/deps.py`: `DebateDaysStoreDep` + lectura del valor vigente al abrir, sin imports cruzados, D12) y fija `deadline = publishedAt + debateDays`; **se retiran** el use case `use_cases/adjust_deadline.py`, el endpoint `PUT /admin/ideas/{ideaId}/debate/deadline` y el esquema `DebateDeadlineRequest`, y el campo `adjustments`/`deadlineHistory` de `Debate` (el payload de lectura deja de exponerlo; `from_payload` sigue tolerando el campo legacy y lo descarta, migración silenciosa al estilo T-069, sin reescritura del archivo); `GET /catalog/{ideaId}/debate` devuelve mensajes + deadline + cerrado + resumen (sin rastro de ajustes). El deadline de un debate existente **no se recomputa** al cambiar la configuración ni al releer (caso v2.4). Tests unitarios en `tests/unit/features/debate/test_debate_rules.py` (validación 1–90, defecto 30, booleanos/números rechazados, deadline fijo al abrir) y API en `tests/api/test_debate_days_api.py` (GET defecto, PUT 200 auditado, 422 inválido, 403 no-admin, 401 sin sesión) + `tests/api/test_debate_api.py` actualizado (sin endpoint de ajuste por idea; apertura con días globales: publicar con 40 días → `deadline = publishedAt + 40`); `pytest -q` verde y `ruff check .` limpio.
+
+- [x] **[T-090] Frontend: sección de administración de días de debate + retirada del ajuste inline**
+  - **Covers:** RF-24, RNF-11, spec v2.4
+  - **Dependencias:** [T-089], [T-084]
+  - **Hecho cuando:** En `/admin` (rol administrador) una nueva pestaña **Días de debate** (misma estructura que Umbrales): input de entero con carga de `GET /admin/debate-days` (muestra el defecto 30 si nunca se guardó), guardado a `PUT /admin/debate-days` con validación local 1–90 y aviso ante 422, y nota informativa de que el cambio solo afecta a los debates que se abran a partir de ahora; `services/debate-days.service.ts` espejo de `umbrales.service.ts`; registro en `admin.html` (tab) y en `app.routes.ts` (ruta child lazy); **se retira** del panel de debate (`debate-panel`) el control inline de ajuste de fecha límite (rol admin) y `ajustarFechaLimite` de `catalog.service.ts` (y su import); se elimina el tipo `AjusteFechaLimite` y el campo `deadlineHistory` de `Debate` en `shared/types/models.ts` (el detalle del debate sigue mostrando la fecha límite fija, solo lectura); todo responsive y accesible (teclado/aria, RNF-6); `ng build` verde.
+
+---
+
 ## Matriz de cobertura RF → tareas
 
 | RF | Tareas |
 |----|--------|
 | RF-1 | T-005, T-006, T-010..T-013, T-037..T-039 |
-| RF-2 | T-025, T-027, T-031, T-040, T-041, T-056, T-063 |
+| RF-2 | T-025, T-027, T-031, T-040, T-041, T-056, T-063, T-087, T-088 |
 | RF-3 | T-008, T-025, T-028, T-031, T-040, T-060, T-063 |
 | RF-4 | T-029, T-031, T-042, T-060, T-061, T-063 |
 | RF-5 | T-025, T-028, T-031, T-040, T-042, T-063 |
-| RF-6 | T-030, T-031, T-043, T-063 |
+| RF-6 | T-030, T-031, T-043, T-063, T-087, T-088 |
 | RF-7 | T-026, T-027, T-030, T-031, T-041, T-044, T-045, T-064 |
 | RF-8 | T-020, T-023, T-024, T-048, T-061, T-065 |
 | RF-9 | T-017, T-020, T-023, T-047, T-065 |
@@ -566,11 +627,11 @@
 | RF-21 | T-070, T-076 |
 | RF-22 | T-071, T-076 |
 | RF-23 | T-077, T-084, T-085 |
-| RF-24 | T-072, T-073, T-077, T-078, T-085 |
+| RF-24 | T-072, T-073, T-077, T-078, T-085, T-089, T-090 |
 | RF-25 | T-071, T-073, T-077, T-078 |
 | RF-26 | T-071, T-074, T-077, T-078 |
 | RF-27 | T-079, T-080, T-082, T-083, T-084 |
 | RF-28 | T-080, T-081, T-082, T-084 |
 | RF-29 | T-079, T-082, T-085 |
 
-**Cobertura:** los 29 RF (RF-1..RF-29) están cubiertos (RF-21..RF-26 son v2.1 y RF-27..RF-29 son v2.2). **Total de tareas:** 86 (68 del MVP v2.0 + 10 de la ampliación v2.1: T-069..T-078 + 8 de la ampliación v2.2: T-079..T-086).
+**Cobertura:** los 29 RF (RF-1..RF-29) están cubiertos (RF-21..RF-26 son v2.1, RF-27..RF-29 son v2.2 y la v2.4 reafirma RF-24). **Total de tareas:** 90 (68 del MVP v2.0 + 10 de la ampliación v2.1: T-069..T-078 + 8 de la ampliación v2.2: T-079..T-086 + 2 de la corrección de captura v2.3: T-087..T-088 + 2 de la ampliación v2.4: T-089..T-090).

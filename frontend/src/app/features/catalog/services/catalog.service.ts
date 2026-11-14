@@ -76,16 +76,6 @@ export class CatalogService {
   }
 
   /**
-   * PUT /admin/ideas/{id}/debate/deadline — admin-only deadline adjustment
-   * (RF-24, audited); a future date re-opens a closed debate.
-   */
-  ajustarFechaLimite(ideaId: string, deadline: string): Promise<Debate> {
-    return firstValueFrom(
-      this.http.put<Debate>(`/admin/ideas/${ideaId}/debate/deadline`, { deadline }),
-    );
-  }
-
-  /**
    * POST /validation/{id}/evaluation/accept — the AI evaluation becomes the
    * final judgment (`status=ACEPTADA`, case 23); 409 when there is no AI
    * evaluation yet (case 22). Returns the updated idea payload.

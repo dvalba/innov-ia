@@ -272,9 +272,13 @@ def test_reject_404_for_an_unknown_idea_and_409_outside_solicitando(auth) -> Non
 
 
 def _close_debate(auth, idea_id: str) -> None:
-    """Closes the idea's debate through the real admin path (RF-24)."""
-    auth(ADMIN).put(f"/admin/ideas/{idea_id}/debate/deadline",
-                    json={"deadline": PAST_DEADLINE})
+    """Closes the idea's debate (RF-24). The deadline is fixed at opening
+    (T-089), so the test forces the past deadline directly on the shared
+    in-memory store and the next read runs the closure."""
+    debate_store = main_app.dependency_overrides[deps_module.get_debate_store]()
+    debate = debate_store.get_debate(idea_id)
+    debate.deadline = PAST_DEADLINE
+    debate_store.set(debate)
     assert auth("u_solo").get(f"/catalog/{idea_id}/debate").status_code == 200
 
 

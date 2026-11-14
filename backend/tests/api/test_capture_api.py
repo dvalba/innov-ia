@@ -19,6 +19,12 @@ Covers the proponent surface of `/capture`:
     leaves no partial record (case 17) and the conversation still in RESUMEN;
   - `POST /capture/activate-manual` (200): the conversation moves to
     CONTINGENCIA with its fields pre-filled (RNF-10);
+  - `POST /capture/abandon` (200, v2.3): the explicit abandonment ends the
+    conversation (ACTIVA/RESUMEN/CONTINGENCIA) as TERMINADA without saving
+    anything (case 7, no draft); idempotent; 404 when missing, 403 for a
+    foreign conversation;
+  - `POST /capture/start` (v2.3): without an ACTIVA it resumes the most recent
+    RESUMEN with its editable summary (`state`/`summary`);
   - guards: 401 without session, 403 for other roles.
 
 The `auth` fixture injects in-memory stores and a programmable assistant
@@ -35,6 +41,7 @@ from app import deps as deps_module
 from app.main import app as main_app
 from features.assistant.domain.prompts import FIELD_LABELS
 from features.auth.infrastructure.token_store import TokenStore
+from features.capture.domain.capture_rules import CLARIFY_FLAG
 from features.capture.infrastructure.conversation_store import ConversationStore
 from features.ideas.infrastructure.idea_store import IdeaStore
 from features.org.infrastructure.org_store import OrgStore
@@ -380,6 +387,36 @@ def test_midconversation_fallback_is_prefilled_and_activable(auth, assistant,
     assert "proponent" in manual_body["capturedFields"]
 
 
+def test_clarification_can_escape_to_the_prefilled_manual_form(auth, assistant,
+                                                                 conversation_store) -> None:
+    """RF-3/RNF-10: an insufficient answer re-asks the field as a clarification
+    (`needsClarification`); the user escapes the loop via `activate-manual`,
+    which marks the conversation CONTINGENCIA and returns its captured fields
+    as the pre-filled manual payload."""
+    client = auth()
+    start = client.post("/capture/start").json()
+    conv_id = start["conversation"]["id"]
+    assistant.extract = {"description": CLARIFY_FLAG}
+    response = client.post("/capture/messages",
+                           json={"conversationId": conv_id, "message": "mmm"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["state"] == "ACTIVA"
+    assert body["assistant"]["needsClarification"] is True
+    assert body["assistant"]["currentField"] == "description"
+    assert conversation_store.get(conv_id)["state"] == "ACTIVA"
+
+    manual = client.post("/capture/activate-manual", json={"conversationId": conv_id})
+    assert manual.status_code == 200
+    manual_body = manual.json()
+    assert manual_body["state"] == "CONTINGENCIA"
+    # The pre-filled payload carries the account proponent (spec §5.2); the
+    # insufficient description is NOT stored (RNF-10).
+    assert "proponent" in manual_body["capturedFields"]
+    assert "description" not in manual_body["capturedFields"]
+    assert conversation_store.get(conv_id)["state"] == "CONTINGENCIA"
+
+
 def test_activate_manual_from_resumen_marks_contingency(auth, assistant) -> None:
     client = auth()
     conv_id = _full_flow(client, assistant)
@@ -445,3 +482,92 @@ def test_an_unknown_chip_is_a_400(auth, assistant) -> None:
                         json={"conversationId": conv_id, "quickOptionSelected": foreign_chip})
     assert reply.status_code == 400
     assert reply.json()["error"]["code"] == "UNKNOWN_QUICK_OPTION"
+
+
+# ---------------------------------------------------------------------------
+# T-087 (v2.3): explicit abandonment + RESUMEN resume
+# ---------------------------------------------------------------------------
+
+
+def test_abandon_closes_the_capture_without_saving(
+        auth, assistant, conversation_store, idea_ledger) -> None:
+    """Case 7 (v2.3): the explicit abandonment ends the conversation as
+    TERMINADA without saving anything (no draft, no idea) and frees the
+    one-conversation limit so a new capture can start."""
+    client = auth()
+    start = client.post("/capture/start").json()
+    conv_id = start["conversation"]["id"]
+    assistant.extract = {"description": "Una idea que se abandona."}
+    client.post("/capture/messages",
+                json={"conversationId": conv_id, "message": "mi idea"})
+    response = client.post("/capture/abandon", json={"conversationId": conv_id})
+    assert response.status_code == 200
+    assert response.json() == {"conversationId": conv_id, "state": "TERMINADA"}
+    assert conversation_store.get(conv_id)["state"] == "TERMINADA"
+    assert idea_ledger.list() == []  # no draft, no partial record
+    # The limit (RF-2) is freed: a new capture starts instead of resuming.
+    again = client.post("/capture/start").json()
+    assert again["resumed"] is False
+    assert again["conversation"]["id"] != conv_id
+    # Abandoning without an explicit id resolves the conversation in the cycle.
+    client.post("/capture/abandon", json={})
+    assert conversation_store.get(again["conversation"]["id"])["state"] == "TERMINADA"
+
+
+def test_abandon_is_idempotent_and_handles_missing_or_foreign(
+        auth, assistant, conversation_store) -> None:
+    """v2.3: abandoning a TERMINADA conversation is a no-op (same outcome); a
+    missing id is 404 and a foreign one 403 (never the caller's conversation)."""
+    client = auth()
+    start = client.post("/capture/start").json()
+    conv_id = start["conversation"]["id"]
+    # Explicit id, then idempotent (already TERMINADA): same outcome.
+    assert client.post("/capture/abandon",
+                       json={"conversationId": conv_id}).json()["state"] == "TERMINADA"
+    before = conversation_store.get(conv_id)
+    again = client.post("/capture/abandon", json={"conversationId": conv_id})
+    assert again.status_code == 200
+    assert again.json() == {"conversationId": conv_id, "state": "TERMINADA"}
+    assert conversation_store.get(conv_id) == before  # nothing rewritten
+    # Without a conversation in the cycle, the id-less abandonment is a 404.
+    assert client.post("/capture/abandon", json={}).status_code == 404
+    # A missing explicit id is a 404...
+    assert client.post("/capture/abandon",
+                       json={"conversationId": "c_inexistente"}).status_code == 404
+    # ...and another proponent's conversation is a 403 (never Ana's).
+    beto = auth(user_id="u_beto")
+    assert beto.post("/capture/abandon",
+                     json={"conversationId": conv_id}).status_code == 403
+
+
+def test_start_after_summary_resumes_with_the_editable_summary(
+        auth, assistant, conversation_store, idea_ledger) -> None:
+    """v2.3: when the user revisits the capture with the conversation in
+    RESUMEN (the 6 fields were captured, nothing confirmed), `start` resumes
+    it — `state: RESUMEN` + the editable `summary` — instead of starting a
+    new conversation (the captured fields are never lost)."""
+    client = auth()
+    conv_id = _full_flow(client, assistant)
+    assert conversation_store.get(conv_id)["state"] == "RESUMEN"
+    result = client.post("/capture/start").json()
+    assert result["resumed"] is True
+    assert result["conversation"]["id"] == conv_id
+    assert result["state"] == "RESUMEN"
+    assert result["assistant"] is None  # no new turn: the summary is editable
+    # The editable summary carries the 6 captured fields, the structured one
+    # parsed back into its object (plan §2.2).
+    summary = result["summary"]
+    assert len(summary) == 6
+    assert isinstance(summary["proponent"], dict)
+    assert summary["proponent"]["name"] == "Ana Torres"
+    # Still exactly one conversation, and nothing was registered.
+    assert len(conversation_store.list()) == 1
+    assert idea_ledger.list() == []
+    # The resumed conversation can be finished from its summary (RF-6).
+    finish = client.post(
+        "/capture/finish",
+        json={"conversationId": conv_id, "captured": {**_structure(),
+                                                      "title": "Título corregido"}},
+    )
+    assert finish.status_code == 201
+    assert idea_ledger.list() and idea_ledger.get(finish.json()["ideaId"])["title"] == "Título corregido"

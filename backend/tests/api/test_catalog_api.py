@@ -234,11 +234,14 @@ PAST_DEADLINE = "2020-01-01T00:00:00"
 
 
 def _close(auth, idea_id: str) -> dict:
-    """Closes the idea's debate through the real admin path: the deadline
-    moves into the past and the next read runs the closure (the AI evaluation
-    is generated at the debate's closure, RF-26)."""
-    auth("u_admin").put(f"/admin/ideas/{idea_id}/debate/deadline",
-                        json={"deadline": PAST_DEADLINE})
+    """Closes the idea's debate: the deadline moves into the past and the next
+    read runs the closure (the AI evaluation is generated at the debate's
+    closure, RF-26). The deadline is fixed at opening (T-089), so the test
+    forces the past deadline directly on the shared in-memory store."""
+    debate_store = main_app.dependency_overrides[deps_module.get_debate_store]()
+    debate = debate_store.get_debate(idea_id)
+    debate.deadline = PAST_DEADLINE
+    debate_store.set(debate)
     return auth("u_solo").get(f"/catalog/{idea_id}/debate").json()
 
 

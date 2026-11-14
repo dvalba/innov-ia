@@ -307,6 +307,13 @@ export interface CalibrationThresholds {
   updatedAt?: string | null;
 }
 
+/** `GET/PUT /admin/debate-days` payload (RF-24, v2.4): the global debate days. */
+export interface DebateDays {
+  debateDays: number;
+  updatedBy?: string | null;
+  updatedAt?: string | null;
+}
+
 /** One message of the published-idea debate (plan §2.8, RF-24/RF-25). */
 export interface MensajeDebate {
   id: string;
@@ -327,15 +334,6 @@ export interface SolicitudPendienteAsistente {
   at: string;
 }
 
-/** One admin adjustment of the debate deadline (audit, RNF-11). */
-export interface AjusteFechaLimite {
-  by: string;
-  byName: string;
-  at: string;
-  before: string;
-  after: string;
-}
-
 /** The debate of a published idea (plan §2.8, RF-24). */
 export interface Debate {
   id: string;
@@ -348,7 +346,6 @@ export interface Debate {
   summary: string | null;
   summaryAt: string | null;
   pendingAssistant: SolicitudPendienteAsistente | null;
-  deadlineHistory: AjusteFechaLimite[];
   messages: MensajeDebate[];
 }
 

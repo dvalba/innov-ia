@@ -1,0 +1,87 @@
+<div class="space-y-5">
+  <header class="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:p-6">
+    <h1 class="text-xl font-semibold text-slate-900 dark:text-slate-100">Días de debate</h1>
+    <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+      Cuántos días dura el debate de cada idea publicada: la fecha límite se
+      fija al abrir el debate (fecha de publicación + días de debate) y no se
+      recalcula después.
+    </p>
+  </header>
+
+  @if (error()) {
+    <div role="alert" class="flex items-start justify-between gap-4 rounded-xl bg-red-50 px-4 py-3 dark:bg-red-500/10">
+      <div class="space-y-2">
+        <p class="text-sm text-red-700 dark:text-red-300">{{ error() }}</p>
+        @for (problema of problemas(); track problema) {
+          <p class="text-sm text-red-700 dark:text-red-300">{{ problema }}</p>
+        }
+      </div>
+      <button
+        type="button"
+        (click)="descartarError()"
+        class="shrink-0 text-sm text-red-600 underline hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+      >
+        Cerrar
+      </button>
+    </div>
+  }
+
+  <div class="space-y-6 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900 sm:p-6">
+    <div>
+      <label
+        for="dias-debate"
+        class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300"
+      >
+        Días de debate (1-90)
+      </label>
+      <input
+        type="number"
+        id="dias-debate"
+        min="1"
+        max="90"
+        step="1"
+        [value]="borrador()"
+        (input)="setBorrador($any($event.target).value)"
+        [disabled]="guardando()"
+        class="w-full max-w-xs rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:focus:border-indigo-500/60 dark:focus:ring-indigo-500/30"
+      />
+    </div>
+
+    @if (mensajeValidacion() && !guardando()) {
+      <p class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+        {{ mensajeValidacion() }}
+      </p>
+    }
+
+    <div class="flex flex-wrap items-center gap-3">
+      <button
+        type="button"
+        [disabled]="guardando() || !valido()"
+        (click)="guardar()"
+        class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300 disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {{ guardando() ? 'Guardando…' : 'Guardar días de debate' }}
+      </button>
+      @if (guardado()) {
+        <p role="status" class="text-sm text-emerald-700 dark:text-emerald-300">
+          Días de debate guardados.
+        </p>
+      }
+    </div>
+
+    <p class="text-xs text-slate-500 dark:text-slate-400">
+      Este ajuste solo afecta a los debates que se abran a partir de ahora: los
+      debates ya abiertos o cerrados conservan su fecha límite.
+    </p>
+
+    @if (dias.value(); as d) {
+      @if (d.updatedAt || d.updatedBy) {
+        <p class="text-xs text-slate-500 dark:text-slate-400">
+          Última actualización:
+          @if (d.updatedBy) { {{ d.updatedBy }} · }
+          @if (d.updatedAt) { {{ formatearFecha(d.updatedAt) }} }
+        </p>
+      }
+    }
+  </div>
+</div>

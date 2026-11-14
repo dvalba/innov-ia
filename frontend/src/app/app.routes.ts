@@ -166,6 +166,13 @@ export const routes: Routes = [
                 (m) => m.UmbralesPage,
               ),
           },
+          {
+            path: 'debate-dias',
+            loadComponent: () =>
+              import('./features/admin/pages/admin/debate-days/debate-days').then(
+                (m) => m.DebateDaysPage,
+              ),
+          },
         ],
       },
       {

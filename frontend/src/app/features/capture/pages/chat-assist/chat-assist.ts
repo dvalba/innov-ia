@@ -84,8 +84,14 @@ export class ChatAssist {
         this.seededId.set(id);
         this.transcript.set([]);
         if (this.capture.retomada()) {
-          // Caso 8: an ACTIVA conversation already existed and was resumed.
-          this.empujar('system', 'Retomamos tu conversación en curso.');
+          // Caso 8 / v2.3: a conversation already existed and was resumed —
+          // an ACTIVA one resumes the course, a RESUMEN one reopens its
+          // editable summary (no new turn is started).
+          if (this.capture.estadoConv() === 'RESUMEN') {
+            this.empujar('system', 'Retomamos tu idea: revisa el resumen y confírmalo.');
+          } else {
+            this.empujar('system', 'Retomamos tu conversación en curso.');
+          }
         }
         const t = this.capture.turno();
         if (t?.text) {
@@ -95,7 +101,7 @@ export class ChatAssist {
     });
   }
 
-  /** The current question's index in the fixed 7 (1-based, capped at 7). */
+  /** The current question's index in the fixed 6 (1-based, capped at 6). */
   protected progreso(): number {
     if (this.estadoConv() === 'RESUMEN') return FIELD_ORDER.length;
     const campo = this.turno()?.currentField;
@@ -147,6 +153,26 @@ export class ChatAssist {
     void this.router.navigate(['/captura/manual']);
   }
 
+  /**
+   * Escapes a clarification loop (RF-3) into the pre-filled manual form
+   * (RF-7, RNF-10): the in-flight conversation is marked `CONTINGENCIA` via
+   * `POST /capture/activate-manual` and its captured fields pre-fill the form,
+   * so the user can finish the capture without the assistant re-asking the
+   * field in the course.
+   */
+  protected async continuarManual(): Promise<void> {
+    const id = this.capture.conversacionId();
+    if (!id || this.cargando()) return;
+    this.errorEnvio.set('');
+    try {
+      await this.capture.activarManual(id);
+      this.empujar('system', 'Continuamos por el formulario manual con tus datos preservados.');
+      this.irManual();
+    } catch (err) {
+      this.errorEnvio.set(errorMessage(err));
+    }
+  }
+
   protected irInicio(): void {
     void this.router.navigate(['/captura']);
   }
@@ -158,13 +184,26 @@ export class ChatAssist {
   }
 
   /**
-   * Confirms the abandonment (caso 7): the in-flight conversation is dropped
-   * and nothing is saved (there are no drafts by design, D4) — the user is
-   * taken back to the "Nueva idea" entry to start clean.
+   * Confirms the abandonment (caso 7, v2.3): the in-flight conversation is
+   * ended as `TERMINADA` WITHOUT saving anything (there are no drafts by
+   * design, D4) — the user is taken back to the "Nueva idea" entry to start
+   * clean. The local state is cleared on success; on error it stays so the
+   * capture can be retried.
    */
-  protected confirmarAbandono(): void {
+  protected async confirmarAbandono(): Promise<void> {
+    const id = this.capture.conversacionId();
+    if (!id) {
+      this.abandonando.set(false);
+      return;
+    }
+    try {
+      await this.capture.abandon(id);
+    } catch (err) {
+      this.errorConfirmar.set(errorMessage(err));
+      this.abandonando.set(false);
+      return;
+    }
     this.abandonando.set(false);
-    this.capture.reiniciar();
     void this.router.navigate(['/captura']);
   }
 

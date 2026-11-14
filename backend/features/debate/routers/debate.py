@@ -1,21 +1,23 @@
 """Public-idea debate router (T-073, RF-24, RF-25, plan §3.1).
 
-Endpoints, all guarded to an active session (401 without one) except the admin
-deadline (403 for non-admins):
+Endpoints, all guarded to an active session (401 without one):
   GET  /catalog/{idea_id}/debate     -> 200 the debate (messages, deadline,
                                          closure, summary, trace); the first read
                                          at/after the deadline closes it once,
                                          generates the summary, generates the
                                          AI evaluation (RF-26) and retries a
                                          pending `@asistant` request (cases 18-21)
-  POST /catalog/{idea_id}/debate     -> 201 the posted message (and the
-                                        assistant's reply, when it is a valid
-                                        `@asistant` invocation); 409 when the
-                                        debate is closed, 400 when the link is
-                                        dangling
-  PUT  /admin/ideas/{idea_id}/debate/deadline -> 200 the adjusted deadline
-                                        (admin only; audited; a future date
-                                        re-opens a closed debate)
+   POST /catalog/{idea_id}/debate     -> 201 the posted message (and the
+                                         assistant's reply, when the text is a
+                                         valid `@asistant` invocation — the
+                                         token plus a non-blank request, the
+                                         linked message being optional context,
+                                         v2.5); 409 when the debate is closed,
+                                         400 when the provided link is dangling
+
+The deadline of a debate is fixed at opening from the global debate-days
+setting (RF-24, v2.4, T-089) and can no longer be adjusted per idea: the
+`PUT /admin/ideas/{idea_id}/debate/deadline` endpoint was removed.
 
 The AI pieces (the `@asistant` reply, the closure summary, the closure
 evaluation) and the company context / idea fields are read at request time
@@ -37,9 +39,7 @@ from app.deps import (
     OrgStoreDep,
     SessionDep,
     UserDirectoryDep,
-    role_dependency,
 )
-from features.debate.use_cases.adjust_deadline import adjust_deadline
 from features.debate.use_cases.assist import make_evaluate, make_summarize
 from features.debate.use_cases.post_debate import post_debate_message
 from features.debate.use_cases.read_debate import read_debate
@@ -48,26 +48,24 @@ from shared.contracts.user_directory import UserDirectory
 
 debate_router = APIRouter(tags=["debate"])
 
-AdminDep = role_dependency("admin")
-
 
 class DebateMessageRequest(BaseModel):
-    """One debate message (plan §3.2); `linkedMessageId` is the message the
-    `@asistant` answer references (RF-25)."""
+    """One debate message (plan §3.2); `linkedMessageId` is the optional context
+    message of an `@asistant` invocation (RF-25, v2.5) or the reply reference of
+    a plain message."""
 
     text: str = ""
     linkedMessageId: str | None = None
 
 
-class DebateDeadlineRequest(BaseModel):
-    """The new deadline (ISO date) of the debate (RF-24, admin)."""
-
-    deadline: str
-
-
 def _author_name(directory: UserDirectory, session) -> str:
     user = directory.get(session.user_id)
-    return user.get("name", "") if user is not None else ""
+    if user is None:
+        return ""
+    # `name` is optional on a user (it can be created blank); fall back to the
+    # `username` (always present) so a bubble is never left without an author,
+    # mirroring the layout's `name || username` convention.
+    return str(user.get("name") or "").strip() or str(user.get("username") or "").strip()
 
 
 def _now() -> str:
@@ -120,20 +118,4 @@ def post_debate_endpoint(idea_id: str, payload: DebateMessageRequest, session: S
         evaluate=make_evaluate(assistant, ledger, context, idea_id,
                                on_generated=calibration),
         now=_now(),
-    )
-
-
-@debate_router.put("/admin/ideas/{idea_id}/debate/deadline")
-def deadline_endpoint(idea_id: str, payload: DebateDeadlineRequest, session: AdminDep,
-                      store: DebateStoreDep, directory: UserDirectoryDep) -> dict:
-    """Adjusts the deadline of the debate of an idea (admin only, audited); a
-    future date re-opens a closed debate (RF-24)."""
-    return adjust_deadline(
-        store,
-        idea_id=idea_id,
-        new_deadline=payload.deadline,
-        now=_now(),
-        user_id=session.user_id,
-        user_name=_author_name(directory, session),
-        user_roles=session.roles,
     )

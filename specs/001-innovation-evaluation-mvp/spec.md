@@ -1,7 +1,7 @@
 # Especificación Funcional — Innov-IA MVP
 
 **Documento:** specs/001-innovation-evaluation-mvp/spec.md
-**Versión:** 2.2 — Revisión de alcance del propietario del producto (debate, evaluación IA, contexto de empresa, campo *Recursos estimados*, preferencias de presentación, **decisión final de la calificación y estados finales**). Supera a la v2.1.
+**Versión:** 2.5 — Revisión de alcance del propietario del producto (debate, evaluación IA, contexto de empresa, campo *Recursos estimados*, preferencias de presentación, **decisión final de la calificación y estados finales**, **días de debate como configuración global**, **`@asistant` inline con enlace opcional**). Supera a la v2.4.
 **Estado:** Aprobada por el propietario del producto. Fuente única del alcance del MVP.
 **Fuente de verdad:** Este documento precede a cualquier código (enfoque Spec-First, Constitución §2.4 y §5).
 
@@ -21,13 +21,26 @@
 5. En la ficha, el debate **cerrado se compacta**: solo se ve el resumen de la IA (o el aviso de que no hubo debate) y un enlace para ver el chat completo en otra vista de solo lectura.
 6. Nuevos **eventos de notificación** (RF-18): idea aceptada, idea rechazada (etapa de calificación, con motivo) e idea archivada (con motivo).
 
+**Corrección de alcance v2.3 (bugs de captura autorizados por el propietario del producto):**
+
+1. **Retoma de conversación en RESUMEN:** cuando el proponente retoma la captura y no tiene una conversación ACTIVA, el sistema debe retomar su conversación en estado **RESUMEN** (la más reciente) y mostrarle el **resumen editable** con los campos ya capturados; la retoma no pierde datos (RF-2, RF-6). La conversación ACTIVA sigue teniendo prioridad (caso 8).
+2. **Abandono explícito de la captura:** el proponente puede abandonar su conversación de captura (ACTIVA, RESUMEN o CONTINGENCIA) tras una confirmación con aviso de pérdida; la conversación termina **sin guardar nada** (sin borradores, caso 7) y queda liberado el límite de una conversación a la vez (RF-2). El abandono es idempotente y aplica solo a la conversación del propio usuario (403 si no es el dueño, 404 si no existe).
+
+**Ampliación de alcance v2.4 (solicitud expresa del propietario del producto):**
+
+1. **Días de debate como configuración global administrable:** el ajuste de la fecha límite **idea por idea** (RF-24 v2.3) se **sustituye por completo** por una configuración global de **días de debate**: un único valor numérico (entero, 1–90 días; defecto 30) gestionado por el administrador, que determina la duración de todo debate abierto a partir de su valor. El cambio queda auditado (quién y cuándo, RNF-11) y solo afecta a los debates **nuevos**: los debates existentes (abiertos o cerrados) conservan su fecha límite almacenada, sin recomputación ni migración.
+
+**Cambio de alcance v2.5 (solicitud expresa del propietario del producto):**
+
+1. **`@asistant` inline con enlace opcional:** la invocación del asistente en el debate pasa a ser **`@asistant` seguido de la petición** (p. ej. `@asistant ¿es viable financieramente?`), que responde inline en el hilo; el **enlace a un mensaje concreto del debate deja de ser obligatorio** y queda como **contexto opcional** (sin enlace, el asistente responde a la petición sobre la idea y el debate en general). El token `@asistant` **sin petición** (solo o con espacios) se publica como mensaje de usuario corriente, sin invocar al asistente (caso 19, RF-25, D14). Un enlace a un mensaje inexistente sigue rechazándose (400).
+
 ---
 
 ## 1. Contexto y objetivo
 
 Innov-IA es una plataforma corporativa de gestión de iniciativas de innovación. El MVP entrega la **captura asistida de ideas**: un asistente conversacional con IA actúa como formulario dinámico que recolecta progresivamente 6 datos por idea, con **contingencia manual** cuando la IA no está disponible o falla (el formulario manual se despliega automáticamente, prellenado con lo ya capturado), **flujo de clarificación posterior** de las ideas manuales, y **validación por un especialista** antes de publicarla.
 
-Al publicarse, cada idea abre un **debate** de 30 días (todos los usuarios con sesión; el asistente interviene bajo invocación `@asistant`); al **cerrarse** el debate, la IA genera un **resumen de los puntos principales** y la **evaluación de la IA sobre 5 criterios fijos** (RF-24/RF-25/RF-26). La idea **vuelve entonces a la cola de validación** (etapa de calificación, RF-27): el especialista puntúa los 5 criterios (aceptando la de la IA o escribiendo la suya), el **promedio** determina el resultado (aceptada/archivada/rechazada según umbrales configurables, RF-28) y, tras la **confirmación explícita**, la idea queda en su **estado final** (`ACEPTADA`, `ARCHIVADA` o `RECHAZADA`) y se ubica en la zona correspondiente del **catálogo por zonas** (RF-20/RF-29); la decisión se audita (RNF-8) y el creador es notificado (RF-18). Todo lo anterior opera guiado por un **contexto de empresa** gestionado por el administrador (RF-21/RF-22).
+Al publicarse, cada idea abre un **debate** con una duración de **días de debate configurables globalmente por el administrador** (defecto 30; todos los usuarios con sesión pueden participar y el asistente interviene bajo invocación `@asistant`); al **cerrarse** el debate, la IA genera un **resumen de los puntos principales** y la **evaluación de la IA sobre 5 criterios fijos** (RF-24/RF-25/RF-26). La idea **vuelve entonces a la cola de validación** (etapa de calificación, RF-27): el especialista puntúa los 5 criterios (aceptando la de la IA o escribiendo la suya), el **promedio** determina el resultado (aceptada/archivada/rechazada según umbrales configurables, RF-28) y, tras la **confirmación explícita**, la idea queda en su **estado final** (`ACEPTADA`, `ARCHIVADA` o `RECHAZADA`) y se ubica en la zona correspondiente del **catálogo por zonas** (RF-20/RF-29); la decisión se audita (RNF-8) y el creador es notificado (RF-18). Todo lo anterior opera guiado por un **contexto de empresa** gestionado por el administrador (RF-21/RF-22).
 
 ### 1.1 Datos requeridos por idea (los 6 campos)
 
@@ -112,8 +125,10 @@ Criterios en notación **EARS** (patrones: *Si/Cuando* = evento, *Mientras* = es
 **RF-2 — Conversación de captura**
 
 * Cuando un usuario con rol de proponente inicia una captura, el sistema debe abrir una conversación (saludo y primera pregunta).
-* Criterio de aceptación: El usuario solo puede tener **una conversación de captura activa a la vez**; esto no limita el número de ideas que pueda tener en EN_DESARROLLO.
+* Criterio de aceptación: El usuario solo puede tener **una conversación de captura a la vez** (ACTIVA o RESUMEN); esto no limita el número de ideas que pueda tener en EN_DESARROLLO.
 * Criterio de aceptación: "Ajustar detalles" de una idea existente (RF-13) no cuenta como una nueva captura a efectos de este límite.
+* Criterio de aceptación: Al iniciar, el sistema debe **retomar** la conversación en curso del usuario: primero la ACTIVA (saludo/continuidad), y si no existe, la **RESUMEN más reciente devolviéndole el resumen editable** con los campos ya capturados (v2.3; no se crea una conversación nueva que perdería los datos).
+* Criterio de aceptación: El proponente puede **abandonar** su conversación en curso (ACTIVA, RESUMEN o CONTINGENCIA) con confirmación y aviso de pérdida: la conversación termina **sin guardar nada** (sin borradores, caso 7) y se libera el límite de una conversación a la vez (v2.3). El abandono no aplica a una conversación ya terminada (idempotente) y solo a la conversación del propio usuario (403 en caso contrario).
 
 **RF-3 — Preguntas progresivas**
 El asistente recorre un orden fijo de campos, aceptando también narrativa libre.
@@ -271,15 +286,15 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 **RF-24 — Debate de la idea publicada**
 
 * Criterio de aceptación: Para todo usuario con sesión activa (proponente, especialista o administrador), mientras el debate no haya cerrado, el sistema debe permitir **publicar mensajes** y leer todos los mensajes previos (autor, fecha y texto).
-* Criterio de aceptación: El debate abre con fecha límite = **fecha de publicación + 30 días por defecto**.
+* Criterio de aceptación: El debate abre con fecha límite = **fecha de publicación + los días de debate configurados** (valor global administrable, defecto 30 días).
 * Criterio de aceptación: Al llegar la fecha límite, el debate se **cierra de forma automática y definitiva**: no se admiten nuevos mensajes y la interfaz lo comunica.
-* Criterio de aceptación: Solo el **administrador** puede ajustar la fecha límite de un debate **idea por idea** (adelantarla o extenderla), incluso sobre debates cerrados (reabrirlos es ajustando la fecha a un futuro; el ajuste queda registrado con quien lo hizo y cuándo).
+* Criterio de aceptación: El administrador gestiona los **días de debate** como una **configuración global** (entero 1–90; defecto 30): el cambio queda registrado con quien lo hizo y cuándo (RNF-11) y solo aplica a los debates que se abran a partir de ese momento; los debates ya abiertos o cerrados conservan su fecha límite almacenada.
 * Criterio de aceptación: Al cerrarse el debate, si existió al menos un mensaje, la IA debe generar un **resumen de los puntos principales** de la conversación (el debate, el estado del debate y su resumen son visibles en la vista de detalle).
 * Criterio de aceptación: En la ficha, el debate **cerrado se muestra compactado**: solo se ve el resumen de la IA (o el aviso de que no hubo debate, caso 21) y un **enlace para ver el chat completo en otra vista de solo lectura** (todos los mensajes, autores y fechas); no se admite escribir en ninguna de las dos vistas cuando el debate está cerrado.
 
 **RF-25 — Intervención del asistente en el debate (@asistant)**
 
-* Criterio de aceptación: Cuando un participante escribe **`@asistant` seguido de una petición**, citando o referenciando un mensaje concreto del debate (el sistema debe permitir seleccionar/enlazar el mensaje al que responde), el asistente debe responder en el propio hilo con el criterio o análisis solicitado, guiado por el contexto de empresa (RF-22).
+* Criterio de aceptación: Cuando un participante escribe **`@asistant` seguido de una petición** (p. ej. `@asistant ¿es viable financieramente?`), el asistente debe responder en el propio hilo con el criterio o análisis solicitado, guiado por el contexto de empresa (RF-22). El **enlace a un mensaje concreto del debate es opcional** (el sistema debe permitir seleccionar/enlazar el mensaje como contexto para la respuesta); sin enlace, el asistente responde a la petición sobre la idea y el debate en general. Un enlace a un mensaje inexistente se rechaza (400).
 * Criterio de aceptación: El mensaje del asistente queda identificado como mensaje del asistente (autor *Asistente*), distinto de los de usuario.
 * Criterio de aceptación: Si el asistente está caído, la petición se notifica como no procesable y el debate sigue operando sin IA (RNF-1).
 
@@ -329,7 +344,7 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 | RNF-8 | **Auditoría:** Toda transición a VALIDADA_PUBLICA registra quién y cuándo (inclusive autovalidación); todo rechazo conserva el comentario y la identidad de quien lo emitió; toda decisión final (aceptar/archivar/rechazar, RF-27) y cambio de umbrales (RF-28) registran quién y cuándo. |
 | RNF-9 | **Consistencia:** Solo los roles autorizados provocan transiciones; ante dos acciones simultáneas sobre la misma idea, se aplica la que se ejecute primero y se descarta la otra, sin dejar estado inconsistente. |
 | RNF-10 | **Sin pérdida en contingencia:** Un fallo de la IA nunca borra campos ya capturados (RF-7). |
-| RNF-11 | **Auditoría de debate:** Cada mensaje de debate registra autor, fecha y, cuando corresponda, el mensaje enlazado; el ajuste de fechas de debate y la aceptación/sustitución de la evaluación se auditan (quién y cuándo) (RF-24, RF-26). |
+| RNF-11 | **Auditoría de debate:** Cada mensaje de debate registra autor, fecha y, cuando corresponda, el mensaje enlazado; el cambio de la configuración global de días de debate y la aceptación/sustitución de la evaluación se auditan (quién y cuándo) (RF-24, RF-26). |
 | RNF-12 | **Contexto inyectado:** La IA siempre opera con el contexto de empresa vigente; el contexto vacío se comunica al administrador (RF-22). |
 | RNF-13 | **Presentación:** La plataforma ofrece tema claro/oscuro (el usuario elige y la preferencia se persiste entre sesiones), una vista de ajustes accesible y una maquetación responsive legible en móvil, tablet y escritorio. |
 
@@ -345,8 +360,8 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 | 4 | Respuesta de IA incompleta/no interpretable | Se trata como fallo: reintento único y, de persistir, contingencia. |
 | 5 | Indisponibilidad prolongada | La idea manual sigue operativa y puede publicarse sin refinar (RF-10); al recuperarse, se procesa la cola completa y se notifica por idea (RF-11/RF-12). |
 | 6 | Fallo del refinamiento | Se conserva la versión original; el reintento es automático en la siguiente verificación (RF-11); si la cola fallara parcialmente, lo procesado queda y lo fallido sigue pendiente. No existe reintento manual. |
-| 7 | Abandono de captura sin enviar | La información se pierde (no hay borradores). Si el cierre es explícito, se pide confirmación con aviso de pérdida; si se cierra la página sin confirmación, simplemente no se guarda nada. |
-| 8 | Segunda captura simultánea | Se bloquea y se ofrece retomar la conversación existente (RF-2). |
+| 7 | Abandono de captura sin enviar | La información se pierde (no hay borradores). El abandono **explícito** termina la conversación (ACTIVA/RESUMEN/CONTINGENCIA → terminada) sin guardar nada, tras confirmación con aviso de pérdida, y libera el límite de una conversación a la vez (RF-2, v2.3); si se cierra la página sin confirmación, simplemente no se guarda nada. |
+| 8 | Segunda captura simultánea | Se bloquea y se ofrece retomar la conversación en curso: primero la ACTIVA; si no existe, la RESUMEN más reciente con su resumen editable (v2.3, RF-2). |
 | 9 | Autovalidación (proponente = especialista) | Permitida; el rastro de quién validó es obligatorio (RNF-8, RF-15). |
 | 10 | Mejora solicitada con IA caída | Aviso al proponente; se registra la solicitud y se procesa en la siguiente verificación (RF-11). |
 | 11 | Transiciones simultáneas sobre una idea | Gana la primera ejecutada; la restante se descarta (RNF-9). |
@@ -357,7 +372,7 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 | 16 | Revocación de rol / desactivación de usuario | La cuenta, sus ideas e historial se conservan intactos; el usuario pierde el acceso a funciones. Las ideas en SOLICITANDO_PUBLICACIÓN quedan validables por otros especialistas; las notificaciones del usuario se conservan y son visibles al recuperar acceso. |
 | 17 | Fallo al guardar un registro | No se deja registro parcial; si es el formulario manual, los datos permanecen en pantalla para reintentar el envío. |
 | 18 | Debate cerrado por límite de fecha | Los mensajes no se admiten; la interfaz lo comunica y muestra el resumen del debate si existió (RF-24). |
-| 19 | `@asistant` sin mensaje enlazado o sin petición | Se trata como mensaje de usuario corriente; no se invoca al asistente. |
+| 19 | `@asistant` sin petición (token solo o solo espacios) | Se trata como mensaje de usuario corriente; no se invoca al asistente. El enlace a un mensaje es opcional: con petición pero sin enlace, el asistente responde igual. |
 | 20 | Invocación `@asistant` con la IA caída | La petición queda visible como mensaje no procesado con aviso; se reintenta en la siguiente interacción con la IA disponible (RNF-1, RF-25). |
 | 21 | Cierre del debate sin mensajes | No hay resumen generado; la interfaz indica que no hubo debate. |
 | 22 | IA caída al momento de cerrarse el debate (evaluación pendiente) | El debate se cierra normalmente (el cierre no depende de la IA); la evaluación queda pendiente y se genera en la siguiente verificación de disponibilidad (RNF-1, RF-26). |
@@ -391,7 +406,7 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 ## 9. Criterios de finalización
 
 1. **Acceso:** login válido inicia sesión; inválido no la inicia; logout cierra.
-2. **Captura asistida e2e:** conversación completa (orden fijo, chips, título sugerido, resumen) → idea en EN_DESARROLLO *asistida*.
+2. **Captura asistida e2e:** conversación completa (orden fijo, chips, título sugerido, resumen) → idea en EN_DESARROLLO *asistida*; la retoma prioriza la ACTIVA y, en su defecto, la RESUMEN más reciente con su resumen editable (v2.3); el abandono explícito termina la conversación sin guardar nada y libera el límite (RF-2).
 3. **Captura manual e2e:** con IA desactivada → idea en EN_DESARROLLO *manual*.
 4. **Contingencia:** fallo mid-conversación → formulario prellenado → registro.
 5. **Clarificación:** refinamiento automático, notificación, aceptación (o ajuste) → idea sigue en EN_DESARROLLO; pública solo tras RF-10 + RF-15.
@@ -400,7 +415,7 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 8. **Usuarios/roles:** creación de usuario (contraseña temporal, cambio en primer acceso), asignación, revocación (sin roles = sin acceso, historial intacto), bloqueo del último administrador.
 9. **Notificaciones:** solo los 4 eventos de RF-18; contador, navegación y leídas.
 10. **Catálogo por zonas:** 4 pestañas (En proceso/Aceptadas/Rechazadas/Archivadas), cada una solo con su estado, en vista compacta (título, fecha de publicación, descripción); al abrir, la vista de detalle muestra los 6 campos, el debate y la evaluación; de solo lectura, sin datos de contacto.
-11. **Debate:** mensajes de cualquier usuario con sesión; cierre automático a 30 días; ajuste de fecha por idea del administrador; `@asistant` responde con el mensaje enlazado; al cierre, resumen de la IA visible y el debate **compactado** con enlace al chat completo en otra vista de solo lectura.
+11. **Debate:** mensajes de cualquier usuario con sesión; cierre automático a los días de debate configurados (defecto 30); la duración la gestiona el administrador como configuración global (solo afecta a debates nuevos, no a los existentes); `@asistant` responde inline con la petición (el enlace a un mensaje del debate es contexto opcional; sin petición el texto es un mensaje corriente); al cierre, resumen de la IA visible y el debate **compactado** con enlace al chat completo en otra vista de solo lectura.
 12. **Evaluación:** generada al cerrarse el debate sobre 5 criterios (1–10 + justificación; pendiente si la IA cae, con reintento); la idea vuelve a la cola de validación (etapa de calificación); el especialista puntúa (aceptando la de la IA o con la suya), el **promedio** muestra el resultado derivado en vivo, la decisión **coincide** con el promedio, se confirma con aviso y deja un único juicio final auditado; el creador es notificado.
 13. **Contexto de empresa:** plantilla descargable, edición en línea y subida de archivo; vacío detectado con aviso; inyectado en captura, título, mejoras, debate y evaluación.
 14. **Presentación:** tema claro/oscuro persistido, vista de ajustes, maquetación responsive.
@@ -426,9 +441,9 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 | 9 | La revocación de rol/desactivación **conserva cuenta, ideas e historial**; solo se pierde el acceso. | RF-17, §7 cas. 16 |
 | 10 | El **Proponente como campo** se prellena desde la cuenta en los dos modos de captura. | §1.1, RF-6, RF-7 |
 | 11 | **Recursos estimados fuera del MVP:** el campo no se captura, no se valida y no se muestra en ningún lugar (decisión reversible; puede reintroducirse en una versión futura). Sustituye a los "7 campos" de la v2.0: se trabaja con 6. | §1.1, D11, RF-3, RF-7, RF-9 |
-| 12 | **Debate y evaluación son atributos de la idea publicada, no estados:** el debate se cierra por fecha límite (30 días por defecto, ajustable idea por idea por el administrador) y la evaluación es única (IA o del especialista). No se introducen los estados formales *En debate*/*En evaluación* de la v1.0 (v2.2: los estados **finales** ACEPTADA/ARCHIVADA/RECHAZADA sí existen como salidas de VALIDADA_PUBLICA, §5.10). | RF-24, RF-26, RF-27, §5.10 |
+| 12 | **Debate y evaluación son atributos de la idea publicada, no estados:** el debate se cierra por fecha límite (días de debate configurados globalmente por el administrador, defecto 30; solo afecta a debates nuevos, v2.4) y la evaluación es única (IA o del especialista). No se introducen los estados formales *En debate*/*En evaluación* de la v1.0 (v2.2: los estados **finales** ACEPTADA/ARCHIVADA/RECHAZADA sí existen como salidas de VALIDADA_PUBLICA, §5.10). | RF-24, RF-26, RF-27, §5.10 |
 | 13 | **Contexto de empresa:** se gestiona como un único documento (plantilla + edición en línea + subida de archivo) y se inyecta en TODAS las operaciones de la IA. Sustituye/expande el perfil de organización de la v2.0 (D7): el perfil queda dentro del documento. | RF-21, RF-22, RNF-12 |
-| 14 | **@asistant en el debate:** la intervención del asistente es bajo invocación explícita citando un mensaje concreto; el resumen final del debate lo genera la IA al cerrarse (si hubo mensajes). El debate no es un chat asistido continuo. | RF-24, RF-25 |
+| 14 | **@asistant en el debate:** la intervención del asistente es bajo invocación explícita (`@asistant` seguido de una petición, que responde inline); el enlace a un mensaje concreto del debate es **contexto opcional** (sin enlace, el asistente responde a la petición sobre la idea y el debate en general; un enlace inexistente se rechaza); sin petición el texto es un mensaje corriente. El resumen final del debate lo genera la IA al cerrarse (si hubo mensajes). El debate no es un chat asistido continuo. | RF-24, RF-25, §7 caso 19 |
 | 15 | **Evaluación IA:** 5 criterios fijos (*claridad del problema, factibilidad, impacto esperado, alineación estratégica, grado de innovación*), puntuación 1–10 + justificación por criterio; se genera al cerrarse el debate; el especialista la acepta o la sustituye por su propia sobre los mismos criterios. No hay scoring global 0–100. | RF-26 |
 | 16 | **Catálogo en vista compacta:** el listado muestra solo título, fecha de publicación y descripción; el resto (6 campos, debate, evaluación) se ve en la vista de detalle de la idea. | RF-20, RF-23 |
 | 17 | **Preferencia de presentación:** tema claro/oscuro elegible por el usuario, persistido entre sesiones, con vista de ajustes accesible del menú y maquetación responsive. | RNF-13 |
@@ -436,3 +451,5 @@ Notificaciones únicamente in-app, con punto de acceso visible, contador de no l
 | 19 | **Umbrales por promedio simple:** promedio = suma de los 5 criterios / 5; bandas: < umbralRechazo → rechazada; umbralRechazo ≤ promedio < umbralAceptacion → archivada; ≥ umbralAceptacion → aceptada; umbrales configurables por el administrador (defecto 4/7, enteros 1–10, rechazo < aceptación); solo afectan decisiones posteriores. | RF-28, §7 caso 26, 31 |
 | 20 | **Estados finales y zonas:** ACEPTADA y RECHAZADA son terminales (sin reevaluación en el MVP); ARCHIVADA admite reevaluación del creador (vuelve a la cola conservando debate cerrado y evaluación IA, limpiando la decisión previa); el catálogo se organiza en 4 zonas (En proceso/Aceptadas/Rechazadas/Archivadas). | RF-29, RF-20, §5.10, §8.7 |
 | 21 | **Compactado del debate cerrado:** en la ficha, el debate cerrado muestra solo el resumen (o el aviso de que no hubo debate) y un enlace al chat completo en otra vista de solo lectura. | RF-24, §7 caso 18, 21 |
+| 22 | **Cierre del ciclo de captura (v2.3):** la retoma prioriza la conversación ACTIVA y, en su defecto, retoma la RESUMEN más reciente devolviendo el **resumen editable** (los campos ya capturados no se pierden); el **abandono explícito** (confirmación + aviso de pérdida) termina la conversación ACTIVA/RESUMEN/CONTINGENCIA sin guardar nada (sin borradores) y libera el límite de una conversación a la vez; es idempotente y solo afecta a la conversación del propio usuario. | RF-2, RF-6, §7 caso 7, plan D22 |
+| 23 | **Días de debate como configuración global (v2.4):** el ajuste de fecha límite idea por idea se sustituye por completo por un valor global administrable (entero 1–90, defecto 30, auditado: quién y cuándo); el deadline de un debate se fija al abrirlo con el valor vigente y no se recomputa (ni al cambiar la configuración, ni al reabrir); no hay migración de debates existentes. | RF-24, RNF-11, plan D23 |

@@ -3,9 +3,11 @@
 Orchestration of `POST /capture/start` (plan §3.3 step 1 and §4.1
 `INICIAR_CONVERSACION`):
 
-  - a user may only have ONE active capture conversation (RF-2, case 8): when the
-    user already has an ``ACTIVA`` conversation it is resumed, never a second one
-    is created;
+   - a user may only have ONE capture conversation in the cycle (RF-2, case 8,
+     v2.3): when the user already has an ``ACTIVA`` conversation it is resumed
+     first, and if there is none but a ``RESUMEN`` one, the most recent one is
+     resumed WITH its editable summary (`to_summary`) so the captured fields
+     are never lost; no second conversation is created;
   - when the assistant is available, a new conversation is created prefilled with
     the proponent data from the account (spec §5.2 common regimen) and the opening
     turn (greeting + first question) is returned (RF-2). The opening field never
@@ -43,11 +45,17 @@ def _proponent_prefill(directory: UserDirectory, user_id: str) -> dict[str, str]
     user = directory.get(user_id)
     if user is None:
         return {}
-    proponent = {
-        "name": user.get("name", ""),
-        "area": user.get("area", ""),
-        "contact": user.get("contact", ""),
-    }
+    name = str(user.get("name", "")).strip()
+    area = str(user.get("area", "")).strip()
+    contact = str(user.get("contact", "")).strip()
+    # Only prefill when the account proponent is COMPLETE (spec §5.2: the user
+    # can correct or complete it). A non-blank partial prefill would make
+    # `next_pending_field` skip the proponent question entirely, leaving the
+    # user unable to complete the missing part in chat (it would fail the
+    # 6-field validation at finish, RNF-5).
+    if not (name and area and contact):
+        return {}
+    proponent = {"name": name, "area": area, "contact": contact}
     return {"proponent": json.dumps(proponent, ensure_ascii=False)}
 
 
@@ -81,16 +89,29 @@ def start_conversation(
 ) -> dict:
     """Starts (or resumes) the user's capture conversation and returns the outcome.
 
+    Every outcome carries `state` (the conversation state: ``ACTIVA``/``RESUMEN``,
+    or `None` without a conversation) and `summary` (the editable summary when
+    the resumed conversation is in ``RESUMEN``, else `None`).
+
     Returns:
       - when the user already has an ``ACTIVA`` conversation (RF-2, case 8):
         `{"mode": "assistant", "resumed": True, "conversation": <payload>,
-        "assistant": <turn for its currentField>, "manual": None}`;
+        "assistant": <turn for its currentField>, "state": "ACTIVA",
+        "summary": None, "manual": None}`;
+      - when there is no ``ACTIVA`` but the user has ``RESUMEN`` conversations
+        (v2.3): the most recent one is resumed with its editable summary and no
+        new turn is started:
+        `{"mode": "assistant", "resumed": True, "conversation": <payload>,
+        "assistant": None, "state": "RESUMEN", "summary": <to_summary()>,
+        "manual": None}`;
       - when a new ``ACTIVA`` is created (assistant available):
         `{"mode": "assistant", "resumed": False, "conversation": <payload>,
-        "assistant": <greeting + first question + chips>, "manual": None}`;
+        "assistant": <greeting + first question + chips>, "state": "ACTIVA",
+        "summary": None, "manual": None}`;
       - without the assistant (RF-7, case 1):
         `{"mode": "manual", "resumed": False, "conversation": None,
-        "assistant": None, "manual": {"notice": <contingency notice>,
+        "assistant": None, "state": None, "summary": None,
+        "manual": {"notice": <contingency notice>,
         "capturedFields": <proponent prefill>}}` — no conversation is persisted.
     """
     existing = store.list_active(user_id)
@@ -102,6 +123,27 @@ def start_conversation(
             "resumed": True,
             "conversation": payload,
             "assistant": _assistant_turn(conversation, greet=False),
+            "state": "ACTIVA",
+            "summary": None,
+            "manual": None,
+        }
+
+    # v2.3: without an ACTIVA, resume the most recent RESUMEN with its editable
+    # summary — the captured fields are never lost (RF-2/RF-6, decision D22).
+    in_progress = [
+        payload for payload in store.list_in_progress(user_id)
+        if payload["state"] == "RESUMEN"
+    ]
+    if in_progress:
+        payload = max(in_progress, key=lambda item: item.get("createdAt", ""))
+        conversation = Conversation.from_payload(payload)
+        return {
+            "mode": "assistant",
+            "resumed": True,
+            "conversation": payload,
+            "assistant": None,
+            "state": "RESUMEN",
+            "summary": conversation.to_summary(),
             "manual": None,
         }
 
@@ -113,6 +155,8 @@ def start_conversation(
             "resumed": False,
             "conversation": None,
             "assistant": None,
+            "state": None,
+            "summary": None,
             "manual": {"notice": MANUAL_NOTICE, "capturedFields": dict(prefill)},
         }
 
@@ -128,5 +172,7 @@ def start_conversation(
         "resumed": False,
         "conversation": payload,
         "assistant": _assistant_turn(conversation, greet=True),
+        "state": "ACTIVA",
+        "summary": None,
         "manual": None,
     }

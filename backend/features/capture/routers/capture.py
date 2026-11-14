@@ -19,7 +19,10 @@ Endpoints (plan §3.1), all guarded to an active `proponente` session
                                       asistida (RF-6), 422 when the confirmed
                                       summary is incomplete (RNF-5, case 12)
   POST  /capture/activate-manual  -> 200 the pre-filled contingency payload
-                                      (RF-7 case 2, RNF-10)
+                                       (RF-7 case 2, RNF-10)
+  POST  /capture/abandon          -> 200 the conversation terminated as
+                                       TERMINADA without saving anything
+                                       (RF-2, case 7, v2.3); idempotent
 
 Plan §3.1/§3.2 list five capture endpoints; `POST /capture/title` is the
 surface the `title-suggestion` UI block (T-042, RF-4) calls: the three fixed
@@ -53,6 +56,7 @@ from app.deps import (
 from features.assistant.use_cases.check_availability import check_availability
 from features.auth.domain.session import Session
 from features.capture.infrastructure.conversation_store import ConversationStore
+from features.capture.use_cases.abandon_conversation import abandon_conversation
 from features.capture.use_cases.activate_manual import activate_manual
 from features.capture.use_cases.finish_capture import finish_capture
 from features.capture.use_cases.process_message import process_message
@@ -83,6 +87,13 @@ class FinishRequest(BaseModel):
 
 
 class ActivateManualRequest(BaseModel):
+    conversationId: str | None = None
+
+
+class AbandonRequest(BaseModel):
+    """Explicit abandonment (v2.3, case 7); `conversationId` is optional —
+    when omitted, the user's conversation in the cycle is resolved."""
+
     conversationId: str | None = None
 
 
@@ -194,5 +205,41 @@ def activate_manual_endpoint(payload: ActivateManualRequest, session: ProponentD
     no loss (RNF-10)."""
     conversation_id = _resolve_id(store, session, payload.conversationId)
     return activate_manual(
+        store, conversation_id=conversation_id, user_id=session.user_id
+    )
+
+
+def _resolve_in_progress(
+    store: ConversationStore, session: Session, conversation_id: str | None
+) -> str:
+    """The explicit conversation id, or the user's conversation in the capture
+    cycle (v2.3): the newest one still in ACTIVA/RESUMEN/CONTINGENCIA (404 if
+    there is none)."""
+    if conversation_id:
+        return conversation_id
+    in_cycle = [
+        payload
+        for payload in store.list_by_user(session.user_id)
+        if payload["state"] in ("ACTIVA", "RESUMEN", "CONTINGENCIA")
+    ]
+    newest = max(in_cycle, key=lambda payload: payload.get("createdAt", ""), default=None)
+    if newest is None:
+        raise DomainError(
+            "CONVERSATION_NOT_FOUND",
+            "No existe una conversación de captura en curso para este usuario.",
+            status_code=404,
+        )
+    return newest["id"]
+
+
+@capture_router.post("/abandon")
+def abandon_endpoint(payload: AbandonRequest, session: ProponentDep,
+                     store: ConversationStoreDep) -> dict:
+    """Explicit abandonment (RF-2, case 7, v2.3): ends the conversation in
+    ACTIVA/RESUMEN/CONTINGENCIA as TERMINADA without saving anything (no
+    draft); idempotent when it is already TERMINADA; 404 when missing, 403
+    when it is not the caller's."""
+    conversation_id = _resolve_in_progress(store, session, payload.conversationId)
+    return abandon_conversation(
         store, conversation_id=conversation_id, user_id=session.user_id
     )

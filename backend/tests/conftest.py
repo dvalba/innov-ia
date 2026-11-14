@@ -208,3 +208,24 @@ def debate_store():
     main_app.dependency_overrides[deps_module.get_debate_store] = lambda: store
     yield store
     main_app.dependency_overrides.pop(deps_module.get_debate_store, None)
+
+
+@pytest.fixture(autouse=True)
+def debate_days_store():
+    """Keeps the global debate-days store in memory for every test (T-089).
+
+    Opening a debate reads the global debate-days setting (RF-24, v2.4); without
+    this override the debate opener would fall back to the file-backed store and
+    read/write `backend/data/debate_days.json` during the API/e2e suites. One
+    `DebateDaysStore` is created per test and shared by every request of the
+    test (same reason as the `debate_store` fixture); tests that exercise the
+    debate-days endpoints can inspect and configure it through this fixture.
+    """
+    from app import deps as deps_module
+    from app.main import app as main_app
+    from features.debate.infrastructure.debate_days_store import DebateDaysStore
+
+    store = DebateDaysStore(InMemoryStore())
+    main_app.dependency_overrides[deps_module.get_debate_days_store] = lambda: store
+    yield store
+    main_app.dependency_overrides.pop(deps_module.get_debate_days_store, None)

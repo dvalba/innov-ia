@@ -1,15 +1,19 @@
-"""Debate router API tests (T-073, RF-24/RF-25, plan §3.1, cases 18-21).
+"""Debate router API tests (T-073, RF-24/RF-25, plan §3.1, cases 18-21; T-089).
 
 Covers the published-idea debate surface end to end with in-memory stores:
-the auto-open on publication (via the real approve flow), posting messages,
-the `@asistant` invocation matrix (valid link, no link, dangling link, blank
-request), the pending-retry when the assistant is down (case 20), the
-deadline closure (once, idempotent) with the AI summary and its pending retry
-(cases 18/21), and the admin-only deadline adjustment (audit + re-open).
+the auto-open on publication (via the real approve flow; the deadline is
+`publication + the global debate-days setting in force` — 30 by default,
+the administrator's value when configured, v2.4), posting messages, the
+`@asistant` invocation matrix (v2.5: an inline request with the optional
+context link, an inline request without any link, the token alone as a plain
+message, a blank request as a plain message, a dangling link 400), the
+pending-retry when the assistant is down (case 20), and the deadline closure
+(once, idempotent) with the AI summary and its pending retry (cases 18/21).
 
 The `OllamaMock` is a single instance per test so a test can take the
 assistant down and back mid-flow (the real client is overridden); the
-`debate_store` autouse fixture from `conftest.py` keeps the debates in memory.
+`debate_store` and `debate_days_store` autouse fixtures from `conftest.py`
+keep the debates and the global setting in memory.
 """
 
 from datetime import datetime, timedelta
@@ -32,7 +36,6 @@ SPECIALIST = "u_solo"
 ADMIN = "u_admin"
 
 PAST_DEADLINE = "2020-01-01T00:00:00"
-FUTURE_DEADLINE = "2099-01-01T00:00:00"
 
 
 def _fields(**overrides: object) -> dict:
@@ -121,10 +124,11 @@ def _post(env, idea_id: str, text: str, user_id: str = PROPOSER,
 
 
 def _force_deadline(debate_store, idea_id: str, deadline: str) -> None:
-    """Moves the deadline past (or ahead) of the clock, bypassing the audit:
-    the deadline rule is what is under test, not the admin adjustment. A
-    past deadline leaves the debate open (the closure happens at the next
-    read/write); a future one re-opens it, mirroring the admin rule."""
+    """Moves the deadline past (or ahead) of the clock, simulating the passage
+    of time directly on the stored debate: since v2.4 (T-089) the deadline is
+    fixed at opening and can no longer be adjusted through the API, so a test
+    that wants to reach the closure edits the record in place. A past deadline
+    leaves the debate open (the closure happens at the next read/write)."""
     debate = debate_store.get_debate(idea_id)
     assert debate is not None
     debate.deadline = deadline
@@ -144,8 +148,6 @@ def test_debate_endpoints_require_session_401(auth) -> None:
     assert anonymous.get(f"/catalog/{idea['id']}/debate").status_code == 401
     assert anonymous.post(f"/catalog/{idea['id']}/debate",
                           json={"text": "Hola"}).status_code == 401
-    assert anonymous.put(f"/admin/ideas/{idea['id']}/debate/deadline",
-                         json={"deadline": FUTURE_DEADLINE}).status_code == 401
 
 
 # -- reading the debate --------------------------------------------------------------
@@ -176,6 +178,23 @@ def test_approve_opens_the_debate_with_a_30_day_deadline(auth, debate_store) -> 
 
     # The debate is keyed by the idea id in the (in-memory) debate store.
     assert debate_store.has(idea_id)
+
+
+def test_approve_opens_the_debate_with_the_configured_days(auth, debate_store,
+                                                           debate_days_store) -> None:
+    # v2.4 (T-089): when the administrator has saved a value, the opening
+    # deadline is `publishedAt + debateDays` (fixed at opening).
+    debate_days_store.put({
+        "debateDays": 40, "updatedBy": ADMIN, "updatedAt": "2026-06-01T00:00:00",
+    })
+    approved = _publish(auth)
+    idea_id = approved["id"]
+
+    body = auth.client(OTHER).get(f"/catalog/{idea_id}/debate").json()
+    published_at = datetime.fromisoformat(approved["publishedAt"])
+    deadline = datetime.fromisoformat(body["deadline"])
+    assert deadline - published_at == timedelta(days=40)
+    assert body["open"] is True and body["closed"] is False
 
 
 def test_read_debate_lists_the_messages_in_order(auth, debate_store) -> None:
@@ -268,7 +287,7 @@ def test_asistant_with_a_valid_link_replies_in_the_thread(auth, mock) -> None:
     assert any("contexto de la empresa" in p.lower() for p in mock.prompts)
 
 
-def test_asistant_without_a_link_is_a_plain_message(auth, mock) -> None:
+def test_asistant_token_alone_is_a_plain_message(auth, mock) -> None:
     idea = _publish(auth)
     mock.respond = lambda prompt: "Respuesta del asistente"
     body = auth.client().post(
@@ -278,7 +297,7 @@ def test_asistant_without_a_link_is_a_plain_message(auth, mock) -> None:
     assert body.json()["assistantReply"] is None
     # No AI call at all: the publication runs none (the AI evaluation is
     # generated at the debate's closure, RF-26 — the deadline is 30 days out)
-    # and the debate assistant was never invoked (case 19).
+    # and the token alone is not an invocation (case 19, v2.5).
     assert mock.prompts == []
     messages = body.json()["debate"]["messages"]
     assert len(messages) == 1
@@ -287,7 +306,7 @@ def test_asistant_without_a_link_is_a_plain_message(auth, mock) -> None:
     assert messages[0]["linkedMessageId"] is None
 
 
-def test_asistant_with_a_blank_request_still_invokes(auth, mock) -> None:
+def test_asistant_with_a_blank_request_is_a_plain_message(auth, mock) -> None:
     idea = _publish(auth)
     mock.respond = lambda prompt: "Análisis general de la idea."
     base = _post(auth, idea["id"], "Base para el análisis general.")
@@ -295,9 +314,39 @@ def test_asistant_with_a_blank_request_still_invokes(auth, mock) -> None:
         f"/catalog/{idea['id']}/debate",
         json={"text": "@asistant   ", "linkedMessageId": base["message"]["id"]},
     )
+    # A blank request after the token is not an invocation (case 19, v2.5):
+    # the message posts as a plain user message (keeping its link) and the
+    # assistant is never invoked.
     assert body.status_code == 201
-    assert body.json()["assistantReply"] is not None
-    assert "Análisis general de la idea" in body.json()["assistantReply"]["text"]
+    assert body.json()["assistantReply"] is None
+    assert mock.prompts == []
+    message = body.json()["message"]
+    assert message["isAssistant"] is False
+    assert message["processed"] is True
+    assert message["linkedMessageId"] == base["message"]["id"]
+
+
+def test_asistant_inline_without_a_link_replies(auth, mock) -> None:
+    idea = _publish(auth)
+    mock.respond = lambda prompt: "Criterio general sobre la viabilidad."
+    body = auth.client(OTHER).post(
+        f"/catalog/{idea['id']}/debate",
+        json={"text": "@asistant ¿es viable financieramente?"},
+    )
+    # No link provided: the invocation still runs (v2.5, case 19) and the
+    # assistant answers the request about the idea and the debate in general.
+    assert body.status_code == 201
+    message = body.json()["message"]
+    assert message["isAssistant"] is False
+    assert message["linkedMessageId"] is None
+    reply = body.json()["assistantReply"]
+    assert reply is not None
+    assert reply["text"] == "Criterio general sobre la viabilidad."
+    assert reply["isAssistant"] is True
+    assert reply["linkedMessageId"] == message["id"]  # the reply answers the @asistant message
+    assert any(
+        "no se enlaza ningún mensaje concreto" in prompt for prompt in mock.prompts
+    )
 
 
 def test_asistant_with_a_dangling_link_is_a_400(auth) -> None:
@@ -348,18 +397,22 @@ def test_asistant_down_keeps_the_request_pending(auth, mock, debate_store) -> No
     assert solved["processed"] is True
 
 
-def test_asistant_pending_retries_on_the_next_read(auth, mock) -> None:
+def test_asistant_pending_without_a_link_retries_on_the_next_read(auth, mock) -> None:
     idea = _publish(auth)
-    base = _post(auth, idea["id"], "Este punto necesita criterio.")
     mock.available = False
     mock.respond = lambda prompt: "Respuesta reintentada."
 
+    # An inline invocation without a context link (v2.5): the retry, once the
+    # assistant is back, runs again without a link.
     attempt = auth.client().post(
         f"/catalog/{idea['id']}/debate",
-        json={"text": "@asistant", "linkedMessageId": base["message"]["id"]},
+        json={"text": "@asistant ¿qué riesgo hay?"},
     )
     asistant_msg = attempt.json()["message"]
-    assert attempt.json()["debate"]["pendingAssistant"] is not None
+    assert asistant_msg["linkedMessageId"] is None
+    pending = attempt.json()["debate"]["pendingAssistant"]
+    assert pending is not None
+    assert pending["request"] == "¿qué riesgo hay?"
 
     mock.available = True
     reading = auth.client(OTHER).get(f"/catalog/{idea['id']}/debate")
@@ -443,79 +496,4 @@ def test_a_debate_closed_without_messages_has_no_summary(auth, mock, debate_stor
     assert len(mock.prompts) == 1 and "comité de evaluación" in mock.prompts[0]
 
 
-# -- the admin deadline adjustment (RF-24, RNF-11, case 18) ---------------------------
 
-
-def test_admin_adjusts_the_deadline_with_an_audit_trail(auth, debate_store) -> None:
-    idea = _publish(auth)
-    idea_id = idea["id"]
-
-    extended = auth.client(ADMIN).put(f"/admin/ideas/{idea_id}/debate/deadline",
-                                      json={"deadline": FUTURE_DEADLINE})
-    assert extended.status_code == 200
-    body = extended.json()
-    assert body["deadline"] == FUTURE_DEADLINE
-    history = body["deadlineHistory"]
-    assert len(history) == 1
-    entry = history[0]
-    assert entry["by"] == ADMIN
-    assert entry["byName"] == "Admin"
-    assert entry["at"]
-    assert entry["after"] == FUTURE_DEADLINE
-    assert entry["before"] != entry["after"]
-
-    # A non-future date closes the (still open) debate straight away.
-    closed = auth.client(ADMIN).put(f"/admin/ideas/{idea_id}/debate/deadline",
-                                    json={"deadline": PAST_DEADLINE})
-    assert closed.status_code == 200
-    assert closed.json()["closed"] is True
-    assert len(closed.json()["deadlineHistory"]) == 2
-
-
-def test_admin_reopens_a_closed_debate_with_a_future_deadline(auth, debate_store) -> None:
-    idea = _publish(auth)
-    _force_deadline(debate_store, idea["id"], PAST_DEADLINE)
-    closed = auth.client().get(f"/catalog/{idea['id']}/debate").json()
-    assert closed["closed"] is True
-
-    reopened = auth.client(ADMIN).put(f"/admin/ideas/{idea['id']}/debate/deadline",
-                                      json={"deadline": FUTURE_DEADLINE})
-    assert reopened.status_code == 200
-    body = reopened.json()
-    assert body["closed"] is False
-    assert body["open"] is True
-    assert body["closedAt"] is None
-    assert len(body["deadlineHistory"]) == 1
-
-    # The re-opened debate admits messages again.
-    posted = _post(auth, idea["id"], "El debate vuelve a estar abierto.")
-    assert [m["text"] for m in posted["debate"]["messages"]] == [
-        "El debate vuelve a estar abierto."
-    ]
-
-
-def test_the_deadline_adjustment_requires_admin(auth) -> None:
-    idea = _publish(auth)
-    for user_id in (PROPOSER, OTHER, SPECIALIST):
-        response = auth.client(user_id).put(
-            f"/admin/ideas/{idea['id']}/debate/deadline",
-            json={"deadline": FUTURE_DEADLINE},
-        )
-        assert response.status_code == 403
-        assert response.json()["error"]["code"] == "ROLE_NOT_ALLOWED"
-
-
-def test_the_deadline_adjustment_404s_without_a_debate(auth) -> None:
-    idea = auth.client(PROPOSER).post("/ideas", json=_fields()).json()
-    response = auth.client(ADMIN).put(f"/admin/ideas/{idea['id']}/debate/deadline",
-                                      json={"deadline": FUTURE_DEADLINE})
-    assert response.status_code == 404
-    assert response.json()["error"]["code"] == "DEBATE_NOT_FOUND"
-
-
-def test_the_deadline_adjustment_rejects_an_invalid_date(auth) -> None:
-    idea = _publish(auth)
-    response = auth.client(ADMIN).put(f"/admin/ideas/{idea['id']}/debate/deadline",
-                                      json={"deadline": "no-es-una-fecha"})
-    assert response.status_code == 400
-    assert response.json()["error"]["code"] == "DEBATE_INVALID"

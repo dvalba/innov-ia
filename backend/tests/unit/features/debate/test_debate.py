@@ -1,11 +1,11 @@
-"""Debate feature tests (T-072, RF-24, RNF-11).
+"""Debate feature tests (T-072, RF-24, RNF-11; T-089, v2.4).
 
 Covers the published-idea debate domain: the deadline opening (publication +
-30 days), the definitive "close once" rule (case 18), the admin per-idea
-deadline adjustment with its audit trail (RNF-11), the `@asistant` token
-detection (RF-25), the message rule (only while open), and the JSON store
-(idempotent creation, normalized reads, persistence). Uses real `JsonStore`
-over `tmp_path`; use-case errors (404/409/403/400) are exercised directly.
+the global debate-days setting, v2.4), the definitive "close once" rule (case
+18), the `@asistant` token detection (RF-25), the message rule (only while
+open), and the JSON store (idempotent creation, normalized reads, persistence).
+Uses real `JsonStore` over `tmp_path`; use-case errors (404/409/400) are
+exercised directly.
 """
 
 import pathlib
@@ -15,19 +15,18 @@ import pytest
 from features.debate.domain.debate import (
     ASSISTANT_AUTHOR,
     ASSISTANT_TOKEN,
-    DEBATE_DAYS,
     Debate,
     DebateError,
     DebateMessage,
     assistant_request,
-    deadline_after_days,
 )
+from features.debate.domain.debate_rules import deadline_after_days
+from features.debate.infrastructure.debate_days_store import DebateDaysStore
 from features.debate.infrastructure.debate_store import DebateStore
-from features.debate.use_cases.adjust_deadline import adjust_deadline
 from features.debate.use_cases.close_debate import close_debate
 from features.debate.use_cases.open_debate import open_debate
 from features.debate.use_cases.post_message import post_message
-from shared.exceptions.handlers import DomainError, Forbidden
+from shared.exceptions.handlers import DomainError
 from shared.utils.persistence import JsonStore
 
 PUBLISHED_AT = "2026-06-01T00:00:00"
@@ -37,6 +36,11 @@ DEADLINE = deadline_after_days(PUBLISHED_AT)
 @pytest.fixture()
 def store(tmp_path: pathlib.Path) -> DebateStore:
     return DebateStore(JsonStore(tmp_path / "debate.json"))
+
+
+@pytest.fixture()
+def days_store(tmp_path: pathlib.Path) -> DebateDaysStore:
+    return DebateDaysStore(JsonStore(tmp_path / "debate_days.json"))
 
 
 def _message(idea_id: str = "idea_1", author_id: str = "u1", author_name: str = "Ana",
@@ -63,12 +67,6 @@ def _debate(idea_id: str = "idea_1", deadline: str = DEADLINE, **overrides: obje
 # -- domain: deadline and closure -------------------------------------------------
 
 
-def test_deadline_is_published_plus_thirty_days() -> None:
-    assert DEBATE_DAYS == 30
-    assert deadline_after_days(PUBLISHED_AT) == "2026-07-01T00:00:00"
-    assert deadline_after_days("2026-02-28T12:00:00") == "2026-03-30T12:00:00"  # leap year
-
-
 def test_debate_open_before_and_closed_at_the_deadline() -> None:
     debate = _debate()
     assert debate.is_open("2026-06-30T23:59:59")
@@ -87,39 +85,15 @@ def test_close_is_definitive_and_happens_once() -> None:
     assert not debate.is_open("2026-07-03T00:00:00")  # stays closed
 
 
-def test_adjust_deadline_to_the_future_reopens_the_debate(store: DebateStore) -> None:
-    store.create(_debate(closed=True, closedAt="2026-07-02T00:00:00"))
-    record = store.get_debate("idea_1")
-    assert record is not None
-    record.adjust_deadline("2026-08-15T00:00:00", now="2026-07-05T00:00:00",
-                           by_user="u_admin", by_name="Admin")
-    assert not record.closed and record.is_open("2026-08-01T00:00:00")
-
-
-def test_adjust_deadline_to_the_past_keeps_the_debate_closed() -> None:
-    debate = _debate()
-    debate.adjust_deadline("2026-07-01T00:00:00", now="2026-07-05T00:00:00", by_user="u_admin")
-    assert debate.closed and debate.closedAt == "2026-07-05T00:00:00"
-
-
-def test_adjust_deadline_audits_who_when_and_the_change() -> None:
-    debate = _debate()
-    debate.adjust_deadline("2026-07-10T00:00:00", now="2026-06-20T00:00:00",
-                           by_user="u_admin", by_name="Admin")
-    debate.adjust_deadline("2026-08-10T00:00:00", now="2026-07-12T00:00:00",
-                           by_user="u_admin2", by_name="Admin 2")
-    assert [entry["before"] for entry in debate.deadlineHistory] == [DEADLINE, "2026-07-10T00:00:00"]
-    assert [entry["after"] for entry in debate.deadlineHistory] == ["2026-07-10T00:00:00", "2026-08-10T00:00:00"]
-    assert [entry["by"] for entry in debate.deadlineHistory] == ["u_admin", "u_admin2"]
-    assert [entry["at"] for entry in debate.deadlineHistory] == ["2026-06-20T00:00:00", "2026-07-12T00:00:00"]
-
-
 # -- the @asistant token (RF-25, case 19) ------------------------------------------
 
 
-def test_assistant_request_detects_only_a_lead_token() -> None:
+def test_assistant_request_returns_the_inline_request() -> None:
+    # v2.5 (case 19): the token alone — or followed only by blanks — is a
+    # plain user message, not an invocation (the request must be non-blank).
     assert assistant_request("@asistant ¿lo ves factible?") == "¿lo ves factible?"
-    assert assistant_request("@asistant") == ""  # still an invocation (case 19)
+    assert assistant_request("@asistant") is None
+    assert assistant_request("@asistant   ") is None
     assert assistant_request("hola @asistant") is None
     assert assistant_request("  @asistant dime tu opinión") == "dime tu opinión"
     assert assistant_request("normal message") is None
@@ -151,6 +125,15 @@ def test_debate_payload_round_trips_messages(store: DebateStore) -> None:
     record = store.set(debate)
     assert store.get("idea_1") == record
     assert len(store.get_debate("idea_1").messages) == 1  # type: ignore[union-attr]
+
+
+def test_from_payload_tolerates_the_legacy_deadline_history_key() -> None:
+    # v2.4 (T-089): the per-idea adjustment was removed; a stored record that
+    # still carries `deadlineHistory` is read silently, dropping the key.
+    payload = _debate().to_payload()
+    payload["deadlineHistory"] = [{"by": "u_admin", "at": "2026-06-20T00:00:00"}]
+    debate = Debate.from_payload(payload)
+    assert debate.to_payload() == _debate().to_payload()
 
 
 # -- store ------------------------------------------------------------------------
@@ -194,16 +177,29 @@ def test_store_messages_of_the_debate_ordered(store: DebateStore) -> None:
 # -- use cases -------------------------------------------------------------------
 
 
-def test_open_debate_when_the_idea_is_published(store: DebateStore) -> None:
-    record = open_debate(store, idea_id="idea_1", published_at=PUBLISHED_AT, now=PUBLISHED_AT)
-    assert record["deadline"] == DEADLINE
+def test_open_debate_when_the_idea_is_published(store: DebateStore, days_store: DebateDaysStore) -> None:
+    record = open_debate(store, days_store, idea_id="idea_1",
+                         published_at=PUBLISHED_AT, now=PUBLISHED_AT)
+    assert record["deadline"] == DEADLINE  # the default 30 days
     assert record["open"] is True and record["closed"] is False
     assert record["messages"] == [] and record["summary"] is None
 
 
-def test_open_debate_without_a_publication_date_is_rejected(store: DebateStore) -> None:
+def test_open_debate_uses_the_configured_days_when_set(
+    store: DebateStore, days_store: DebateDaysStore,
+) -> None:
+    days_store.put({"debateDays": 40, "updatedBy": "u_admin", "updatedAt": "2026-06-01T00:00:00"})
+    record = open_debate(store, days_store, idea_id="idea_1",
+                         published_at=PUBLISHED_AT, now=PUBLISHED_AT)
+    assert record["deadline"] == deadline_after_days(PUBLISHED_AT, 40)
+    assert record["deadline"] == "2026-07-11T00:00:00"
+
+
+def test_open_debate_without_a_publication_date_is_rejected(
+    store: DebateStore, days_store: DebateDaysStore,
+) -> None:
     with pytest.raises(DomainError) as error:
-        open_debate(store, idea_id="idea_1", published_at="", now=PUBLISHED_AT)
+        open_debate(store, days_store, idea_id="idea_1", published_at="", now=PUBLISHED_AT)
     assert error.value.status_code == 400
     assert not store.has("idea_1")
 
@@ -262,36 +258,3 @@ def test_close_debate_before_the_deadline_is_a_noop(store: DebateStore) -> None:
     assert record["closed"] is False
     with pytest.raises(DomainError):
         close_debate(store, idea_id="nope", now="2026-07-05T00:00:00")  # 404
-
-
-def test_adjust_deadline_requires_the_admin_role(store: DebateStore) -> None:
-    store.create(_debate())
-    record = adjust_deadline(
-        store, idea_id="idea_1", new_deadline="2026-08-01T00:00:00",
-        now="2026-07-05T00:00:00", user_id="u_admin", user_name="Admin",
-        user_roles=("admin",),
-    )
-    assert record["deadline"] == "2026-08-01T00:00:00"
-    assert record["closed"] is False  # a future date re-opens it
-    assert record["deadlineHistory"][0]["by"] == "u_admin"
-
-    with pytest.raises(Forbidden):
-        adjust_deadline(
-            store, idea_id="idea_1", new_deadline="2026-08-01T00:00:00",
-            now="2026-07-05T00:00:00", user_id="u_pro", user_roles=("proponente",),
-        )
-    with pytest.raises(Forbidden):
-        adjust_deadline(
-            store, idea_id="idea_1", new_deadline="2026-08-01T00:00:00",
-            now="2026-07-05T00:00:00", user_id="u_spec", user_roles=("especialista",),
-        )
-    with pytest.raises(DomainError):
-        adjust_deadline(
-            store, idea_id="nope", new_deadline="2026-08-01T00:00:00",
-            now="2026-07-05T00:00:00", user_id="u_admin", user_roles=("admin",),
-        )
-    with pytest.raises(DebateError):
-        adjust_deadline(
-            store, idea_id="idea_1", new_deadline="no-fecha",
-            now="2026-07-05T00:00:00", user_id="u_admin", user_roles=("admin",),
-        )

@@ -10,7 +10,7 @@ import { errorMessage } from '../../../../shared/interceptors/error.interceptor'
 import { formatearDia, formatearFecha } from '../../../../shared/utils/format';
 import { origenLabel } from '../../../../shared/utils/idea-fields';
 import { resultadoLabel } from '../../../../shared/utils/decision';
-import { ROLE_ADMIN, ROLE_VALIDATOR } from '../../../../shared/types/models';
+import { ROLE_VALIDATOR } from '../../../../shared/types/models';
 
 /**
  * Public catalog detail (T-077, RF-23).
@@ -44,9 +44,6 @@ export class CatalogDetail {
 
   /** `GET /catalog/{id}/debate` — the public debate (RF-24). */
   readonly debate = this.catalogoService.debateDe(this.ideaId);
-
-  /** `true` for an administrator (may adjust the debate deadline, RF-24). */
-  protected readonly esAdmin = computed(() => this.session.tieneRol(ROLE_ADMIN));
 
   /** `true` for a specialist (may accept/replace the evaluation, RF-26). */
   protected readonly especialista = computed(() => this.session.tieneRol(ROLE_VALIDATOR));
