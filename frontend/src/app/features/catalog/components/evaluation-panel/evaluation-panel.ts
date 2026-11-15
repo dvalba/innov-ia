@@ -1,4 +1,5 @@
 import { Component, inject, input, output, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { CatalogService } from '../../services/catalog.service';
 import { errorMessage } from '../../../../shared/interceptors/error.interceptor';
 import { formatearFecha } from '../../../../shared/utils/format';
@@ -41,6 +42,7 @@ const SCORE_MAX = 10;
  */
 @Component({
   selector: 'app-evaluation-panel',
+  imports: [FormsModule],
   templateUrl: './evaluation-panel.html',
 })
 export class EvaluationPanel {

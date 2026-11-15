@@ -1,5 +1,6 @@
 import { SlicePipe } from '@angular/common';
-import { Component, inject, input, output, signal } from '@angular/core';
+import { Component, computed, inject, input, output, signal, viewChild } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { CatalogService } from '../../services/catalog.service';
 import { errorMessage } from '../../../../shared/interceptors/error.interceptor';
@@ -37,7 +38,7 @@ import { Debate, MensajeDebate } from '../../../../shared/types/models';
   */
 @Component({
   selector: 'app-debate-panel',
-  imports: [SlicePipe, RouterLink],
+  imports: [SlicePipe, FormsModule, RouterLink],
   templateUrl: './debate-panel.html',
 })
 export class DebatePanel {
@@ -54,6 +55,8 @@ export class DebatePanel {
   readonly actualizado = output<void>();
 
   private readonly catalogo = inject(CatalogService);
+  /** The composer textarea (focus/caret after accepting the suggestion). */
+  private readonly textarea = viewChild.required<HTMLTextAreaElement>('debateTextarea');
 
   /** The composer text. */
   protected readonly texto = signal('');
@@ -69,6 +72,25 @@ export class DebatePanel {
   /** `true` when the composer text starts with the `@asistant` token (RF-25). */
   protected esInvocacion(): boolean {
     return this.texto().trimStart().startsWith('@asistant');
+  }
+
+  /**
+   * `true` while the composer carries a bare `@` (optionally with a partial
+   * token prefix, e.g. `@asi`) with nothing after it: the `@asistant` chip is
+   * offered so a participant can start an invocation with one click (v2.5).
+   */
+  protected readonly mostrandoSugerencia = computed(() => {
+    const texto = this.texto();
+    return /^@\S*$/.test(texto.trim()) && texto.trim() !== '@asistant';
+  });
+
+  /** Accepts the `@asistant` suggestion: fills the token and keeps the caret. */
+  protected sugerirAsistente(): void {
+    this.texto.set('@asistant ');
+    const area = this.textarea();
+    area.focus();
+    const fin = area.value.length;
+    area.setSelectionRange(fin, fin);
   }
 
   protected publicar(): void {
@@ -100,8 +122,37 @@ export class DebatePanel {
     this.error.set('');
   }
 
+  /**
+   * Chat-style keyboard (v2.5): a plain Enter sends the message (the form
+   * submits), while Shift+Enter keeps a line break in the composer.
+   */
+  protected onEnterTeclado(event: Event): void {
+    if (event instanceof KeyboardEvent && event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      this.publicar();
+    }
+  }
+
   /** Whether the given message is the assistant (styling, RNF-4). */
   protected esAsistente(m: MensajeDebate): boolean {
     return m.isAssistant;
+  }
+
+  /** Up to two initials from a participant name (the bubble's avatar). */
+  protected inicialesDe(m: MensajeDebate): string {
+    const palabras = m.authorName.trim().split(/\s+/).filter(Boolean);
+    if (palabras.length === 0) return '?';
+    const iniciales = palabras
+      .slice(0, 2)
+      .map((palabra) => palabra[0]?.toUpperCase() ?? '')
+      .join('');
+    return iniciales || '?';
+  }
+
+  /** The bubble surface: the assistant's bubble carries the indigo accent. */
+  protected claseBurbuja(m: MensajeDebate): string {
+    return m.isAssistant
+      ? 'border-indigo-200 bg-indigo-50 dark:border-indigo-500/30 dark:bg-indigo-500/10'
+      : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800';
   }
 }

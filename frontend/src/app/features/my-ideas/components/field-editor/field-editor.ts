@@ -1,4 +1,5 @@
 import { Component, effect, input, output, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import {
   CampoClave,
   camposParaPut,
@@ -20,6 +21,7 @@ import { Idea, IdeaFields } from '../../../../shared/types/models';
  */
 @Component({
   selector: 'app-field-editor',
+  imports: [FormsModule],
   templateUrl: './field-editor.html',
 })
 export class FieldEditor {

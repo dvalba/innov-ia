@@ -28,29 +28,45 @@
       @if (debate.messages.length > 0) {
         <ul class="space-y-3">
           @for (mensaje of debate.messages; track mensaje.id) {
-            <li
-              [class]="esAsistente(mensaje) ? 'rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 dark:border-indigo-500/30 dark:bg-indigo-500/10' : 'rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900'"
-            >
-              <div class="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <span
-                  [class]="esAsistente(mensaje) ? 'text-sm font-semibold text-indigo-700 dark:text-indigo-300' : 'text-sm font-semibold text-slate-900 dark:text-slate-100'"
+            <li class="flex items-start gap-3">
+              <span
+                [class]="esAsistente(mensaje) ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-semibold text-white dark:bg-indigo-500' : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300'"
+              >
+                {{ inicialesDe(mensaje) }}
+              </span>
+              <div class="min-w-0 flex-1">
+                <div class="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span
+                    [class]="esAsistente(mensaje) ? 'text-sm font-semibold text-indigo-700 dark:text-indigo-300' : 'text-sm font-semibold text-slate-900 dark:text-slate-100'"
+                  >
+                    {{ mensaje.authorName }}
+                  </span>
+                  @if (esAsistente(mensaje)) {
+                    <span
+                      class="rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white dark:bg-indigo-500"
+                    >
+                      IA
+                    </span>
+                  }
+                  <span class="text-xs text-slate-500 dark:text-slate-400">
+                    {{ formatearFecha(mensaje.createdAt) }}
+                  </span>
+                </div>
+                <div
+                  [class]="'max-w-[85%] rounded-2xl rounded-tl-sm border px-4 py-2.5 ' + claseBurbuja(mensaje)"
                 >
-                  {{ mensaje.authorName }}
-                </span>
-                <span class="text-xs text-slate-500 dark:text-slate-400">
-                  {{ formatearFecha(mensaje.createdAt) }}
-                </span>
+                  <p class="whitespace-pre-line break-words text-sm text-slate-700 dark:text-slate-300">
+                    {{ mensaje.text }}
+                  </p>
+                </div>
                 @if (mensaje.linkedMessageId) {
                   <span
-                    class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                    class="mt-1 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400"
                   >
                     enlazado a mensaje
                   </span>
                 }
               </div>
-              <p class="whitespace-pre-line text-sm text-slate-700 dark:text-slate-300">
-                {{ mensaje.text }}
-              </p>
             </li>
           }
         </ul>
@@ -103,29 +119,45 @@
       @if (debate.messages.length > 0) {
         <ul class="space-y-3">
           @for (mensaje of debate.messages; track mensaje.id) {
-            <li
-              [class]="esAsistente(mensaje) ? 'rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 dark:border-indigo-500/30 dark:bg-indigo-500/10' : 'rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900'"
-            >
-              <div class="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <span
-                  [class]="esAsistente(mensaje) ? 'text-sm font-semibold text-indigo-700 dark:text-indigo-300' : 'text-sm font-semibold text-slate-900 dark:text-slate-100'"
+            <li class="flex items-start gap-3">
+              <span
+                [class]="esAsistente(mensaje) ? 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-xs font-semibold text-white dark:bg-indigo-500' : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-300'"
+              >
+                {{ inicialesDe(mensaje) }}
+              </span>
+              <div class="min-w-0 flex-1">
+                <div class="mb-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span
+                    [class]="esAsistente(mensaje) ? 'text-sm font-semibold text-indigo-700 dark:text-indigo-300' : 'text-sm font-semibold text-slate-900 dark:text-slate-100'"
+                  >
+                    {{ mensaje.authorName }}
+                  </span>
+                  @if (esAsistente(mensaje)) {
+                    <span
+                      class="rounded-full bg-indigo-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white dark:bg-indigo-500"
+                    >
+                      IA
+                    </span>
+                  }
+                  <span class="text-xs text-slate-500 dark:text-slate-400">
+                    {{ formatearFecha(mensaje.createdAt) }}
+                  </span>
+                </div>
+                <div
+                  [class]="'max-w-[85%] rounded-2xl rounded-tl-sm border px-4 py-2.5 ' + claseBurbuja(mensaje)"
                 >
-                  {{ mensaje.authorName }}
-                </span>
-                <span class="text-xs text-slate-500 dark:text-slate-400">
-                  {{ formatearFecha(mensaje.createdAt) }}
-                </span>
+                  <p class="whitespace-pre-line break-words text-sm text-slate-700 dark:text-slate-300">
+                    {{ mensaje.text }}
+                  </p>
+                </div>
                 @if (mensaje.linkedMessageId) {
                   <span
-                    class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                    class="mt-1 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-800 dark:text-slate-400"
                   >
                     enlazado a mensaje
                   </span>
                 }
               </div>
-              <p class="whitespace-pre-line text-sm text-slate-700 dark:text-slate-300">
-                {{ mensaje.text }}
-              </p>
             </li>
           }
         </ul>
@@ -138,13 +170,30 @@
           Participar en el debate
         </label>
         <textarea
+          #debateTextarea
           id="debate-texto"
           [value]="texto()"
           (input)="texto.set($any($event.target).value)"
+          (keydown.enter)="onEnterTeclado($event)"
           rows="3"
           placeholder="Escribe tu comentario. Inicia con @asistant y la petición para invocar al asistente; puedes enlazar un mensaje como contexto."
           class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-indigo-500/60 dark:focus:ring-indigo-500/30"
         ></textarea>
+        @if (mostrandoSugerencia()) {
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              (click)="sugerirAsistente()"
+              class="inline-flex items-center gap-1 rounded-full border border-indigo-300 bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-indigo-500/40 dark:bg-indigo-500/10 dark:text-indigo-300 dark:hover:bg-indigo-500/20"
+            >
+              @asistant
+              <span aria-hidden="true">✎</span>
+            </button>
+            <span class="text-xs text-slate-500 dark:text-slate-400">
+              Escribe una petición tras el token para invocar al asistente.
+            </span>
+          </div>
+        }
         @if (esInvocacion()) {
           <div class="rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-3 dark:border-indigo-500/30 dark:bg-indigo-500/10">
             <label

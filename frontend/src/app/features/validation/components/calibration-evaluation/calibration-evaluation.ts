@@ -1,4 +1,5 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ValidationService } from '../../services/validation.service';
 import { BandScale } from '../../../../shared/components/band-scale/band-scale';
 import { errorMessage } from '../../../../shared/interceptors/error.interceptor';
@@ -44,7 +45,7 @@ const SCORE_MAX = 10;
  */
 @Component({
   selector: 'app-calibration-evaluation',
-  imports: [BandScale],
+  imports: [BandScale, FormsModule],
   templateUrl: './calibration-evaluation.html',
 })
 export class CalibrationEvaluation {

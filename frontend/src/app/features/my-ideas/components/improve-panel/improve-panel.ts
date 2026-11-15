@@ -1,4 +1,5 @@
 import { Component, inject, input, output, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { MyIdeasService } from '../../services/my-ideas.service';
 import {
   CAMPOS_DEF,
@@ -27,6 +28,7 @@ export interface DecisionVersion {
  */
 @Component({
   selector: 'app-improve-panel',
+  imports: [FormsModule],
   templateUrl: './improve-panel.html',
 })
 export class ImprovePanel {
