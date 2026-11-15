@@ -1,12 +1,12 @@
 import { Injectable, computed, effect, signal } from '@angular/core';
 import { Usuario } from '../types/models';
 
-/** Persisted payload under a fixed localStorage key. */
+/** Persisted payload under a fixed per-tab (sessionStorage) key. */
 const STORAGE_KEY = 'innov-ia.sesion';
 
 function readPersisted(): { token: string; usuario: Usuario; mustChangePassword?: boolean } | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { token: string; usuario: Usuario; mustChangePassword?: boolean };
     if (!parsed?.token || !parsed?.usuario) return null;
@@ -20,9 +20,12 @@ function readPersisted(): { token: string; usuario: Usuario; mustChangePassword?
  * Shared session state (T-006, RF-1, RNF-7).
  *
  * Exposes reactive signals for the active session, the signed-in user and
- * their roles; persists the session in `localStorage` so it survives a page
- * reload. Uses `effect()` exclusively for the localStorage integration, as
- * required by the Angular guidelines; derived values use `computed()`.
+ * their roles; persists the session in `sessionStorage` so it survives a page
+ * reload **per tab**. The per-tab storage is what makes multiple accounts
+ * work side by side: each tab keeps its own session, so logging in with a
+ * different account in another tab does not replace this tab's session.
+ * Uses `effect()` exclusively for the sessionStorage integration, as required
+ * by the Angular guidelines; derived values use `computed()`.
  */
 @Injectable({ providedIn: 'root' })
 export class SessionService {
@@ -44,18 +47,18 @@ export class SessionService {
       this.mustChangePassword.set(persisted.mustChangePassword ?? false);
     }
 
-    // Persist on change (imperative integration with localStorage).
+    // Persist on change (imperative integration with sessionStorage).
     effect(() => {
       const tok = this.token();
       const user = this.usuario();
       const forced = this.mustChangePassword();
       if (tok && user) {
-        localStorage.setItem(
+        sessionStorage.setItem(
           STORAGE_KEY,
           JSON.stringify({ token: tok, usuario: user, mustChangePassword: forced }),
         );
       } else {
-        localStorage.removeItem(STORAGE_KEY);
+        sessionStorage.removeItem(STORAGE_KEY);
       }
     });
   }
