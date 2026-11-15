@@ -123,6 +123,7 @@ def _assistant_reply(
     company_context: dict | None,
     user_message: DebateMessage,
     linked: DebateMessage | None,
+    messages: list,
     request: str,
     now: str,
 ) -> DebateMessage:
@@ -130,13 +131,15 @@ def _assistant_reply(
     stored verbatim in the thread, linked back to the user's `@asistant`
     message, RF-25). `linked` is the optional context message (v2.5): the
     prompt answers the request about the idea and the debate in general when
-    it is `None`."""
+    it is `None`. `messages` is the full thread (the conversation so far,
+    first to last) so the answer takes into account everything already said."""
     prompt = debate_assistant_prompt(
         idea_fields=idea_fields or {},
         company_context=company_context,
         linked_message=(
             {"authorName": linked.authorName, "text": linked.text} if linked is not None else None
         ),
+        messages=[message.to_payload() for message in (messages or [])],
         request=request,
     )
     text = assistant.generate(prompt)
@@ -181,6 +184,7 @@ def try_assist(
             company_context=company_context,
             user_message=user_message,
             linked=linked_message,
+            messages=debate.messages,
             request=request,
             now=now,
         )

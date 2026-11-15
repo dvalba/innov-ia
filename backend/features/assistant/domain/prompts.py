@@ -215,11 +215,25 @@ def _idea_block(idea_fields: dict) -> str:
     )
 
 
+def _debate_thread_block(messages: list) -> str:
+    """Renders the debate thread (the conversation so far) for a prompt: one
+    line per message, first to last, with the author (the assistant's own
+    replies are marked so the model knows what is already on the table). An
+    empty thread renders the "(aún sin mensajes)" notice."""
+    lines = [
+        f"- {str(message.get('authorName') or '').strip() or 'participante'}: "
+        f"{str(message.get('text') or '').strip()}"
+        for message in (messages or [])
+    ]
+    return "\n".join(lines) or "(aún sin mensajes)"
+
+
 def debate_assistant_prompt(
     *,
     idea_fields: dict,
     company_context: dict | None = None,
     linked_message: dict | None = None,
+    messages: list | None = None,
     request: str = "",
 ) -> str:
     """The `@asistant` reply in the published-idea debate (RF-25, RF-22).
@@ -228,11 +242,13 @@ def debate_assistant_prompt(
     must reply in the same thread with the requested criterion/analysis,
     grounded on the company context, the idea and the debate. `request` is the
     non-blank text following the `@asistant` token (the token alone is a plain
-    message, case 19, and never reaches this prompt). `linked_message` is the
-    optional context message of the thread (v2.5): when it is `None` the
-    assistant answers the request about the idea and the debate in general.
-    The reply is a natural-language text (NOT JSON): it lands in the thread
-    verbatim.
+    message, case 19, and never reaches this prompt). The full thread
+    (`messages`, the conversation so far, first to last) is the primary
+    conversational context: the answer must take into account everything that
+    was already said in the debate. `linked_message` is the optional specific
+    message the participant pointed at (v2.5): when it is `None` the assistant
+    answers the request about the idea and the debate in general. The reply is
+    a natural-language text (NOT JSON): it lands in the thread verbatim.
     """
     if linked_message:
         author = str(linked_message.get("authorName") or "").strip() or "un participante"
@@ -248,11 +264,16 @@ def debate_assistant_prompt(
         "publicada. Un participante te ha invocado con «@asistant» pidiendo un criterio "
         "o análisis. Responde EN EL PROPIO HILO, en español, con un texto natural, claro "
         "y conciso (máximo 500 caracteres) que aporte el criterio o análisis solicitado. "
-        "Basarte en el contexto de la empresa, en la idea y en el mensaje enlazado. No "
-        "inventes datos que no estén en la idea ni en el debate; si no puedes fundamentar "
-        "una respuesta, dilo con honestidad.\n"
+        "Basarte en el contexto de la empresa, en la idea y, sobre todo, en la "
+        "conversación completa del debate: ten en cuenta todo lo dicho hasta ahora en "
+        "el hilo para que tu respuesta encaje en la conversación (no repitas lo ya "
+        "dicho ni lo contradigas sin motivo). No inventes datos que no estén en la "
+        "idea ni en el debate; si no puedes fundamentar una respuesta, dilo con "
+        "honestidad.\n"
         f"{_company_context_block(company_context)}\n\n"
         f"Idea publicada:\n{_idea_block(idea_fields)}\n\n"
+        f"Conversación del debate hasta ahora (del primero al último mensaje):\n"
+        f"{_debate_thread_block(messages or [])}\n\n"
         f"{linked_block}\n"
         f'Petición del participante: """{question}"""\n\n'
         "Responde únicamente con el texto de tu intervención, sin etiquetas, prefijos "
